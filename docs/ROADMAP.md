@@ -8,3 +8,5 @@
 - Release: benchmark, profile, validate on Windows and Linux, audit licenses and package.
 
 Each milestone requires tests and honest compatibility documentation. No date or completeness claim is implied.
+
+Before adopting an external engine, complete the outstanding provenance, determinism, effects, scoring and performance checks in [ENGINE_EVALUATION.md](ENGINE_EVALUATION.md).

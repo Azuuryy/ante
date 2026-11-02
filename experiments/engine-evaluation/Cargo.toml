@@ -1,0 +1,12 @@
+[package]
+name = "ante-engine-evaluation"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+balatro-rs = { path = "../../target/engine-evaluation/balatro-rs/core" }
+balatrust_core = { path = "../../target/engine-evaluation/Balatrust/balatrust_core" }
+serde_json = "1"

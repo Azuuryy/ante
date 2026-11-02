@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Isolated experimental adapter and preliminary comparison of two external simulation engines.
+
 ## [0.1.0] - 2026-11-02
 
 ### Added
