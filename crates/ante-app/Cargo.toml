@@ -1,0 +1,9 @@
+[package]
+name = "ante-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ante-core = { path = "../ante-core" }
+bevy = { version = "0.20.1", default-features = false, features = ["2d", "default_app", "default_platform"] }
