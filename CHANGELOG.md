@@ -4,7 +4,87 @@
 
 ### Added
 
+- Original sound effects from the user's installation (imported with Local Assets, never shipped) on hover, selection, card moves, score popups, the total, purchases and sales, buttons and dissolves, with master and game sound volumes in Options > AUDIO.
+- Jokers and consumables that leave the inventory burn away with the original dissolve shader, burn colours (gold when sold), particles and sounds.
+- The original debuff, booster and voucher shaders on debuffed cards, shop packs and vouchers.
+- The original room sway and shake: score popups jiggle the board, which also drifts slowly and leans toward the cursor.
+- Collection categories for Tarot, Planet, Spectral, enhanced cards, seals, editions, boosters and blinds, with discovered / total counts; consumables, packs and boss blinds met in a run are discovered, and Unlock All covers every category.
+- Tooltip side boxes for Diet Cola, Perkeo and the tags that give booster packs.
+- Dev build: every run starts with $1000; Tab opens a debug panel (money, hands, discards, round, ante, score, win blind, lose run) through `Command::Debug`, and F6 saves a window capture to `%LOCALAPPDATA%\Ante\captures`. Debug-modified runs are flagged in the view.
+- Joker tooltips show the original grey "(Currently …)" line with a colored value for 17 scaling jokers, from a structured `CurrentValue` computed by the simulation.
+- Dev tooltips show their technical fields in a separate light-grey panel under the tooltip, now covering hand cards, shop offers, pack choices and the deck view.
+- Score playback follows the original timing in game seconds (card moves, highlights, chips/mult/joker popups, total and discard), with speeds from x0.5 to x128 and the original automatic acceleration. Colored "+N" popups and a juice pulse mark each scoring step, above played cards and below held Jokers. The chosen speed is saved in the profile (version 3).
+- Played cards sit 3.6 room units above the hand and scoring cards rise by 0.2 card heights while scored; selected hand cards use the same lift.
+- Playing cards travel like the original `Moveable:move_xy`: drawn from the deck one by one, from the hand to the play area, and from the play area or the Discard button to the off-screen discard, 0.1 game seconds apart; cards drawn after a discard wait for the discarded ones to leave. The hand only spreads over the cards that have arrived, closing up during a discard and opening as each card is drawn; its fan follows the cards present. Drawn cards leave the deck face down and flip face up as they enter the hand. The hand fans out with the original tilt, drop and sway.
+- Card hover eases scale and lift like the original (`exp(-60·dt)`, `exp(-50·dt)`) with a short juice, and no longer jumps.
+- Joker and playing-card editions (foil, holographic, polychrome, negative) render with the original shaders from the user's installation, converted to WGSL at load by naga. The importer copies the allowlisted `.fs` files; a missing or failing shader keeps the plain sprite.
+- `docs/CAPTURES.md` defines the git-ignored reference capture library, naming and checklist.
+- Score popups follow the original status text order and colors: "Again!", chips, +Mult, XMult ("X1.5 Mult") and money ("$3"), each with its own delay. The `balatro-rs-trace-effects.patch` engine patch records the XMult factor and the money of every score step without changing scores.
+- Tooltips show the original side boxes left of the popup: what the effect mentions (Stone Card for Marble Joker, Steel Card for The Chariot, editions for Wheel of Fortune and edition tags, seals for Spectral cards), then the edition, seal and stickers. The rule texts are Ante's own wording.
+- Engine patches `balatro-rs-debug.patch` (debug score and ante entry points) and `balatro-rs-joker-current.patch` (read access to scaling counters).
+- Pointer-anchored drag and drop for hand cards, Jokers and consumables, contextual inventory actions, and color-coded card tooltips.
+
+- Manual left/right reordering for hand cards, Jokers and consumables, with Joker effect registration following inventory order.
+- Shared card hover motion, red debuff cross/tint, and seal badges on hand and deck cards.
+
 - Isolated experimental adapter and preliminary comparison of two external simulation engines.
+- Bevy prototype diagnostics, score playback, local card and Joker textures, and a persistent Joker collection.
+- Frame-time graph, optional 1,000 FPS benchmark mode, and layered local card faces.
+- Experimental Bevy MVP for a complete one-ante run with `balatro-rs` and reproducible win and loss scenarios.
+- Main-menu navigation with deck selection (Red and Blue playable), options and collection screens.
+- Balatro-style main menu recreated in tile units: logo over an ace of spades, Play / Options / Quit / Collection buttons with emboss rims, drop shadows and hover lift, plus an optional local swirl background.
+
+- Tile-based deck selection, collection hub with Joker pages and deck previews, and tabbed settings.
+- Guides to the original interface architecture and the experimental Bevy UI.
+
+- Experimental game board and shop with joker and consumable slots, engine-validated actions, local consumable textures and card tooltips.
+
+- Added the New Run and pause overlays, optional manual and clipboard seeds, and a three-blind board with skip actions and local chip art.
+
+- Added the eight-ante campaign, the victory overlay and bounded Endless continuation.
+- Added a shared run board, translucent inventories, held tags and the Full Deck / Remaining overlay.
+- Expanded the interface guides and added repository skills for legacy conversion and screenshot parity.
+
+- Added selected-hand base Chips and Mult, level, and tabbed Run Info.
+- Added all Joker, Voucher and Tag entries to Collection, voucher redemption, playing-card offers and booster choices.
+- Added engine-side tag effects, including queued free boosters and contextual shop offers.
+
+- Added a headless run contract, a reusable Bevy client and a deterministic native one-blind CLI slice.
+- Rebuilt the shop around adaptive offer zones, larger card art, structured hover details and a remaining-deck grid.
+- Enlarged booster pack choices to the shop card scale. Joker tooltips now follow Balatro's palette and layout: grey "Currently" lines for tracked scaling values, green chances, yellow money, orange card values and counts, exact rarity colors, a larger centred rarity badge, and no release-visible raw edition or state fields.
+- Added a version 2 profile with `all_unlocked`, a migration from version 1, and a dev-only "Unlock all" action in Settings > GAME.
+- Collection entries with an unlock condition now show a padlock overlay, a locked tooltip and the unlock text; decks have the same treatment.
+- Extended dev-only technical tooltip fields to consumables, vouchers, boosters, shop and pack cards, blinds, tags, deck cards and collection entries.
+- Added a short Chips/Mult pop during score playback and aligned card hover growth with the reference value (5%).
+- Documented the consommable eligibility matrix, the profile/unlock model, shader conversion blockers, and animation/audio gaps in `docs/ROADMAP_FEATURES.md`.
+- Added transactional local asset import and separate production and developer Windows builds.
+
+### Changed
+
+- Tooltips follow the original anchor rule: above the card, below near the top of the room, left of shop offers and deck views.
+- The Instant speed is replaced by the original speed range; Skip still ends playback.
+- Project policy: the original logic, formulas and constants are ported faithfully; the original files are never committed or shipped and are loaded from the user's installation.
+- The jokers engine patch counts the three optional jokers in `test_exactly_74_jokers_implemented`.
+
+### Fixed
+
+- Edition overlays on held and shop Jokers were drawn under the sprite and could not be seen.
+- Converted shaders now work in the gamma space of the original, so editions are no longer washed out.
+- The Options tabs fit on one row; AUDIO no longer covers the speed setting.
+- Unlock All stays available after a first unlock.
+- Mult is fractional like the original (`balatro-rs-fractional-mult.patch`): XMult effects no longer truncate (X1.5 on 7 Mult gives 10.5), the hand score is floor(chips x Mult), the Mult tile follows the original number format, and The Flint halves base values to the nearest whole number with Mult at least 1.
+- Green Joker, Castle, Obelisk, Yorick and Joker Stencil follow the original rules through the `balatro-rs-joker-rules.patch` engine patch: Green Joker and Castle keep their value for the whole run, Obelisk grows per card and resets only when the hand is strictly the most played, Yorick counts discards since it was acquired, and Joker Stencil counts itself as an empty slot.
+- Selecting a card no longer shakes the whole hand: rebuilt cards keep their position, velocity, fan tilt and drop, and the fan eases like the original.
+- Consumable "Use" availability is now covered by a regression test confirming that non-target cards remain usable outside a blind while hand-touching cards wait for a valid target selection.
+- Made hand selection a hold-and-sweep gesture that toggles each newly hovered card immediately; starting the hold on a card remains reserved for dragging it.
+- Kept the run counters beside the action buttons across window scales.
+
+- UI text is rasterized at the fitted window scale and uses nearest-neighbor glyph sampling.
+
+- Prevented an overflow when rendering the first Joker or consumable. Simulation failures during run startup and card selection now reach the in-app error screen.
+- Moved hand reordering controls below the card face and placed seals near the upper-left rank using the optional local atlas.
+
+- The interface now scales continuously with the window size (centred, letterboxed) instead of staying at fixed pixel sizes; the separate frame profiler window keeps its own unscaled layout.
 
 ## [0.1.0] - 2026-11-02
 

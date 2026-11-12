@@ -1,0 +1,360 @@
+diff --git a/core/src/joker.rs b/core/src/joker.rs
+index 551cbcb..7d1604c 100644
+--- a/core/src/joker.rs
++++ b/core/src/joker.rs
+@@ -205,11 +205,18 @@ impl JokerEffects for Jokers {
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+             }
+             Self::JokerStencil(_) => {
++                // X(empty slots + Stencils held), only while a slot is empty.
+                 fn apply(g: &mut Game, _hand: MadeHand) {
+                     let empty = g.joker_slots().saturating_sub(g.jokers.len());
+                     if empty > 0 {
+-                        g.mult *= empty;
+-                        g.note_xmult(empty as f64);
++                        let stencils = g
++                            .jokers
++                            .iter()
++                            .filter(|j| matches!(j, Jokers::JokerStencil(_)))
++                            .count();
++                        let factor = empty + stencils;
++                        g.mult *= factor;
++                        g.note_xmult(factor as f64);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -259,24 +266,33 @@ impl JokerEffects for Jokers {
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+             }
+             Self::Obelisk(_) => {
+-                fn apply(g: &mut Game, hand: MadeHand) {
+-                    // RoyalFlush shares Planetarium storage with
+-                    // StraightFlush, normalize this
+-                    let played_rank = if hand.rank == HandRank::RoyalFlush {
++                // Per-card X0.2 per hand that isn't strictly the most played;
++                // back to X1 when it is. Counts include the current hand.
++                let id = self.instance_id();
++                let apply = move |g: &mut Game, hand: MadeHand| {
++                    let rank = if hand.rank == HandRank::RoyalFlush {
+                         HandRank::StraightFlush
+                     } else {
+                         hand.rank
+                     };
+-                    if played_rank == g.most_played_hand_rank() {
+-                        g.consecutive_hands_not_most_played_type = 0;
++                    let plays = g.planetarium.level(rank).plays;
++                    let most_played = HandRank::iter()
++                        .filter(|r| *r != rank && *r != HandRank::RoyalFlush)
++                        .all(|r| g.planetarium.level(r).plays < plays);
++                    let Some(state) = g.joker_state_mut(id) else {
++                        return;
++                    };
++                    if most_played {
++                        state.counter = 0.0;
+                     } else {
+-                        g.consecutive_hands_not_most_played_type += 1;
+-                        g.mult +=
+-                            (g.mult as f64 * 0.2 * g.consecutive_hands_not_most_played_type as f64)
+-                                as usize;
+-                        g.note_xmult(1.0 + 0.2 * g.consecutive_hands_not_most_played_type as f64);
++                        state.counter += 0.2;
+                     }
+-                }
++                    let extra = state.counter as f64;
++                    if extra > 0.0 {
++                        g.mult += (g.mult as f64 * extra) as usize;
++                        g.note_xmult(1.0 + extra);
++                    }
++                };
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+             }
+             Self::WeeJoker(wee) => {
+@@ -734,15 +750,25 @@ impl JokerEffects for Jokers {
+                 vec![Effects::OnDiscard(Arc::new(Mutex::new(apply)))]
+             }
+             Self::GreenJoker(_) => {
+-                // config.plays/config.discards - remaining == used this
+-                // round, both already reset to config values in clear_blind.
+-                fn apply(g: &mut Game, _hand: MadeHand) {
+-                    let hands_played = g.config.plays - g.plays;
+-                    let discards_used = g.config.discards - g.discards_remaining;
+-                    let delta = hands_played as i64 - discards_used as i64;
+-                    g.mult = (g.mult as i64 + delta).max(0) as usize;
+-                }
+-                vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
++                // +1 Mult per hand played, -1 per discard, kept for the whole run.
++                let id = self.instance_id();
++                let played = move |g: &mut Game, _hand: MadeHand| {
++                    let Some(state) = g.joker_state_mut(id) else {
++                        return;
++                    };
++                    state.counter += 1.0;
++                    let mult = state.counter as usize;
++                    g.mult += mult;
++                };
++                let discarded = move |g: &mut Game, _hand: MadeHand| {
++                    if let Some(state) = g.joker_state_mut(id) {
++                        state.counter = (state.counter - 1.0).max(0.0);
++                    }
++                };
++                vec![
++                    Effects::OnScore(Arc::new(Mutex::new(played))),
++                    Effects::OnDiscard(Arc::new(Mutex::new(discarded))),
++                ]
+             }
+             Self::HitTheRoad(_) => {
+                 fn apply(g: &mut Game, _hand: MadeHand) {
+@@ -757,32 +783,58 @@ impl JokerEffects for Jokers {
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+             }
+             Self::Yorick(_) => {
+-                fn apply(g: &mut Game, _hand: MadeHand) {
+-                    let levels = g.total_cards_discarded / 23;
+-                    g.mult += (g.mult as f64 * levels as f64) as usize;
+-                    g.note_xmult(1.0 + levels as f64);
+-                }
+-                vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
++                // X1 more every 23 cards discarded since this Yorick was acquired.
++                let id = self.instance_id();
++                let played = move |g: &mut Game, _hand: MadeHand| {
++                    let Some(state) = g.joker_state_mut(id) else {
++                        return;
++                    };
++                    let levels = (state.counter as usize) / 23;
++                    if levels > 0 {
++                        g.mult += (g.mult as f64 * levels as f64) as usize;
++                        g.note_xmult(1.0 + levels as f64);
++                    }
++                };
++                let discarded = move |g: &mut Game, hand: MadeHand| {
++                    if let Some(state) = g.joker_state_mut(id) {
++                        state.counter += hand.all.len() as f32;
++                    }
++                };
++                vec![
++                    Effects::OnScore(Arc::new(Mutex::new(played))),
++                    Effects::OnDiscard(Arc::new(Mutex::new(discarded))),
++                ]
+             }
+             Self::Castle(castle) => {
+-                // Selector is picked in Game::clear_blind (round-scoped, "changes
+-                // every round"), *after* effects() is typically last rebuilt
+-                // (buy/sell/pack-add), must be looked up live.
++                // +3 Chips per discarded card of the round's suit, kept for the
++                // whole run. The suit is picked in Game::clear_blind, so it is
++                // looked up live.
+                 let id = castle.instance_id;
+-                let apply = move |g: &mut Game, _hand: MadeHand| {
++                let played = move |g: &mut Game, _hand: MadeHand| {
++                    if let Some(state) = g.joker_state_mut(id) {
++                        let chips = state.counter as usize;
++                        g.chips += chips;
++                    }
++                };
++                let discarded = move |g: &mut Game, hand: MadeHand| {
+                     let Some(SelectorValue::Suit(suit)) =
+                         g.joker_state_mut(id).and_then(|s| s.selector)
+                     else {
+                         return;
+                     };
+                     let count = g
+-                        .non_debuffed(g.discarded_this_round.iter())
++                        .non_debuffed(hand.all.iter())
+                         .iter()
+                         .filter(|c| c.matches_suit(suit))
+                         .count();
+-                    g.chips += count * 3;
++                    if let Some(state) = g.joker_state_mut(id) {
++                        state.counter += 3.0 * count as f32;
++                    }
+                 };
+-                vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
++                vec![
++                    Effects::OnScore(Arc::new(Mutex::new(played))),
++                    Effects::OnDiscard(Arc::new(Mutex::new(discarded))),
++                ]
+             }
+             Self::MailInRebate(mail) => {
+                 // Immediate payout on the triggering discard itself, not an
+@@ -1789,15 +1841,15 @@ mod tests {
+         };
+         assert_eq!(g.calc_score(best.clone()), 16);
+ 
+-        // Stencil alone in 5 slots = 4 empty -> X4
+-        // (5 + 11) * (1 * 4) = 64
++        // Stencil alone in 5 slots: 4 empty + 1 Stencil -> X5
++        // (5 + 11) * (1 * 5) = 80
+         let j = Jokers::JokerStencil(JokerStencil::default());
+         g.money += 1000;
+         g.stage = Stage::Shop();
+         g.shop.jokers.push(j.clone());
+         g.buy_joker(j).unwrap();
+         g.stage = Stage::Blind(Blind::Small);
+-        assert_eq!(g.calc_score(best.clone()), 64);
++        assert_eq!(g.calc_score(best.clone()), 80);
+ 
+         // Add another joker -> 3 empty -> X3
+         let j2 = Jokers::Banner(Banner::default());
+@@ -1806,8 +1858,8 @@ mod tests {
+         g.shop.jokers.push(j2.clone());
+         g.buy_joker(j2).unwrap();
+         g.stage = Stage::Blind(Blind::Small);
+-        // (5 + 11 + 4*30) * (1 * 3) = 136 * 3 = 408
+-        assert_eq!(g.calc_score(best.clone()), 408);
++        // 3 empty + 1 Stencil -> X4: (5 + 11 + 4*30) * (1 * 4) = 544
++        assert_eq!(g.calc_score(best.clone()), 544);
+     }
+ 
+     #[test]
+@@ -3466,6 +3518,31 @@ mod tests {
+         assert_eq!(g.calc_score(high_card_hand), 16);
+     }
+ 
++    #[test]
++    fn test_obelisk_grows_when_another_hand_is_tied_for_most_played() {
++        let high_card_hand = SelectHand::new(vec![Card::new(Value::Ace, Suit::Heart)])
++            .best_hand()
++            .unwrap();
++        let four_aces = Card::new(Value::Ace, Suit::Club);
++        let four_of_kind_hand = SelectHand::new(vec![four_aces, four_aces, four_aces, four_aces])
++            .best_hand()
++            .unwrap();
++        let mut g = Game {
++            stage: Stage::Blind(Blind::Small),
++            ..Default::default()
++        };
++        g.calc_score(high_card_hand);
++        g.money += 1000;
++        g.stage = Stage::Shop();
++        let j = Jokers::Obelisk(Obelisk::default());
++        g.shop.jokers.push(j.clone());
++        g.buy_joker(j).unwrap();
++        g.stage = Stage::Blind(Blind::Small);
++        // FourOfAKind and HighCard both have 1 play: not strictly the most played
++        // (60 + 44) * (7 + (7 * 0.2) as usize) = 104 * 8 = 832
++        assert_eq!(g.calc_score(four_of_kind_hand), 832);
++    }
++
+     #[test]
+     fn test_wee_joker_accumulates_chips_per_scored_two() {
+         let two = Card::new(Value::Two, Suit::Heart);
+@@ -3575,22 +3652,33 @@ mod tests {
+         g.shop.jokers.push(j.clone());
+         g.buy_joker(j).unwrap();
+         g.stage = Stage::Blind(Blind::Small);
++        let discard = |g: &mut Game| {
++            let card = Card::new(Value::Two, Suit::Club);
++            g.available.extend(vec![card]);
++            g.select_card(card).unwrap();
++            g.discard_selected().unwrap();
++        };
+ 
+-        // chips = level(5) + card(11) = 16
+-        // no hands played, no discards: mult = level(1) + 0 = 1; score = 16
+-        assert_eq!(g.calc_score(ace_hand.clone()), 16);
+-
+-        g.plays -= 1; // 1 hand played
+-                      // mult = 1 + (1 - 0) = 2; score = 16 * 2 = 32
++        // chips = level(5) + card(11) = 16; each played hand adds +1 Mult first
+         assert_eq!(g.calc_score(ace_hand.clone()), 32);
++        assert_eq!(g.calc_score(ace_hand.clone()), 48);
+ 
+-        g.discards_remaining -= 1; // 1 discard used
+-                         // mult = 1 + (1 - 1) = 1; score = 16
+-        assert_eq!(g.calc_score(ace_hand.clone()), 16);
++        // a discard removes 1: +1 then +1 from this hand -> mult 1 + 2
++        discard(&mut g);
++        assert_eq!(g.calc_score(ace_hand.clone()), 48);
++
++        // never below 0: three discards from 2 leave 0, the hand adds 1
++        g.discards_remaining = g.config.discards;
++        discard(&mut g);
++        discard(&mut g);
++        discard(&mut g);
++        assert_eq!(g.calc_score(ace_hand.clone()), 32);
+ 
+-        g.discards_remaining -= 1; // 2 discards used
+-                         // mult = 1 + (1 - 2) = 0 (floored, not negative); score = 0
+-        assert_eq!(g.calc_score(ace_hand), 0);
++        // kept across rounds
++        g.plays = g.config.plays;
++        g.discards_remaining = g.config.discards;
++        g.discarded_this_round.clear();
++        assert_eq!(g.calc_score(ace_hand), 48);
+     }
+ 
+     #[test]
+@@ -3649,6 +3737,8 @@ mod tests {
+             stage: Stage::Blind(Blind::Small),
+             ..Default::default()
+         };
++        // Cards discarded before Yorick is acquired don't count.
++        g.total_cards_discarded = 100;
+         g.money += 1000;
+         g.stage = Stage::Shop();
+         let mut j = Jokers::Yorick(Yorick::default());
+@@ -3656,20 +3746,58 @@ mod tests {
+         g.shop.jokers.push(j.clone());
+         g.buy_joker(j).unwrap();
+         g.stage = Stage::Blind(Blind::Small);
++        assert_eq!(g.calc_score(ace_hand.clone()), 16);
+ 
+-        g.total_cards_discarded = 22;
+-        // 22 / 23 = 0 levels; score = 16
++        let cards: Vec<_> = (0..3).map(|_| Card::new(Value::Two, Suit::Club)).collect();
++        g.available.extend(cards.clone());
++        for card in cards {
++            g.select_card(card).unwrap();
++        }
++        g.discard_selected().unwrap();
++        assert_eq!(g.joker_state_mut(1).unwrap().counter, 3.0);
++
++        g.joker_state_mut(1).unwrap().counter = 22.0;
+         assert_eq!(g.calc_score(ace_hand.clone()), 16);
+ 
+-        g.total_cards_discarded = 23;
+-        // 1 level: mult = 1 + (1 * 1) = 2; score = 16 * 2 = 32
++        // every 23 cards discarded since acquisition: X1 more
++        g.joker_state_mut(1).unwrap().counter = 23.0;
+         assert_eq!(g.calc_score(ace_hand.clone()), 32);
+ 
+-        g.total_cards_discarded = 46;
+-        // 2 levels: mult = 1 + (1 * 2) = 3; score = 16 * 3 = 48
++        g.joker_state_mut(1).unwrap().counter = 46.0;
+         assert_eq!(g.calc_score(ace_hand), 48);
+     }
+ 
++    #[test]
++    fn test_castle_keeps_its_chips_across_rounds() {
++        let ace_hand = SelectHand::new(vec![Card::new(Value::Ace, Suit::Club)])
++            .best_hand()
++            .unwrap();
++
++        let mut g = Game {
++            stage: Stage::Blind(Blind::Small),
++            ..Default::default()
++        };
++        g.money += 1000;
++        g.stage = Stage::Shop();
++        let mut j = Jokers::Castle(Castle::default());
++        j.set_instance_id(1);
++        g.shop.jokers.push(j.clone());
++        g.buy_joker(j).unwrap();
++        g.stage = Stage::Blind(Blind::Small);
++        g.joker_state_mut(1).unwrap().selector = Some(SelectorValue::Suit(Suit::Heart));
++
++        let heart = Card::new(Value::Two, Suit::Heart);
++        g.available.extend(vec![heart]);
++        g.select_card(heart).unwrap();
++        g.discard_selected().unwrap();
++
++        // next round: the suit changes, the chips stay
++        g.discarded_this_round.clear();
++        g.joker_state_mut(1).unwrap().selector = Some(SelectorValue::Suit(Suit::Spade));
++        // chips = level(5) + card(11) + 3 = 19
++        assert_eq!(g.calc_score(ace_hand), 19);
++    }
++
+     #[test]
+     fn test_castle_chips_from_discarded_suit_this_round() {
+         let ace_hand = SelectHand::new(vec![Card::new(Value::Ace, Suit::Club)])

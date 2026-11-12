@@ -6,7 +6,27 @@ publish = false
 
 [workspace]
 
+[features]
+extra-jokers = ["balatro-rs/ante-extra-jokers"]
+mvp = ["dep:ante-app"]
+dev-tools = ["mvp", "ante-app/dev-tools"]
+
+[[bin]]
+name = "ante-mvp"
+path = "src/main.rs"
+required-features = ["mvp"]
+
 [dependencies]
+ante-core = { path = "../../crates/ante-core" }
+ante-app = { path = "../../crates/ante-app", optional = true }
 balatro-rs = { path = "../../target/engine-evaluation/balatro-rs/core" }
-balatrust_core = { path = "../../target/engine-evaluation/Balatrust/balatrust_core" }
+balatro-types = { path = "../../target/engine-evaluation/balatro-rs/balatro-types" }
 serde_json = "1"
+strum = "0.26"
+
+
+[profile.release]
+overflow-checks = true
+
+[dev-dependencies]
+balatrust_core = { path = "../../target/engine-evaluation/Balatrust/balatrust_core" }

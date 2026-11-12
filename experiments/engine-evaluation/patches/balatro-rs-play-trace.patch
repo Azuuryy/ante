@@ -1,0 +1,125 @@
+diff --git a/core/src/game.rs b/core/src/game.rs
+index 92902ec..4ed1523 100644
+--- a/core/src/game.rs
++++ b/core/src/game.rs
+@@ -133,6 +133,13 @@ pub struct Game {
+     pub open_pack: Option<OpenPackState>,
+ }
+ 
++#[derive(Default)]
++struct TraceRecorder {
++    trace: ScoreTrace,
++    profile: bool,
++    elapsed: std::time::Duration,
++}
++
+ impl Game {
+     pub fn new(config: Config) -> Self {
+         let ante_start = Ante::try_from(config.ante_start).unwrap_or(Ante::One);
+@@ -422,7 +429,12 @@ impl Game {
+         self.available.move_card(direction, card)
+     }
+ 
++    #[cfg(test)]
+     pub(crate) fn play_selected(&mut self) -> Result<(), GameError> {
++        self.play_selected_inner(None)
++    }
++
++    fn play_selected_inner(&mut self, trace: Option<&mut TraceRecorder>) -> Result<(), GameError> {
+         if self.plays == 0 {
+             return Err(GameError::NoRemainingPlays);
+         }
+@@ -430,7 +442,7 @@ impl Game {
+         let selected = SelectHand::new(self.available.selected());
+         let best = selected.best_hand()?;
+         let scored = best.clone();
+-        let score = self.calc_score(best);
++        let score = self.calc_score_inner(best, trace);
+         let clear_blind = self.handle_score(score)?;
+         // must run before the discard/redraw below: self.available still reflects
+         // the cards actually held when the round ended, not their replacements.
+@@ -588,14 +600,14 @@ impl Game {
+     /// Same scoring pass as `calc_score`, plus an ordered `ScoreTrace` of
+     /// every chips/mult contribution along the way.
+     pub fn calc_score_traced(&mut self, hand: MadeHand) -> (usize, ScoreTrace) {
+-        let mut trace = ScoreTrace::default();
+-        let score = self.calc_score_inner(hand, Some(&mut trace));
+-        (score, trace)
++        let mut recorder = TraceRecorder::default();
++        let score = self.calc_score_inner(hand, Some(&mut recorder));
++        (score, recorder.trace)
+     }
+ 
+     fn record_step(
+         &self,
+-        trace: &mut Option<&mut ScoreTrace>,
++        trace: &mut Option<&mut TraceRecorder>,
+         source: ScoreSource,
+         chips_before: usize,
+         mult_before: usize,
+@@ -609,7 +621,8 @@ impl Game {
+         if chips_before == self.chips && mult_before == self.mult {
+             return;
+         }
+-        t.0.push(ScoreStep {
++        let start = t.profile.then(std::time::Instant::now);
++        t.trace.0.push(ScoreStep {
+             source,
+             chips_before,
+             chips_after: self.chips,
+@@ -617,6 +630,9 @@ impl Game {
+             mult_after: self.mult,
+             retrigger,
+         });
++        if let Some(start) = start {
++            t.elapsed += start.elapsed();
++        }
+     }
+ 
+     // Extension point for retrigger (jokers + red seal)
+@@ -644,7 +660,7 @@ impl Game {
+     fn calc_score_inner(
+         &mut self,
+         mut hand: MadeHand,
+-        mut trace: Option<&mut ScoreTrace>,
++        mut trace: Option<&mut TraceRecorder>,
+     ) -> usize {
+         self.boss_triggered_this_hand = false;
+ 
+@@ -1520,6 +1536,27 @@ impl Game {
+     }
+ 
+     pub fn handle_action(&mut self, action: Action) -> Result<(), GameError> {
++        self.handle_action_inner(action, None)
++    }
++
++    pub fn handle_action_traced(
++        &mut self,
++        action: Action,
++        profile_trace: bool,
++    ) -> Result<(ScoreTrace, std::time::Duration), GameError> {
++        let mut recorder = TraceRecorder {
++            profile: profile_trace,
++            ..TraceRecorder::default()
++        };
++        self.handle_action_inner(action, Some(&mut recorder))?;
++        Ok((recorder.trace, recorder.elapsed))
++    }
++
++    fn handle_action_inner(
++        &mut self,
++        action: Action,
++        trace: Option<&mut TraceRecorder>,
++    ) -> Result<(), GameError> {
+         self.action_history.push(action.clone());
+         match action {
+             Action::SelectCard(card) => {
+@@ -1549,7 +1586,7 @@ impl Game {
+                 }
+             }
+             Action::Play() => match self.stage.is_blind() {
+-                true => self.play_selected(),
++                true => self.play_selected_inner(trace),
+                 false => Err(GameError::InvalidAction),
+             },
+             Action::Discard() => match self.stage.is_blind() {

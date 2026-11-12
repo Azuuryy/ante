@@ -30,7 +30,7 @@ impl ExperimentalEngine {
         serde_json::to_string(&self.0)
     }
     pub fn load(snapshot: &str) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(snapshot).map(Self)
+        Game::from_json(snapshot).map(Self)
     }
 }
 
@@ -59,6 +59,22 @@ mod tests {
         assert_eq!(
             a.state().available.not_selected(),
             b.state().available.not_selected()
+        );
+    }
+    #[test]
+    fn load_restores_active_joker_effects() {
+        use balatro_rs::joker::Jokers;
+        let mut game = start(42);
+        game.0.jokers.push(Jokers::HangingChad(Default::default()));
+        let snapshot = game.0.clone();
+        game.0
+            .effect_registry
+            .register_jokers(snapshot.jokers.clone(), &snapshot);
+        assert!(!game.0.effect_registry.trigger_count_played.is_empty());
+        let loaded = ExperimentalEngine::load(&game.save().unwrap()).unwrap();
+        assert_eq!(
+            loaded.0.effect_registry.trigger_count_played.len(),
+            game.0.effect_registry.trigger_count_played.len()
         );
     }
     #[test]
@@ -106,6 +122,75 @@ mod comparison {
         assert!(detect_hand(&[]).scoring_indices.is_empty());
     }
     #[test]
+    fn all_hand_categories_match_expected_results() {
+        use Rank::*;
+        let ranks = [
+            Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Jack, Queen, King, Ace,
+        ];
+        let values = [
+            Value::Two,
+            Value::Three,
+            Value::Four,
+            Value::Five,
+            Value::Six,
+            Value::Seven,
+            Value::Eight,
+            Value::Nine,
+            Value::Ten,
+            Value::Jack,
+            Value::Queen,
+            Value::King,
+            Value::Ace,
+        ];
+        let cases = [
+            ([0, 2, 4, 6, 8], false, "HighCard", "HighCard"),
+            ([0, 0, 4, 6, 8], false, "OnePair", "Pair"),
+            ([0, 0, 4, 4, 8], false, "TwoPair", "TwoPair"),
+            ([0, 0, 0, 6, 8], false, "ThreeOfAKind", "ThreeOfAKind"),
+            ([0, 1, 2, 3, 4], false, "Straight", "Straight"),
+            ([0, 2, 4, 6, 8], true, "Flush", "Flush"),
+            ([0, 0, 0, 6, 6], false, "FullHouse", "FullHouse"),
+            ([0, 0, 0, 0, 8], false, "FourOfAKind", "FourOfAKind"),
+            ([0, 1, 2, 3, 4], true, "StraightFlush", "StraightFlush"),
+            ([0, 0, 0, 0, 0], false, "FiveOfAKind", "FiveOfAKind"),
+            ([0, 0, 0, 6, 6], true, "FlushHouse", "FlushHouse"),
+            ([0, 0, 0, 0, 0], true, "FlushFive", "FlushFive"),
+        ];
+        let suits = [
+            Suit::Heart,
+            Suit::Club,
+            Suit::Diamond,
+            Suit::Spade,
+            Suit::Heart,
+        ];
+        let tsuits = [
+            TSuit::Hearts,
+            TSuit::Clubs,
+            TSuit::Diamonds,
+            TSuit::Spades,
+            TSuit::Hearts,
+        ];
+        for (indices, flush, expected, t_expected) in cases {
+            let cards = indices
+                .iter()
+                .enumerate()
+                .map(|(i, &r)| Card::new(values[r], if flush { Suit::Heart } else { suits[i] }))
+                .collect();
+            let other: Vec<_> = indices
+                .iter()
+                .enumerate()
+                .map(|(i, &r)| {
+                    PlayingCard::new(ranks[r], if flush { TSuit::Hearts } else { tsuits[i] })
+                })
+                .collect();
+            assert_eq!(
+                format!("{:?}", SelectHand::new(cards).best_hand().unwrap().rank),
+                expected
+            );
+            assert_eq!(format!("{:?}", detect_hand(&other).hand_type), t_expected);
+        }
+    }
+    #[test]
     fn wild_flush() {
         let values = [
             Value::Two,
@@ -134,3 +219,8 @@ mod comparison {
         assert_eq!(format!("{:?}", detect_hand(&t).hand_type), "Flush");
     }
 }
+
+pub mod mvp;
+
+#[path = "../../../crates/ante-app/src/app/playback.rs"]
+pub mod playback;

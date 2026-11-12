@@ -1,0 +1,406 @@
+diff --git a/core/src/game.rs b/core/src/game.rs
+index 41959fa..07d5dc5 100644
+--- a/core/src/game.rs
++++ b/core/src/game.rs
+@@ -87,6 +87,8 @@ pub struct Game {
+     pub jokers: Vec<Jokers>,
+     #[cfg_attr(feature = "serde", serde(skip))]
+     pub effect_registry: EffectRegistry,
++    #[cfg_attr(feature = "serde", serde(skip))]
++    pub(crate) trace_xmult: Option<f64>,
+ 
+     // held consumables (planets, tarots, etc.)
+     pub consumables: Vec<Consumable>,
+@@ -152,6 +154,7 @@ pub struct Game {
+ #[derive(Default)]
+ struct TraceRecorder {
+     trace: ScoreTrace,
++    money: Option<usize>,
+     profile: bool,
+     elapsed: std::time::Duration,
+ }
+@@ -203,6 +206,7 @@ impl Game {
+             voucher_ante: None,
+             jokers: Vec::new(),
+             effect_registry: EffectRegistry::new(),
++            trace_xmult: None,
+             consumables: Vec::new(),
+             blind: None,
+             current_boss: None,
+@@ -650,27 +654,39 @@ impl Game {
+     /// Same scoring pass as `calc_score`, plus an ordered `ScoreTrace` of
+     /// every chips/mult contribution along the way.
+     pub fn calc_score_traced(&mut self, hand: MadeHand) -> (usize, ScoreTrace) {
+-        let mut recorder = TraceRecorder::default();
++        let mut recorder = TraceRecorder {
++            money: Some(self.money),
++            ..TraceRecorder::default()
++        };
+         let score = self.calc_score_inner(hand, Some(&mut recorder));
+         (score, recorder.trace)
+     }
+ 
++    // Multiplicative steps note their factor so the trace can tell XMult from +Mult.
++    pub(crate) fn note_xmult(&mut self, factor: f64) {
++        self.trace_xmult = Some(self.trace_xmult.unwrap_or(1.0) * factor);
++    }
++
+     fn record_step(
+-        &self,
++        &mut self,
+         trace: &mut Option<&mut TraceRecorder>,
+         source: ScoreSource,
+         chips_before: usize,
+         mult_before: usize,
+         retrigger: bool,
+     ) {
++        let xmult = self.trace_xmult.take();
+         let Some(t) = trace else {
+             return;
+         };
++        let money_before = t.money.replace(self.money).unwrap_or(self.money);
++        let money = self.money as i64 - money_before as i64;
+         // skip no-op checks (e.g. a Base-edition joker, a conditional
+         // effect that didn't fire)
+-        if chips_before == self.chips && mult_before == self.mult {
++        if chips_before == self.chips && mult_before == self.mult && money == 0 {
+             return;
+         }
++        let xmult = xmult.filter(|_| mult_before != self.mult);
+         let start = t.profile.then(std::time::Instant::now);
+         t.trace.0.push(ScoreStep {
+             source,
+@@ -679,6 +695,8 @@ impl Game {
+             mult_before,
+             mult_after: self.mult,
+             retrigger,
++            xmult,
++            money,
+         });
+         if let Some(start) = start {
+             t.elapsed += start.elapsed();
+@@ -752,6 +770,7 @@ impl Game {
+                 let chips_before = self.chips;
+                 let mult_before = self.mult;
+                 self.mult += self.mult / 2;
++                self.note_xmult(1.5);
+                 self.record_step(
+                     &mut trace,
+                     ScoreSource::Voucher(Voucher::Observatory),
+@@ -790,7 +809,10 @@ impl Game {
+                 match card.enhancement {
+                     Some(Enhancement::Bonus) => self.chips += 30,
+                     Some(Enhancement::Mult) => self.mult += 4,
+-                    Some(Enhancement::Glass) => self.mult *= 2,
++                    Some(Enhancement::Glass) => {
++                        self.mult *= 2;
++                        self.note_xmult(2.0);
++                    }
+                     Some(Enhancement::Lucky) => {
+                         if self.prob_roll(1, 5) {
+                             self.mult += 20;
+@@ -804,7 +826,10 @@ impl Game {
+                 match card.edition {
+                     Edition::Foil => self.chips += 50,
+                     Edition::Holographic => self.mult += 10,
+-                    Edition::Polychrome => self.mult += self.mult / 2,
++                    Edition::Polychrome => {
++                        self.mult += self.mult / 2;
++                        self.note_xmult(1.5);
++                    }
+                     _ => {}
+                 }
+                 if card.seal == Some(Seal::Gold) {
+@@ -862,7 +887,10 @@ impl Game {
+                 let chips_before = self.chips;
+                 let mult_before = self.mult;
+                 match card.enhancement {
+-                    Some(Enhancement::Steel) => self.mult += self.mult / 2,
++                    Some(Enhancement::Steel) => {
++                        self.mult += self.mult / 2;
++                        self.note_xmult(1.5);
++                    }
+                     Some(Enhancement::Gold) => self.money += 3,
+                     _ => {}
+                 }
+@@ -921,6 +949,7 @@ impl Game {
+                 let chips_before = self.chips;
+                 let mult_before = self.mult;
+                 self.mult += self.mult / 2;
++                self.note_xmult(1.5);
+                 self.record_step(
+                     &mut trace,
+                     ScoreSource::Joker(joker.clone()),
+diff --git a/core/src/joker.rs b/core/src/joker.rs
+index 1584179..551cbcb 100644
+--- a/core/src/joker.rs
++++ b/core/src/joker.rs
+@@ -209,6 +209,7 @@ impl JokerEffects for Jokers {
+                     let empty = g.joker_slots().saturating_sub(g.jokers.len());
+                     if empty > 0 {
+                         g.mult *= empty;
++                        g.note_xmult(empty as f64);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -252,6 +253,7 @@ impl JokerEffects for Jokers {
+                 fn apply(g: &mut Game, hand: MadeHand) {
+                     if g.hand_ranks_played_this_round.contains(&hand.rank) {
+                         g.mult *= 3;
++                        g.note_xmult(3.0);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -272,6 +274,7 @@ impl JokerEffects for Jokers {
+                         g.mult +=
+                             (g.mult as f64 * 0.2 * g.consecutive_hands_not_most_played_type as f64)
+                                 as usize;
++                        g.note_xmult(1.0 + 0.2 * g.consecutive_hands_not_most_played_type as f64);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -403,6 +406,7 @@ impl JokerEffects for Jokers {
+                         .count();
+                     for _ in 0..kings {
+                         g.mult = (g.mult as f64 * 1.5) as usize;
++                        g.note_xmult(1.5);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -432,6 +436,7 @@ impl JokerEffects for Jokers {
+                     for card in g.non_debuffed(_hand.hand.cards().iter()) {
+                         if g.is_face_card(&card) {
+                             g.mult *= 2;
++                            g.note_xmult(2.0);
+                             break;
+                         }
+                     }
+@@ -457,6 +462,7 @@ impl JokerEffects for Jokers {
+                         .count();
+                     for _ in 0..uncommon {
+                         g.mult = (g.mult as f64 * 1.5) as usize;
++                        g.note_xmult(1.5);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -502,6 +508,7 @@ impl JokerEffects for Jokers {
+                 fn apply(g: &mut Game, _hand: MadeHand) {
+                     if g.plays == 0 {
+                         g.mult *= 3;
++                        g.note_xmult(3.0);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -572,6 +579,7 @@ impl JokerEffects for Jokers {
+                 fn apply(g: &mut Game, hand: MadeHand) {
+                     if hand.hand.is_pair().is_some() {
+                         g.mult *= 2;
++                        g.note_xmult(2.0);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -580,6 +588,7 @@ impl JokerEffects for Jokers {
+                 fn apply(g: &mut Game, hand: MadeHand) {
+                     if hand.hand.is_three_of_kind().is_some() {
+                         g.mult *= 3;
++                        g.note_xmult(3.0);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -588,6 +597,7 @@ impl JokerEffects for Jokers {
+                 fn apply(g: &mut Game, hand: MadeHand) {
+                     if hand.hand.is_four_of_kind().is_some() {
+                         g.mult *= 4;
++                        g.note_xmult(4.0);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -596,6 +606,7 @@ impl JokerEffects for Jokers {
+                 fn apply(g: &mut Game, hand: MadeHand) {
+                     if hand.hand.is_straight().is_some() {
+                         g.mult *= 3;
++                        g.note_xmult(3.0);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -604,6 +615,7 @@ impl JokerEffects for Jokers {
+                 fn apply(g: &mut Game, hand: MadeHand) {
+                     if hand.hand.is_flush().is_some() {
+                         g.mult *= 2;
++                        g.note_xmult(2.0);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -627,6 +639,7 @@ impl JokerEffects for Jokers {
+                         .filter(|c| c.enhancement == Some(Enhancement::Steel))
+                         .count();
+                     g.mult += (g.mult as f64 * 0.2 * count as f64) as usize;
++                    g.note_xmult(1.0 + 0.2 * count as f64);
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+             }
+@@ -652,6 +665,7 @@ impl JokerEffects for Jokers {
+                         .count();
+                     if enhanced >= 16 {
+                         g.mult *= 3;
++                        g.note_xmult(3.0);
+                     }
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+@@ -738,6 +752,7 @@ impl JokerEffects for Jokers {
+                         .filter(|c| c.value == Value::Jack)
+                         .count();
+                     g.mult += (g.mult as f64 * 0.5 * jacks as f64) as usize;
++                    g.note_xmult(1.0 + 0.5 * jacks as f64);
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+             }
+@@ -745,6 +760,7 @@ impl JokerEffects for Jokers {
+                 fn apply(g: &mut Game, _hand: MadeHand) {
+                     let levels = g.total_cards_discarded / 23;
+                     g.mult += (g.mult as f64 * levels as f64) as usize;
++                    g.note_xmult(1.0 + levels as f64);
+                 }
+                 vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+             }
+diff --git a/core/src/lib.rs b/core/src/lib.rs
+index 5b43cb8..ef3ff32 100644
+--- a/core/src/lib.rs
++++ b/core/src/lib.rs
+@@ -469,3 +469,5 @@ mod consumable_use_tests;
+ 
+ #[cfg(test)]
+ mod debug_tests;
++#[cfg(test)]
++mod trace_effect_tests;
+diff --git a/core/src/score.rs b/core/src/score.rs
+index 1c1abf3..224a3fd 100644
+--- a/core/src/score.rs
++++ b/core/src/score.rs
+@@ -28,6 +28,10 @@ pub struct ScoreStep {
+     pub mult_before: usize,
+     pub mult_after: usize,
+     pub retrigger: bool,
++    /// Factor of a multiplicative Mult change, e.g. 1.5 for X1.5 Mult.
++    pub xmult: Option<f64>,
++    /// Money earned during the step, e.g. a Gold Seal.
++    pub money: i64,
+ }
+ 
+ impl ScoreStep {
+@@ -87,6 +91,8 @@ mod tests {
+             mult_before: 1,
+             mult_after: 3,
+             retrigger: false,
++            xmult: None,
++            money: 0,
+         };
+         assert_eq!(step.describe(), "TwoPair: +10 Chips, +2 Mult");
+     }
+@@ -103,6 +109,8 @@ mod tests {
+             mult_before: 2,
+             mult_after: 2,
+             retrigger: true,
++            xmult: None,
++            money: 0,
+         };
+         assert_eq!(step.describe(), "K♠: +10 Chips (retrigger)");
+     }
+@@ -119,6 +127,8 @@ mod tests {
+             mult_before: 1,
+             mult_after: 1,
+             retrigger: false,
++            xmult: None,
++            money: 0,
+         };
+         assert_eq!(step.describe(), "A♥ (held)");
+     }
+@@ -134,6 +144,8 @@ mod tests {
+             mult_before: 1,
+             mult_after: 5,
+             retrigger: false,
++            xmult: None,
++            money: 0,
+         };
+         assert_eq!(step.describe(), "Joker: +4 Mult");
+     }
+diff --git a/core/src/trace_effect_tests.rs b/core/src/trace_effect_tests.rs
+new file mode 100644
+index 0000000..7767bf1
+--- /dev/null
++++ b/core/src/trace_effect_tests.rs
+@@ -0,0 +1,74 @@
++// Score trace steps tell XMult from +Mult and carry money earned while scoring.
++
++use crate::card::{Card, Edition, Seal, Suit, Value};
++use crate::game::Game;
++use crate::hand::SelectHand;
++use crate::joker::{Jokers, TheDuo};
++use crate::score::ScoreSource;
++use crate::stage::{Blind, Stage};
++
++fn blind_game() -> Game {
++    Game {
++        stage: Stage::Blind(Blind::Small),
++        ..Default::default()
++    }
++}
++
++fn pair() -> SelectHand {
++    let a = Card::new(Value::Ace, Suit::Heart);
++    let b = Card::new(Value::Ace, Suit::Club);
++    SelectHand::new(vec![a, b])
++}
++
++#[test]
++fn an_xmult_joker_step_carries_its_factor() {
++    let mut g = blind_game();
++    let joker = Jokers::TheDuo(TheDuo::default());
++    g.money += 1000;
++    g.stage = Stage::Shop();
++    g.shop.jokers.push(joker.clone());
++    g.buy_joker(joker).unwrap();
++    g.stage = Stage::Blind(Blind::Small);
++    let (_, trace) = g.calc_score_traced(pair().best_hand().unwrap());
++    let duo = trace
++        .0
++        .iter()
++        .find(|step| matches!(step.source, ScoreSource::Joker(_)))
++        .unwrap();
++    assert_eq!(duo.xmult, Some(2.0));
++    assert_eq!(duo.mult_after, duo.mult_before * 2);
++    assert!(trace
++        .0
++        .iter()
++        .all(|step| matches!(step.source, ScoreSource::Joker(_)) || step.xmult.is_none()));
++}
++
++#[test]
++fn polychrome_cards_are_xmult_and_gold_seals_earn_money() {
++    let mut g = blind_game();
++    let mut a = Card::new(Value::Ace, Suit::Heart);
++    a.edition = Edition::Polychrome;
++    let mut b = Card::new(Value::Ace, Suit::Club);
++    b.seal = Some(Seal::Gold);
++    let (_, trace) = g.calc_score_traced(SelectHand::new(vec![a, b]).best_hand().unwrap());
++    let cards: Vec<_> = trace
++        .0
++        .iter()
++        .filter(|step| matches!(step.source, ScoreSource::PlayedCard(_)))
++        .collect();
++    assert_eq!(cards.len(), 2);
++    let poly = cards.iter().find(|step| step.xmult.is_some()).unwrap();
++    assert_eq!(poly.xmult, Some(1.5));
++    let gold = cards.iter().find(|step| step.money != 0).unwrap();
++    assert_eq!(gold.money, 3);
++    assert_eq!(gold.xmult, None);
++}
++
++#[test]
++fn a_hand_level_step_is_additive() {
++    let mut g = blind_game();
++    let (_, trace) = g.calc_score_traced(pair().best_hand().unwrap());
++    assert!(matches!(trace.0[0].source, ScoreSource::HandLevel(_)));
++    assert_eq!(trace.0[0].xmult, None);
++    assert_eq!(trace.0[0].money, 0);
++}
