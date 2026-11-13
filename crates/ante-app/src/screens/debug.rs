@@ -1,4 +1,4 @@
-use ante_core::contract::{Command as MvpAction, DebugCommand, Phase, RunView};
+use ante_core::contract::{Command, DebugCommand, Phase, RunView};
 use bevy::prelude::*;
 
 use crate::{
@@ -49,7 +49,7 @@ pub(crate) fn debug_panel(ui: &mut ChildSpawnerCommands, view: &RunView) {
                 color,
                 (2.6, 0.5),
                 0.4,
-                enabled.then_some(Click::Play(MvpAction::Debug(command))),
+                enabled.then_some(Click::Play(Command::Debug(command))),
                 false,
             );
         }

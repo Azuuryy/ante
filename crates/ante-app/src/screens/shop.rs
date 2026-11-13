@@ -12,7 +12,7 @@ use crate::{
     },
     services::assets::{catalog::Atlases, ui_text::UiText},
 };
-use ante_core::contract::{Command as MvpAction, Phase, RunView};
+use ante_core::contract::{Command, Phase, RunView};
 use bevy::picking::prelude::Pickable;
 use bevy::prelude::*;
 
@@ -20,7 +20,7 @@ pub(crate) fn shop_board(
     ui: &mut ChildSpawnerCommands,
     view: &RunView,
     atlases: &Atlases,
-    selected: Option<MvpAction>,
+    selected: Option<Command>,
     text: &UiText,
 ) {
     use ante_core::contract::ShopArt;
@@ -28,7 +28,7 @@ pub(crate) fn shop_board(
         .offers
         .iter()
         .map(|card| Offer {
-            action: MvpAction::BuyJoker(card.id),
+            action: Command::BuyJoker(card.id),
             enabled: card.enabled,
             price: card.price,
             tip: joker_tooltip(card),
@@ -40,7 +40,7 @@ pub(crate) fn shop_board(
         })
         .chain(view.consumable_offers.iter().map(|card| {
             Offer {
-                action: MvpAction::BuyConsumable {
+                action: Command::BuyConsumable {
                     index: card.index,
                     revision: view.revision,
                 },
@@ -52,7 +52,7 @@ pub(crate) fn shop_board(
                 verb: Verb::Buy,
                 buy_and_use: card
                     .can_buy_and_use
-                    .then_some(MvpAction::BuyAndUseConsumable {
+                    .then_some(Command::BuyAndUseConsumable {
                         index: card.index,
                         revision: view.revision,
                     }),
@@ -64,7 +64,7 @@ pub(crate) fn shop_board(
         }))
         .chain(view.shop_cards.iter().map(|(id, card)| {
             Offer {
-                action: MvpAction::BuyPlayingCard {
+                action: Command::BuyPlayingCard {
                     id: *id,
                     revision: view.revision,
                 },
@@ -85,7 +85,7 @@ pub(crate) fn shop_board(
         .voucher_offers
         .iter()
         .map(|(item, enabled)| Offer {
-            action: MvpAction::RedeemVoucher {
+            action: Command::RedeemVoucher {
                 voucher: item.id,
                 revision: view.revision,
             },
@@ -107,7 +107,7 @@ pub(crate) fn shop_board(
         .iter()
         .enumerate()
         .map(|(index, pack)| Offer {
-            action: MvpAction::BuyPack {
+            action: Command::BuyPack {
                 index,
                 revision: view.revision,
             },
@@ -197,7 +197,7 @@ pub(crate) fn shop_board(
                                         menu_ui::RED,
                                         (2.8, 1.5),
                                         UiRect::all(menu_ui::tiles(0.1)),
-                                        Some(Click::Play(MvpAction::LeaveShop)),
+                                        Some(Click::Play(Command::LeaveShop)),
                                     );
                                     let cost = view.reroll_cost.to_string();
                                     menu_ui::card_button(
@@ -206,7 +206,7 @@ pub(crate) fn shop_board(
                                         menu_ui::GREEN,
                                         (2.8, 1.6),
                                         UiRect::all(menu_ui::tiles(0.1)),
-                                        view.can_reroll.then_some(Click::Play(MvpAction::Reroll)),
+                                        view.can_reroll.then_some(Click::Play(Command::Reroll)),
                                     );
                                 });
                                 shop_box(top, 0.2, 8.2, |zone| {
@@ -318,7 +318,7 @@ enum Verb {
 }
 
 struct Offer {
-    action: MvpAction,
+    action: Command,
     enabled: bool,
     price: usize,
     tip: tooltip::Tip,
@@ -327,7 +327,7 @@ struct Offer {
     playing_card: Option<ante_core::contract::ShopArt>,
     verb: Verb,
     /// The consumable's "Buy & Use", when the original would show it.
-    buy_and_use: Option<MvpAction>,
+    buy_and_use: Option<Command>,
     /// Engine edition label and per-card seed for the edition shader overlay.
     edition: (String, usize),
 }
@@ -396,7 +396,7 @@ fn vertical_label(ui: &mut ChildSpawnerCommands, ante: usize, height: f32) {
 fn offer_area(
     ui: &mut ChildSpawnerCommands,
     offers: &[Offer],
-    (selected, revision, atlases): (Option<MvpAction>, u64, &Atlases),
+    (selected, revision, atlases): (Option<Command>, u64, &Atlases),
     (width, height): (f32, f32),
     (limit, scale): (usize, f32),
 ) {
@@ -730,7 +730,7 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
                     if item.enabled {
                         click_target(
                             &mut card,
-                            Click::Play(MvpAction::PickPack {
+                            Click::Play(Command::PickPack {
                                 index,
                                 revision: view.revision,
                             }),
@@ -799,7 +799,7 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
                         (1.6, 0.7),
                         UiRect::all(menu_ui::tiles(0.1)),
                         view.can_apply_target
-                            .then_some(Click::Play(MvpAction::ApplyTarget)),
+                            .then_some(Click::Play(Command::ApplyTarget)),
                     );
                 }
                 if view.can_skip_pack {
@@ -809,7 +809,7 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
                         menu_ui::GREY,
                         (1.6, 0.7),
                         UiRect::all(menu_ui::tiles(0.1)),
-                        Some(Click::Play(MvpAction::SkipPack)),
+                        Some(Click::Play(Command::SkipPack)),
                     );
                 }
             });

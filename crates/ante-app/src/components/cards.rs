@@ -7,9 +7,7 @@ use crate::{
     app::{presentation::ScoredJoker, session::Click},
     services::assets::catalog::Atlases,
 };
-use ante_core::contract::{
-    Command as MvpAction, ConsumableView, Content, JokerKey, JokerView, RunView,
-};
+use ante_core::contract::{Command, ConsumableView, Content, JokerKey, JokerView, RunView};
 use bevy::{
     picking::prelude::{PointerButton, PointerClick, PointerPress},
     prelude::*,
@@ -117,11 +115,11 @@ struct CardAction {
     rows: Vec<Vec<(String, f32)>>,
     color: Color,
     size: (f32, f32),
-    action: Option<MvpAction>,
+    action: Option<Command>,
 }
 
 /// `G.UIDEF.use_and_sell_buttons`: green "SELL $n", inactive when the card cannot be sold.
-fn sell_button(price: String, can_sell: bool, action: MvpAction) -> CardAction {
+fn sell_button(price: String, can_sell: bool, action: Command) -> CardAction {
     CardAction {
         rows: vec![
             vec![("SELL".to_owned(), 0.4)],
@@ -267,7 +265,7 @@ pub(crate) fn inventory_cards(
                 vec![sell_button(
                     joker.sell_price.to_string(),
                     joker.can_sell,
-                    MvpAction::SellJoker { index, revision },
+                    Command::SellJoker { index, revision },
                 )],
                 (&joker.edition, joker.id.0),
                 Some(joker.id),
@@ -280,7 +278,7 @@ pub(crate) fn inventory_cards(
                 sell_button(
                     card.sell_price.to_string(),
                     card.can_sell,
-                    MvpAction::SellConsumable {
+                    Command::SellConsumable {
                         index: card.index,
                         revision,
                     },
@@ -289,7 +287,7 @@ pub(crate) fn inventory_cards(
                     rows: vec![vec![("USE".to_owned(), 0.5)]],
                     color: menu_ui::RED,
                     size: (1.25, 1.0),
-                    action: card.can_use.then_some(MvpAction::UseConsumable {
+                    action: card.can_use.then_some(Command::UseConsumable {
                         index: card.index,
                         revision,
                     }),

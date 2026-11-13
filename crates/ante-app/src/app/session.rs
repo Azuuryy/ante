@@ -1,6 +1,6 @@
 use ante_core::contract::{
-    CampaignGoal, Command as MvpAction, ContentGroup, GameBackend, Phase, RunConfig, RunDriver,
-    RunError as ActionError, RunView, TraceMode,
+    CampaignGoal, Command, ContentGroup, GameBackend, Phase, RunConfig, RunDriver, RunError,
+    RunView, TraceMode,
 };
 use bevy::{
     clipboard::Clipboard,
@@ -51,7 +51,7 @@ pub(crate) struct Session {
     pub(crate) deck_remaining: bool,
     pub(crate) deck_hovered: bool,
     pub(crate) inventory_selection: Option<(crate::components::card_drag::Lane, usize, u64)>,
-    pub(crate) shop_selection: Option<MvpAction>,
+    pub(crate) shop_selection: Option<Command>,
     pub(crate) error: Option<String>,
     pub(crate) faulted: bool,
     pub(crate) navigation: Navigation,
@@ -122,7 +122,7 @@ pub(crate) enum Click {
     OpenDeck,
     HoverDeck(bool),
     SelectOffer {
-        action: MvpAction,
+        action: Command,
         revision: u64,
     },
     ShowRemaining(bool),
@@ -137,7 +137,7 @@ pub(crate) enum Click {
     ShiftDeck(isize),
     ToggleVsync,
     Quit,
-    Play(MvpAction),
+    Play(Command),
     SelectInventory {
         lane: crate::components::card_drag::Lane,
         index: usize,
@@ -579,7 +579,7 @@ pub(crate) fn process_clicks(
                     }
                     Err(error) => {
                         metrics.record_simulation(elapsed, default());
-                        session.faulted = matches!(error, ActionError::Simulation(_));
+                        session.faulted = matches!(error, RunError::Simulation(_));
                         journal_event!(
                             if session.faulted {
                                 "simulation_error"
@@ -602,15 +602,15 @@ pub(crate) fn process_clicks(
 
 fn guard_simulation<T>(
     context: &str,
-    operation: impl FnOnce() -> Result<T, ActionError>,
-) -> Result<T, ActionError> {
+    operation: impl FnOnce() -> Result<T, RunError>,
+) -> Result<T, RunError> {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(operation)).unwrap_or_else(|panic| {
         let detail = panic
             .downcast_ref::<String>()
             .map(String::as_str)
             .or_else(|| panic.downcast_ref::<&str>().copied())
             .unwrap_or("unexpected simulation failure");
-        Err(ActionError::Simulation(format!("{context}. {detail}")))
+        Err(RunError::Simulation(format!("{context}. {detail}")))
     })
 }
 
@@ -628,13 +628,13 @@ fn apply_card_selection(
     };
     let start = diagnostics::measurement();
     let result = guard_simulation("Could not change the card selection", || {
-        run.apply(MvpAction::ToggleCard(id), TraceMode::Off)
+        run.apply(Command::ToggleCard(id), TraceMode::Off)
     });
     metrics.record_simulation(start.elapsed(), default());
     match result {
         Ok(update) => session.confirmed = Some(update.view),
         Err(error) => {
-            session.faulted = matches!(error, ActionError::Simulation(_));
+            session.faulted = matches!(error, RunError::Simulation(_));
             session.confirmed = Some(before);
             session.error = Some(error.to_string());
         }

@@ -12,12 +12,12 @@ use crate::{
         profile::Profile,
     },
 };
-use ante_core::contract::{CampaignGoal, Command as MvpAction, Phase};
+use ante_core::contract::{CampaignGoal, Command, Phase};
 use bevy::{clipboard::Clipboard, prelude::*, window::PrimaryWindow};
 
 fn app() -> App {
     let mut app = App::new();
-    app.insert_resource(Backend(Box::new(ante_core::native::NativeBackend)))
+    app.insert_resource(Backend(Box::new(ante_core::engine::ExternalBackend)))
         .insert_resource(Session::new(CampaignGoal::Standard, AssetSettings::load()))
         .init_resource::<FrameMetrics>()
         .insert_resource(Profile::load())
@@ -54,7 +54,7 @@ fn navigation_and_options_preserve_run_and_retry_configuration() {
         app.world().resource::<Session>().last_config.unwrap().deck,
         ante_core::contract::Deck::Blue
     );
-    click(&mut app, Click::Play(MvpAction::StartBlind));
+    click(&mut app, Click::Play(Command::StartBlind));
     let before = app
         .world()
         .resource::<Session>()
@@ -94,11 +94,14 @@ fn seeded_run_pause_and_continue_preserve_configuration() {
     let seed = app.world().resource::<Session>().last_config.unwrap().seed;
     assert_eq!(
         seed,
-        parse_seed(&ante_core::native::NativeBackend, " ANTE2026 ").unwrap()
+        parse_seed(&ante_core::engine::ExternalBackend, " ANTE2026 ").unwrap()
     );
-    assert_eq!(parse_seed(&ante_core::native::NativeBackend, "0"), Some(0));
     assert_eq!(
-        parse_seed(&ante_core::native::NativeBackend, "not a seed"),
+        parse_seed(&ante_core::engine::ExternalBackend, "0"),
+        Some(0)
+    );
+    assert_eq!(
+        parse_seed(&ante_core::engine::ExternalBackend, "not a seed"),
         None
     );
     click(&mut app, Click::OpenPause);
@@ -211,7 +214,7 @@ fn run_board_survives_phase_and_deck_modal_changes() {
         .collect();
     tiles.sort_unstable();
     assert_eq!(tiles.len(), 2);
-    click(&mut app, Click::Play(MvpAction::StartBlind));
+    click(&mut app, Click::Play(Command::StartBlind));
     let id = app
         .world()
         .resource::<Session>()
@@ -221,7 +224,7 @@ fn run_board_survives_phase_and_deck_modal_changes() {
         .view()
         .cards[0]
         .id;
-    click(&mut app, Click::Play(MvpAction::ToggleCard(id)));
+    click(&mut app, Click::Play(Command::ToggleCard(id)));
     let before = app
         .world()
         .resource::<Session>()

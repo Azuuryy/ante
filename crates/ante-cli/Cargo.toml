@@ -1,8 +1,0 @@
-[package]
-name = "ante-cli"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-
-[dependencies]
-ante-core = { path = "../ante-core" }

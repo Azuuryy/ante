@@ -22,9 +22,7 @@ use crate::{
     },
     services::assets::catalog::Atlases,
 };
-use ante_core::contract::{
-    BlindView, Command as MvpAction, HandKind, Phase, RANKS, RunView, SUITS,
-};
+use ante_core::contract::{BlindView, Command, HandKind, Phase, RANKS, RunView, SUITS};
 use bevy::prelude::*;
 
 const PANEL: Color = Color::srgb(0.20, 0.27, 0.28);
@@ -441,7 +439,7 @@ struct BoardFrame {
     trace: bool,
     speed: Speed,
     preview: bool,
-    offer: Option<MvpAction>,
+    offer: Option<Command>,
     inventory_selection: Option<(crate::components::card_drag::Lane, usize, u64)>,
 }
 
@@ -982,7 +980,7 @@ impl RunBoard {
                             (2.65, 0.65),
                             0.43,
                             view.can_reroll_boss
-                                .then_some(Click::Play(MvpAction::RerollBoss)),
+                                .then_some(Click::Play(Command::RerollBoss)),
                             false,
                         );
                     }
@@ -1012,7 +1010,7 @@ impl RunBoard {
                         ORANGE,
                         (3.4, 1.0),
                         0.52,
-                        Click::Play(MvpAction::CashOut),
+                        Click::Play(Command::CashOut),
                     );
                 }
                 Phase::Pack | Phase::Target => pack_board(center, view, atlases),
@@ -1765,9 +1763,7 @@ fn blind_panel(
             ORANGE,
             (2.49, 0.64),
             0.42,
-            blind
-                .selectable
-                .then_some(Click::Play(MvpAction::StartBlind)),
+            blind.selectable.then_some(Click::Play(Command::StartBlind)),
             false,
         );
         label(
@@ -1817,7 +1813,7 @@ fn blind_panel(
                     0.37,
                     blind
                         .can_skip
-                        .then_some(Click::Play(MvpAction::SkipBlind { revision })),
+                        .then_some(Click::Play(Command::SkipBlind { revision })),
                     false,
                 );
             });
@@ -2089,7 +2085,7 @@ pub fn result(ui: &mut ChildSpawnerCommands, view: &RunView) {
                 BLUE,
                 (6.25, 0.94),
                 0.55,
-                Click::Play(MvpAction::ContinueEndless),
+                Click::Play(Command::ContinueEndless),
             );
         }
     });
@@ -2215,27 +2211,4 @@ fn deck_card_effect(card: &ante_core::contract::DeckCardView) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_top_of_a_full_deck_leans_up_and_right() {
-        // 51 cards under the top one: 1.26 x 0.15 x 51/52 right, 1.5 x 0.15 x 51/52 up.
-        let top = deck_offset(52, 1);
-        assert!((DECK_PARALLAX_X - 1.256).abs() < 0.01);
-        assert!((top.x - (0.1848 * DECK_STACK_SCALE + DECK_PARALLAX_X / 30.0)).abs() < 0.002);
-        assert!((top.y + 0.2207 * DECK_STACK_SCALE).abs() < 0.001);
-        assert_eq!(deck_offset(52, 52).y, 0.0);
-        let drawn: Vec<_> = drawn_backs(20).collect();
-        assert_eq!(drawn, [20, 18, 9, 1]);
-    }
-
-    #[test]
-    fn mult_text_follows_number_format() {
-        assert_eq!(mult_text(7.0), "7");
-        assert_eq!(mult_text(10.5), "10.5");
-        assert_eq!(mult_text(4.5), "4.50");
-        assert_eq!(mult_text(123.4), "123");
-        assert_eq!(mult_text(1234.0), "1,234");
-    }
-}
+mod tests;

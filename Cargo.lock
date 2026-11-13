@@ -265,15 +265,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "ante-cli"
-version = "0.1.0"
-dependencies = [
- "ante-core",
-]
-
-[[package]]
 name = "ante-core"
 version = "0.1.0"
+dependencies = [
+ "balatro-rs",
+ "balatro-types",
+ "serde_json",
+ "strum",
+]
 
 [[package]]
 name = "approx"

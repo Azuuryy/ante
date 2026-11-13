@@ -212,7 +212,7 @@ fn collection_hub_lays_out_cleanly() {
             session,
             &crate::services::profile::Profile::load(),
             atlases,
-            &ante_core::native::NativeBackend,
+            &ante_core::engine::ExternalBackend,
         );
     });
     check(&mut app);
@@ -234,7 +234,7 @@ fn options_lay_out_cleanly() {
 #[test]
 fn deck_select_controls_do_not_overlap() {
     let mut app = layout(|ui, session, atlases| {
-        crate::screens::run::deck_select(ui, session, atlases, &ante_core::native::NativeBackend);
+        crate::screens::run::deck_select(ui, session, atlases, &ante_core::engine::ExternalBackend);
     });
     check(&mut app);
 }

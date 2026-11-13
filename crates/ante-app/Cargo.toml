@@ -4,8 +4,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[[bin]]
+name = "ante"
+path = "src/main.rs"
+
 [features]
 dev-tools = ["dep:tracing", "dep:tracing-subscriber"]
+extra-jokers = ["ante-core/extra-jokers"]
 
 [dependencies]
 ante-core = { path = "../ante-core" }

@@ -12,7 +12,7 @@ use crate::{
     screens::run::deck_preview,
     services::assets::catalog::Atlases,
 };
-use ante_core::contract::{Command as MvpAction, RunView};
+use ante_core::contract::{Command, RunView};
 use bevy::prelude::*;
 
 /// `create_UIBox_buttons`: Play Hand and Discard (2.5 x 1.3, text 0.45) around the Sort Hand
@@ -39,7 +39,7 @@ fn actions_row(ui: &mut ChildSpawnerCommands, view: &RunView) {
             actions,
             "Play Hand",
             BLUE,
-            view.can_play.then_some(Click::Play(MvpAction::Play)),
+            view.can_play.then_some(Click::Play(Command::Play)),
         );
         let joker_grey = Color::srgb(
             0xBF as f32 / 255.0,
@@ -68,8 +68,7 @@ fn actions_row(ui: &mut ChildSpawnerCommands, view: &RunView) {
                     ..default()
                 })
                 .with_children(|buttons| {
-                    for (text, action) in
-                        [("Rank", MvpAction::SortRank), ("Suit", MvpAction::SortSuit)]
+                    for (text, action) in [("Rank", Command::SortRank), ("Suit", Command::SortSuit)]
                     {
                         card_button(
                             buttons,
@@ -86,7 +85,7 @@ fn actions_row(ui: &mut ChildSpawnerCommands, view: &RunView) {
             actions,
             "Discard",
             RED,
-            view.can_discard.then_some(Click::Play(MvpAction::Discard)),
+            view.can_discard.then_some(Click::Play(Command::Discard)),
         );
     });
 }
@@ -186,7 +185,7 @@ pub(crate) fn hand_rows(
                 card_control(
                     hand,
                     (card.enabled && !playing_trace)
-                        .then_some(Click::Play(MvpAction::ToggleCard(card.id))),
+                        .then_some(Click::Play(Command::ToggleCard(card.id))),
                     card,
                     tip,
                     (cards.len(), position),

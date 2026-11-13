@@ -15,4 +15,5 @@ jobs:
         run: |
           tree=$(cargo tree --locked -p ante-core --prefix none)
           if printf '%s\n' "$tree" | grep -i '^bevy'; then exit 1; fi
-      - run: cargo test --locked -p ante-core -p ante-cli
+      - run: cargo test --locked -p ante-core -p balatro-rs -p balatro-types -p balatro-seed
+      - run: cargo test --locked -p ante-core -p balatro-rs --features ante-core/extra-jokers

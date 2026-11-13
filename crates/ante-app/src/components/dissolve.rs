@@ -2,7 +2,7 @@
 //! `Card:start_dissolve`: 0.7 s, the dissolve shader driven from 0 to 1, burn colours,
 //! particles and the whoosh and crumple sounds. A sold card burns in gold.
 
-use ante_core::contract::{Command as MvpAction, JokerKey};
+use ante_core::contract::{Command, JokerKey};
 use bevy::{prelude::*, ui::UiGlobalTransform};
 
 use crate::{
@@ -114,7 +114,7 @@ pub(crate) fn detach_leaving(
     let sold = clicks.read().any(|click| {
         matches!(
             click,
-            Click::Play(MvpAction::SellJoker { .. } | MvpAction::SellConsumable { .. })
+            Click::Play(Command::SellJoker { .. } | Command::SellConsumable { .. })
         )
     });
     if !session.is_changed() {
