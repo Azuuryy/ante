@@ -281,7 +281,11 @@ pub(crate) fn render(
     session: Res<Session>,
     screens: Query<Entity, With<Screen>>,
     atlases: Res<Atlases>,
-    (profile, backend): (Res<Profile>, Res<Backend>),
+    (profile, backend, ui_text): (
+        Res<Profile>,
+        Res<Backend>,
+        Option<Res<crate::services::assets::ui_text::UiText>>,
+    ),
     mut metrics: ResMut<FrameMetrics>,
     (pacing, mut previous_mode, mut surface): (
         Res<FramePacing>,
@@ -315,6 +319,7 @@ pub(crate) fn render(
                 &atlases,
                 deck,
                 session.run_id,
+                session.stake,
             ));
         }
         let board = surface.as_mut().unwrap();
@@ -323,7 +328,9 @@ pub(crate) fn render(
         } else {
             current
         };
-        board.update(&mut commands, view, &atlases, &session);
+        let fallback_text = crate::services::assets::ui_text::UiText::default();
+        let text = ui_text.as_deref().unwrap_or(&fallback_text);
+        board.update(&mut commands, view, &atlases, &session, text);
         commands
             .entity(board.overlay)
             .despawn_children()
@@ -363,44 +370,57 @@ pub(crate) fn render(
         for entity in &screens {
             commands.entity(entity).despawn();
         }
-        commands
+        let root = commands
             .spawn((
                 Screen,
                 Node {
-                    width: px(menu_ui::ROOM.x),
-                    height: px(menu_ui::ROOM.y),
+                    width: px(menu_ui::CANVAS.x),
+                    height: px(menu_ui::CANVAS.y),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
                     ..default()
                 },
                 BackgroundColor(FELT),
                 UiTransform::IDENTITY,
             ))
-            .with_children(|ui| {
-                if session.faulted {
-                    run_ui::overlay(ui, |modal| {
-                        label(modal, "Run stopped after a simulation error", 32.0, INK);
-                        if let Some(error) = &session.error {
-                            label(modal, error, 20.0, INK);
-                        }
-                        button(modal, "Seed menu", Some(Click::Menu));
-                    });
-                    return;
-                }
-                main_menu(ui, &atlases);
-                if page != Page::Main {
-                    run_ui::overlay(ui, |modal| match page {
-                        Page::DeckSelect => {
-                            run_ui::deck_select(modal, &session, &atlases, &*backend.0)
-                        }
-                        Page::Options => show_options(modal, &session, &pacing, &profile),
-                        Page::Collection => {
-                            show_collection(modal, &session, &profile, &atlases, &*backend.0)
-                        }
-                        _ => {}
-                    });
-                }
-            });
+            .id();
+        let room = commands.spawn(room_node()).id();
+        commands.entity(root).add_child(room);
+        commands.entity(room).with_children(|ui| {
+            if session.faulted {
+                run_ui::overlay(ui, |modal| {
+                    label(modal, "Run stopped after a simulation error", 32.0, INK);
+                    if let Some(error) = &session.error {
+                        label(modal, error, 20.0, INK);
+                    }
+                    button(modal, "Seed menu", Some(Click::Menu));
+                });
+                return;
+            }
+            main_menu(ui, &atlases);
+            if page != Page::Main {
+                run_ui::overlay(ui, |modal| match page {
+                    Page::DeckSelect => run_ui::deck_select(modal, &session, &atlases, &*backend.0),
+                    Page::Options => show_options(modal, &session, &pacing, &profile),
+                    Page::Collection => {
+                        show_collection(modal, &session, &profile, &atlases, &*backend.0)
+                    }
+                    _ => {}
+                });
+            }
+        });
     }
     metrics.record_ui(start.elapsed());
+}
+
+/// The 20 x 11.5 tile room, centred in the canvas inside the original room padding.
+pub(crate) fn room_node() -> Node {
+    Node {
+        width: px(menu_ui::ROOM.x),
+        height: px(menu_ui::ROOM.y),
+        flex_shrink: 0.0,
+        ..default()
+    }
 }
 
 pub(crate) fn fit_room(
@@ -422,14 +442,74 @@ pub(crate) fn fit_room(
     }
 }
 
+/// Size rounded to whole physical pixels, so text does not shimmer as the window scales.
+/// Sizes are not snapped to the font's glyph grid: at 1080p that step is about 16 logical
+/// pixels and would shrink or grow small text by up to a third.
+pub(crate) fn snap_font_size(size: f32, scale: f32) -> f32 {
+    let scale = scale.max(0.01);
+    (size * scale).round().max(1.0) / scale
+}
+
+/// The size a text was asked for, before pixel snapping.
+#[derive(Component, Clone, Copy)]
+pub(crate) struct AskedFontSize(f32);
+
+/// A text size changed at runtime, in pixels before snapping. Changing this instead of
+/// reinserting `TextFont` keeps the game font.
+#[derive(Component, Clone, Copy, PartialEq)]
+pub(crate) struct TextSize(pub(crate) f32);
+
+pub(crate) fn apply_text_size(
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut fonts: Query<(&TextSize, &mut TextFont, Entity), Changed<TextSize>>,
+    mut commands: Commands,
+) {
+    let scale = windows.single().map_or(1.0, |window| window.scale_factor());
+    for (size, mut text, entity) in &mut fonts {
+        commands.entity(entity).insert(AskedFontSize(size.0));
+        text.font_size = bevy::text::FontSize::Px(snap_font_size(size.0, scale));
+    }
+}
+
 pub(crate) fn apply_local_font(
     atlases: Res<Atlases>,
-    mut fonts: Query<&mut TextFont, Added<TextFont>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut fonts: Query<(&mut TextFont, Option<&AskedFontSize>, Entity), Changed<TextFont>>,
+    mut commands: Commands,
 ) {
-    if let Some(font) = &atlases.font {
-        for mut text in &mut fonts {
+    let scale = windows.single().map_or(1.0, |window| window.scale_factor());
+    for (mut text, asked, entity) in &mut fonts {
+        // Also catches a `TextFont` reinserted with the default font.
+        if let Some(font) = &atlases.font
+            && !matches!(&text.font, bevy::text::FontSource::Handle(handle) if handle == font)
+        {
             text.font = bevy::text::FontSource::Handle(font.clone());
         }
+        if asked.is_none()
+            && let bevy::text::FontSize::Px(size) = text.font_size
+        {
+            commands.entity(entity).insert(AskedFontSize(size));
+            text.font_size = bevy::text::FontSize::Px(snap_font_size(size, scale));
+        }
+    }
+}
+
+/// Re-snaps every text when the window scale changes (resize).
+pub(crate) fn resnap_fonts(
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mut last: Local<f32>,
+    mut fonts: Query<(&mut TextFont, &AskedFontSize)>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let scale = window.scale_factor();
+    if (scale - *last).abs() < 1e-4 {
+        return;
+    }
+    *last = scale;
+    for (mut text, asked) in &mut fonts {
+        text.font_size = bevy::text::FontSize::Px(snap_font_size(asked.0, scale));
     }
 }
 
@@ -451,6 +531,15 @@ pub(crate) fn use_nearest_glyph_sampling(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn font_sizes_round_to_whole_physical_pixels_and_keep_their_size() {
+        for scale in [1.0, 1.12, 1.17, 1.5] {
+            let size = snap_font_size(23.36, scale);
+            assert!(((size * scale) - (size * scale).round()).abs() < 1e-3);
+            assert!((size - 23.36).abs() <= 0.5 / scale + 1e-3);
+        }
+    }
 
     #[test]
     fn popups_read_like_the_original_status_text() {

@@ -33,6 +33,7 @@ pub(crate) fn click_sounds(
                 // `buy_from_shop` and `sell_card` pay with coin2.
                 MvpAction::BuyJoker(_)
                 | MvpAction::BuyConsumable { .. }
+                | MvpAction::BuyAndUseConsumable { .. }
                 | MvpAction::BuyPlayingCard { .. }
                 | MvpAction::BuyPack { .. }
                 | MvpAction::RedeemVoucher { .. }

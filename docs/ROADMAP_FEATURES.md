@@ -29,14 +29,14 @@ Cette roadmap suit les comportements détaillés, surface par surface. La roadma
 | Réordonnancement manuel des Jokers | En cours | Le dépôt modifie l'ordre de la simulation et réenregistre les effets. Vérifier les fenêtres de score et les copies. |
 | Ordre des effets Joker | En cours | Vérifier les fenêtres d'activation, éditions, copies et répétitions avec traces. |
 | Réordonnancement des consommables | En cours | Le dépôt déplace les instances. Vérifier les usages, les ventes et la reprise. |
-| Vente et utilisation des consommables/Jokers | En cours | Vérifier prix, capacité, refus, révision et cas pendant les phases incompatibles. |
+| Vente et utilisation des consommables/Jokers | En cours | Boutons Sell (vert) et Use (rouge) d'origine, carte sélectionnée au premier plan. L'Empereur crée un Tarot depuis des emplacements pleins. Vérifier en jeu le rendu à 1920 × 1056. |
 | Tags détenus et déclenchement | En cours | Vérifier ordre, suppression et empilement de tags de fin de manche. |
 
 ## Packs, boutique et économie
 
 | Fonctionnalité | État actuel | Travail / critère de sortie |
 | --- | --- | --- |
-| Achat et relance de boutique | En cours | Prix, gratuité, capacité, offres supplémentaires et transitions. |
+| Achat et relance de boutique | En cours | Panneau ancré comme l'original (−5,3 sous la main, jusqu'en bas), boîtes pixelisées, couleurs dynamiques ; « DEFEAT / BOSS BLIND / TO RESTOCK » dans la zone de vouchers vide ; Buy orange, Buy & Use rouge (`Command::BuyAndUseConsumable`). Vérifier en jeu les proportions, les offres supplémentaires et les transitions. |
 | Packs Standard / Buffoon / Arcana / Celestial / Spectral | En cours | Vérifier contenus, quantité de choix, limites et retour à la phase appelante. |
 | Description des cartes d'un pack | À vérifier | Le code attache déjà `item.description`; vérifier qu'aucun état de sélection ne la remplace par une consigne générique. |
 | Ciblage depuis un pack | En cours | Cibles légales, application unique, annulation et Skip. |

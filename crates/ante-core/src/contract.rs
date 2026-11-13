@@ -155,12 +155,27 @@ pub fn booster_id(family: PackFamily, size: PackSize) -> &'static str {
         .map_or("p_arcana_normal", |(id, ..)| id)
 }
 
+/// What is drawn over a playing card's base: its enhancement, edition and seal labels.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CardLook {
+    pub enhancement: Option<&'static str>,
+    pub edition: &'static str,
+    pub seal: Option<&'static str>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShopArt {
-    Card { rank: char, suit: &'static str },
+    Card {
+        rank: char,
+        suit: &'static str,
+        look: CardLook,
+    },
     Joker(&'static str),
     Consumable(&'static str),
-    Pack { family: PackFamily, size: PackSize },
+    Pack {
+        family: PackFamily,
+        size: PackSize,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -396,6 +411,11 @@ pub enum Command {
         index: usize,
         revision: u64,
     },
+    /// Buys a shop consumable and uses it at once, without a consumable slot.
+    BuyAndUseConsumable {
+        index: usize,
+        revision: u64,
+    },
     UseConsumable {
         index: usize,
         revision: u64,
@@ -486,6 +506,8 @@ pub struct ConsumableView {
     pub description: String,
     pub price: usize,
     pub can_buy: bool,
+    /// The shop's "Buy & Use" is available for this offer.
+    pub can_buy_and_use: bool,
     pub can_use: bool,
     pub can_sell: bool,
     pub sell_price: usize,
@@ -597,6 +619,8 @@ pub struct RunView {
     pub packs: Vec<ShopItem>,
     pub pack_choices: Vec<ShopItem>,
     pub pack_picks: usize,
+    /// Family of the open booster pack.
+    pub open_pack: Option<PackFamily>,
     pub can_apply_target: bool,
     pub deck_total: usize,
     pub phase: Phase,

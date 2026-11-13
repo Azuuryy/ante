@@ -8,3 +8,6 @@ pub(crate) mod session;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod layout_tests;

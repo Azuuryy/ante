@@ -1,3 +1,8 @@
+use crate::components::{
+    pixel_rect::{DynRole, PixelBox},
+    tiles::{BLACK, CARD_H, CARD_W, IMPORTANT, MONEY, TILE, TRANSPARENT_DARK, darken, lighten},
+    widgets::{shadowed_label, text_shadow},
+};
 use crate::{
     app::{
         navigation::{DeckChoice, STAKES, Screen as Page},
@@ -9,7 +14,7 @@ use crate::{
         cards::{inventory_cards, voucher_card},
         theme::{INK, MUTED},
         tiles::{BLUE, ORANGE, RED, text_px, tile_button, tile_optional},
-        widgets::{atlas_image, card_face_with_seal, card_hover, label, row},
+        widgets::{atlas_image, card_hover, label, row, wrap_row},
     },
     screens::{
         hand::playing_board,
@@ -76,6 +81,7 @@ fn modal(
     ui.spawn((
         Node {
             width: px(width),
+            flex_shrink: 0.0,
             padding: UiRect::all(px(16)),
             border: UiRect::all(px(4)),
             border_radius: BorderRadius::all(px(16)),
@@ -254,7 +260,7 @@ pub fn deck_select(
                 actions,
                 toggle,
                 PANEL,
-                (2.25, 0.82),
+                (2.8, 0.82),
                 0.34,
                 Click::ToggleSeeded,
             );
@@ -355,7 +361,7 @@ pub fn run_info(ui: &mut ChildSpawnerCommands, view: &RunView, atlases: &Atlases
                 if view.vouchers.is_empty() {
                     label(panel, "No vouchers redeemed", 24.0, MUTED);
                 }
-                row(panel, |cards| {
+                wrap_row(panel, |cards| {
                     for voucher in &view.vouchers {
                         voucher_card(cards, voucher, atlases);
                     }
@@ -408,6 +414,17 @@ pub struct RunBoard {
     counts: [Entity; 2],
     tags: Entity,
     deck_count: Entity,
+    /// The deck area holding the stacked backs.
+    deck_pile: Entity,
+    deck_back: Option<ImageNode>,
+    /// Cards in the deck when its backs were last drawn.
+    deck_shown: Option<usize>,
+    /// "/ 8" after the ante number.
+    ante_end: Entity,
+    /// `create_UIBox_HUD_blind`, shown while a blind is played.
+    blind_box: Entity,
+    /// Blind name, rule, target and reward.
+    blind_texts: [Entity; 4],
     hud: [Entity; 8],
     blind_chip: Entity,
     shop_sign: Entity,
@@ -428,11 +445,44 @@ struct BoardFrame {
     inventory_selection: Option<(crate::components::card_drag::Lane, usize, u64)>,
 }
 
-const HUD_LEFT: f32 = 64.0;
-const HUD_WIDTH: f32 = 324.0;
-const CENTER_LEFT: f32 = HUD_LEFT + HUD_WIDTH + 22.0;
-const BOARD_COLOR: Color = Color::srgb(0.15, 0.35, 0.27);
-const INVENTORY_COLOR: Color = Color::srgba(0.05, 0.11, 0.10, 0.36);
+/// The HUD sits 0.7 tiles left of the room (`align = 'cli'`, offset −0.7) over the full
+/// canvas height; its content is about 5.1 tiles wide.
+const HUD_LEFT: f32 = -0.7 * TILE;
+const HUD_WIDTH: f32 = 5.1 * TILE;
+/// How far the HUD body runs past the room, in tiles: `(30 - ROOM.y) / 2`.
+const HUD_OVERHANG: f32 = (30.0 - 11.5) / 2.0;
+/// Card areas from `set_screen_positions`: the hand starts at 20 − 6·CARD_W − 2.85 tiles and
+/// the Jokers 0.1 tile further left, at the top of the room.
+const HAND_X: f32 = 20.0 - 6.0 * CARD_W - 2.85;
+const CENTER_LEFT: f32 = (HAND_X - 0.1) * TILE;
+const AREA_HEIGHT: f32 = 0.95 * CARD_H * TILE;
+/// Deck area: 1.1 card wide, 0.5 tile from the room's right edge, level with the hand.
+const DECK_LEFT: f32 = (20.0 - 1.1 * CARD_W - 0.5) * TILE;
+const DECK_TOP: f32 = (11.5 - 0.95 * CARD_H) * TILE;
+const DECK_AREA: Vec2 = Vec2::new(1.1 * CARD_W * TILE, 0.95 * CARD_H * TILE);
+/// Scale of the stack spread; 1 is the original `deck_height`. Lower it to tighten the pile.
+const DECK_STACK_SCALE: f32 = 0.6;
+/// Brightness of the backs under the top card.
+const DECK_UNDER_SHADE: f32 = 0.78;
+/// `shadow_parrallax.x` of the deck area: (centre − 10) / 10 x 1.5.
+const DECK_PARALLAX_X: f32 = ((20.0 - 0.55 * CARD_W - 0.5) - 10.0) / 10.0 * 1.5;
+
+/// Offset in tiles of card `k` (1 on top) in a deck of `n`, from `CardArea:align_cards`:
+/// `shadow_parrallax` x 0.15 / 52 per card below it, plus the card's own parallax / 30.
+pub(crate) fn deck_offset(n: usize, k: usize) -> Vec2 {
+    let below = n.saturating_sub(k) as f32 * 0.15 / 52.0 * DECK_STACK_SCALE;
+    Vec2::new(
+        DECK_PARALLAX_X * below + DECK_PARALLAX_X / 30.0,
+        -1.5 * below,
+    )
+}
+
+/// The original only draws card 1, every ninth card and the last (`thin_draw`).
+fn drawn_backs(n: usize) -> impl Iterator<Item = usize> {
+    (1..=n)
+        .rev()
+        .filter(move |&k| k == 1 || k % 9 == 0 || k == n)
+}
 
 #[derive(Component)]
 pub struct ScoreTile(pub bool);
@@ -443,19 +493,33 @@ impl RunBoard {
         atlases: &Atlases,
         deck: DeckChoice,
         run_id: u64,
+        stake: usize,
     ) -> Self {
         let root = commands
             .spawn((
                 Screen,
                 Node {
-                    width: px(crate::components::tiles::ROOM.x),
-                    height: px(crate::components::tiles::ROOM.y),
+                    width: px(crate::components::tiles::CANVAS.x),
+                    height: px(crate::components::tiles::CANVAS.y),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
                     ..default()
                 },
-                BackgroundColor(BOARD_COLOR),
                 UiTransform::IDENTITY,
             ))
+            .with_children(|canvas| {
+                canvas.spawn(crate::components::background::layer());
+                canvas.spawn(crate::components::sparkles::layer());
+            })
             .id();
+        let room = commands
+            .spawn((ChildOf(root), crate::app::presentation::room_node()))
+            .id();
+        let deck_back = atlases.deck_back(deck);
+        let mut deck_pile = Entity::PLACEHOLDER;
+        let mut ante_end = Entity::PLACEHOLDER;
+        let mut blind_box = Entity::PLACEHOLDER;
+        let mut blind_texts = [Entity::PLACEHOLDER; 4];
         let mut hud = [Entity::PLACEHOLDER; 8];
         let mut blind_chip = Entity::PLACEHOLDER;
         let mut shop_sign = Entity::PLACEHOLDER;
@@ -465,177 +529,150 @@ impl RunBoard {
         let mut counts = [Entity::PLACEHOLDER; 2];
         let mut tags = Entity::PLACEHOLDER;
         let mut deck_count = Entity::PLACEHOLDER;
-        commands.entity(root).with_children(|ui| {
-            ui.spawn(box_node(
+        commands.entity(room).with_children(|ui| {
+            // `create_UIBox_HUD`: a faint dark rim, the DYN_UI.MAIN outline, then the body.
+            // The body is `minh = 30` tiles, centred on the room: its top and bottom edges are
+            // off screen and only the left and right MAIN bands show.
+            ui.spawn((
                 Node {
                     position_type: PositionType::Absolute,
                     left: px(HUD_LEFT),
-                    top: px(0),
-                    bottom: px(0),
+                    top: px(-HUD_OVERHANG * TILE),
+                    bottom: px(-HUD_OVERHANG * TILE),
                     width: px(HUD_WIDTH),
-                    padding: UiRect::all(px(16)),
-                    justify_content: JustifyContent::End,
-                    ..column(10.0)
+                    padding: UiRect::all(px(0.03 * TILE)),
+                    ..default()
                 },
-                PANEL,
+                PixelBox::new(TRANSPARENT_DARK),
             ))
-            .with_children(|panel| {
-                panel
-                    .spawn(box_node(
-                        Node {
-                            width: percent(100),
-                            min_height: px(180),
-                            flex_grow: 1.0,
-                            justify_content: JustifyContent::Center,
-                            ..column(12.0)
-                        },
-                        PANEL,
-                    ))
-                    .with_children(|blind| {
-                        hud[0] = value(blind, 34.0, INK);
-                        blind_chip = blind
-                            .spawn((
-                                Node {
-                                    display: Display::None,
-                                    width: px(70),
-                                    height: px(70),
-                                    ..default()
-                                },
-                                Pickable::IGNORE,
-                            ))
-                            .id();
-                        hud[1] = value(blind, 22.0, GOLD);
-                        if let Some(image) = atlases.shop_sign() {
-                            shop_sign = blind
-                                .spawn((
-                                    image,
-                                    Node {
-                                        display: Display::None,
-                                        width: px(235),
-                                        height: px(119),
-                                        ..default()
-                                    },
-                                    Pickable::IGNORE,
-                                ))
-                                .id();
-                        }
-                    });
-                panel
-                    .spawn(box_node(
-                        Node {
-                            width: percent(100),
-                            height: px(58),
-                            padding: UiRect::horizontal(px(10)),
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::SpaceBetween,
-                            ..default()
-                        },
-                        WELL,
-                    ))
-                    .with_children(|score| {
-                        label(score, "Round score", 21.0, INK);
-                        hud[2] = value(score, 32.0, INK);
-                    });
-                panel
-                    .spawn(box_node(
-                        Node {
-                            width: percent(100),
-                            height: px(130),
-                            padding: UiRect::all(px(10)),
-                            flex_direction: FlexDirection::Column,
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::SpaceBetween,
-                            ..default()
-                        },
-                        WELL,
-                    ))
-                    .with_children(|score| {
-                        hand_title = value(score, 24.0, INK);
-                        row(score, |tiles| {
-                            for (index, color) in [BLUE, RED].into_iter().enumerate() {
-                                if index == 1 {
-                                    label(tiles, "x", 30.0, RED);
-                                }
-                                tiles
-                                    .spawn(box_node(
-                                        Node {
-                                            width: px(112),
-                                            height: px(60),
-                                            align_items: AlignItems::Center,
-                                            justify_content: JustifyContent::Center,
-                                            ..default()
-                                        },
-                                        color,
-                                    ))
-                                    .with_children(|tile| {
-                                        score_tiles[index] = value(tile, 38.0, INK);
-                                    });
-                            }
+            .with_children(|rim| {
+                rim.spawn((
+                    Node {
+                        flex_grow: 1.0,
+                        padding: UiRect::all(px(0.05 * TILE)),
+                        ..default()
+                    },
+                    PixelBox::new(BLACK),
+                    DynRole::Main,
+                ))
+                .with_children(|outline| {
+                    outline
+                        .spawn((
+                            Node {
+                                flex_grow: 1.0,
+                                padding: UiRect::all(px(0.08 * TILE)),
+                                justify_content: JustifyContent::Center,
+                                ..column(0.08 * TILE)
+                            },
+                            PixelBox::new(BLACK),
+                            DynRole::BossDark,
+                        ))
+                        .with_children(|panel| {
+                            panel.spawn(Node {
+                                height: px(0.3 * TILE),
+                                ..default()
+                            });
+                            // `row_blind`: the blind or the shop sign.
+                            panel
+                                .spawn(Node {
+                                    width: percent(100),
+                                    height: px(3.75 * TILE),
+                                    justify_content: JustifyContent::Center,
+                                    ..column(0.12 * TILE)
+                                })
+                                .with_children(|blind| {
+                                    hud[0] = value(blind, text_px(0.6), INK);
+                                    hud[1] = value(blind, text_px(0.34), INK);
+                                    blind_box = spawn_blind_box(
+                                        blind,
+                                        atlases.stake_chip(stake),
+                                        &mut blind_chip,
+                                        &mut blind_texts,
+                                    );
+                                    if let Some(image) = atlases.shop_sign() {
+                                        shop_sign = spawn_shop_sign(blind, image);
+                                    }
+                                });
+                            round_score(panel, atlases.stake_chip(stake), &mut hud[2]);
+                            hand_area(panel, &mut hand_title, &mut score_tiles);
+                            bottom_hud(panel, &mut hud, &mut ante_end);
                         });
-                    });
-                bottom_hud(panel, &mut hud);
+                });
             });
             ui.spawn(Node {
                 position_type: PositionType::Absolute,
                 left: px(CENTER_LEFT),
-                top: px(30),
-                right: px(42),
-                column_gap: px(12),
+                top: px(0),
+                column_gap: px(0.2 * TILE),
                 ..default()
             })
             .with_children(|bar| {
-                for index in 0..2 {
+                for (index, width) in [
+                    crate::components::tiles::JOKER_AREA,
+                    crate::components::tiles::CONSUMABLE_AREA,
+                ]
+                .into_iter()
+                .enumerate()
+                {
                     bar.spawn(Node {
-                        flex_grow: if index == 0 { 2.0 } else { 1.0 },
-                        flex_basis: px(0),
-                        min_width: px(0),
+                        width: px(width),
+                        flex_shrink: 0.0,
+                        align_items: AlignItems::Start,
                         ..column(3.0)
                     })
                     .with_children(|zone| {
                         inventory[index] = zone
-                            .spawn(box_node(
+                            .spawn((
                                 Node {
                                     width: percent(100),
-                                    height: px(180),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    column_gap: px(4),
+                                    height: px(AREA_HEIGHT),
                                     ..default()
                                 },
-                                INVENTORY_COLOR,
+                                PixelBox::new(Color::srgba(0.0, 0.0, 0.0, 0.1)),
                             ))
                             .id();
-                        counts[index] = value(zone, 18.0, INK);
+                        counts[index] = value(zone, text_px(0.3), INK);
                     });
                 }
             });
+            // Deck area of `set_screen_positions`; the pile is drawn by `deck_backs`.
             ui.spawn(Node {
                 position_type: PositionType::Absolute,
-                right: px(28),
-                bottom: px(26),
+                left: px(DECK_LEFT),
+                top: px(DECK_TOP),
+                width: px(DECK_AREA.x),
                 align_items: AlignItems::End,
-                column_gap: px(9),
-                ..default()
+                ..column(0.05 * TILE)
             })
             .with_children(|region| {
+                let card = crate::components::tiles::card_px();
                 let mut stack = region.spawn((
                     Node {
-                        width: px(119),
-                        ..column(6.0)
+                        width: px(DECK_AREA.x),
+                        height: px(DECK_AREA.y),
+                        ..default()
                     },
                     crate::components::travel::DeckPile,
                 ));
                 stack
                     .observe(
                         |_: On<bevy::picking::prelude::PointerOver>,
-                         mut clicks: MessageWriter<Click>| {
+                         mut clicks: MessageWriter<Click>,
+                         mut labels: Query<&mut Visibility, With<DeckHoverLabel>>| {
                             clicks.write(Click::HoverDeck(true));
+                            for mut label in &mut labels {
+                                *label = Visibility::Inherited;
+                            }
                         },
                     )
                     .observe(
                         |_: On<bevy::picking::prelude::PointerOut>,
-                         mut clicks: MessageWriter<Click>| {
+                         mut clicks: MessageWriter<Click>,
+                         mut labels: Query<&mut Visibility, With<DeckHoverLabel>>| {
                             clicks.write(Click::HoverDeck(false));
+                            for mut label in &mut labels {
+                                *label = Visibility::Hidden;
+                            }
                         },
                     )
                     .observe(
@@ -645,17 +682,30 @@ impl RunBoard {
                                 clicks.write(Click::OpenDeck);
                             }
                         },
-                    )
-                    .with_children(|cards| {
-                        if let Some(back) = atlases.deck_back(deck) {
-                            atlas_image(cards, back, 110.0, 147.0);
-                        } else {
-                            crate::components::tiles::deck_preview_large(cards, deck, None);
-                        }
-                        deck_count = value(cards, 23.0, INK);
+                    );
+                deck_pile = stack.id();
+                if deck_back.is_none() {
+                    stack.with_children(|cards| {
+                        cards
+                            .spawn(Node {
+                                position_type: PositionType::Absolute,
+                                left: px((DECK_AREA.x - card.x) / 2.0),
+                                top: px((DECK_AREA.y - card.y) / 2.0),
+                                ..default()
+                            })
+                            .with_children(|fallback| {
+                                crate::components::tiles::deck_preview_large(fallback, deck, None);
+                            });
                     });
+                }
+                deck_hover_label(region);
+                deck_count = value(region, text_px(0.3), INK);
+                // Held tags stand left of the deck without moving it.
                 tags = region
                     .spawn(Node {
+                        position_type: PositionType::Absolute,
+                        right: percent(100),
+                        bottom: px(0),
                         width: px(44),
                         flex_direction: FlexDirection::ColumnReverse,
                         row_gap: px(5),
@@ -670,11 +720,11 @@ impl RunBoard {
                 .insert((ScoreTile(index == 0), UiTransform::IDENTITY));
         }
         let center = commands
-            .spawn((ChildOf(root), center_layout(Phase::BeforeBlind)))
+            .spawn((ChildOf(room), center_layout(Phase::BeforeBlind)))
             .id();
         let error = commands
             .spawn((
-                ChildOf(root),
+                ChildOf(room),
                 Node {
                     position_type: PositionType::Absolute,
                     left: px(CENTER_LEFT),
@@ -712,6 +762,12 @@ impl RunBoard {
             counts,
             tags,
             deck_count,
+            deck_pile,
+            deck_back,
+            deck_shown: None,
+            ante_end,
+            blind_box,
+            blind_texts,
             hud,
             blind_chip,
             shop_sign,
@@ -729,6 +785,7 @@ impl RunBoard {
         view: &RunView,
         atlases: &Atlases,
         session: &Session,
+        text: &crate::services::assets::ui_text::UiText,
     ) {
         let trace = session.playback.as_ref();
         let preview = session.deck_hovered
@@ -756,13 +813,9 @@ impl RunBoard {
             Phase::Shop => "Shop",
             _ => &view.blind,
         };
-        let rule = if view.phase == Phase::Playing && !view.blind_rule.is_empty() {
-            format!("Score at least {}\n{}", view.target, view.blind_rule)
-        } else if view.phase == Phase::Playing {
-            format!("Score at least {}", view.target)
-        } else {
-            String::new()
-        };
+        let in_blind = view.phase == Phase::Playing;
+        let title = if in_blind { "" } else { title };
+        let rule = String::new();
         for (entity, text) in self.hud.into_iter().zip([
             title.to_owned(),
             rule,
@@ -770,46 +823,59 @@ impl RunBoard {
             view.hands.to_string(),
             view.discards.to_string(),
             format!("${}", view.money),
-            if view.endless_mode {
-                view.ante.to_string()
-            } else {
-                format!("{}/{}", view.ante, view.ante_end)
-            },
+            view.ante.to_string(),
             view.round.to_string(),
         ]) {
             commands.entity(entity).insert(Text::new(text));
         }
+        commands
+            .entity(self.ante_end)
+            .insert(Text::new(if view.endless_mode {
+                String::new()
+            } else {
+                format!(" / {}", view.ante_end)
+            }));
         if self.shop_sign != Entity::PLACEHOLDER {
-            commands.entity(self.shop_sign).insert(Node {
-                display: if view.phase == Phase::Shop {
+            commands
+                .entity(self.shop_sign)
+                .insert(shop_sign_node(if view.phase == Phase::Shop {
                     Display::Flex
                 } else {
                     Display::None
-                },
-                width: px(235),
-                height: px(119),
-                ..default()
-            });
+                }));
         }
-        let chip = (view.phase == Phase::Playing)
-            .then(|| view.blind_chip.and_then(|id| atlases.blind_chip(id)))
-            .flatten();
-        commands.entity(self.blind_chip).insert(Node {
-            display: if chip.is_some() {
+        commands
+            .entity(self.blind_box)
+            .insert(blind_box_node(if in_blind {
                 Display::Flex
             } else {
                 Display::None
-            },
-            width: px(70),
-            height: px(70),
-            ..default()
-        });
-        if let Some(chip) = chip {
-            commands.entity(self.blind_chip).insert(chip);
+            }));
+        if in_blind {
+            if let Some(chip) = view.blind_chip.and_then(|id| atlases.blind_chip(id)) {
+                commands.entity(self.blind_chip).insert(chip);
+            }
+            let [name, rule, target, reward] = self.blind_texts;
+            commands.entity(name).insert(Text::new(view.blind.clone()));
+            commands
+                .entity(rule)
+                .insert(Text::new(view.blind_rule.clone()));
+            // `blind_chip_UI_scale`; only the size changes, the game font stays.
+            commands.entity(target).insert((
+                Text::new(score_text(view.target)),
+                crate::app::presentation::TextSize(text_px(scale_number(
+                    view.target as f64,
+                    0.7,
+                    100_000.0,
+                ))),
+            ));
+            commands
+                .entity(reward)
+                .insert(Text::new("$".repeat(view.reward)));
         }
         commands.entity(self.hand_title).insert(Text::new(
             view.selected_hand.map_or_else(String::new, |hand| {
-                format!("{} · Lv.{}", hand.name(), hand.level.level)
+                format!("{}  lvl.{}", hand.name(), hand.level.level)
             }),
         ));
         let (chips, mult) = trace
@@ -824,6 +890,38 @@ impl RunBoard {
         commands
             .entity(self.score_tiles[1])
             .insert(Text::new(mult_text(mult)));
+        if self.deck_shown != Some(view.deck_cards)
+            && let Some(back) = self.deck_back.clone()
+        {
+            self.deck_shown = Some(view.deck_cards);
+            let card = crate::components::tiles::card_px();
+            let n = view.deck_cards;
+            commands
+                .entity(self.deck_pile)
+                .despawn_children()
+                .with_children(|pile| {
+                    for k in drawn_backs(n) {
+                        let offset = deck_offset(n, k) * TILE;
+                        // Cards under the top one read greyer, like their stacked shadows.
+                        let shade = if k == 1 { 1.0 } else { DECK_UNDER_SHADE };
+                        pile.spawn((
+                            ImageNode {
+                                color: Color::srgb(shade, shade, shade),
+                                ..back.clone()
+                            },
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: px((DECK_AREA.x - card.x) / 2.0 + offset.x),
+                                top: px((DECK_AREA.y - card.y) / 2.0 + offset.y),
+                                width: px(card.x),
+                                height: px(card.y),
+                                ..default()
+                            },
+                            Pickable::IGNORE,
+                        ));
+                    }
+                });
+        }
         commands.entity(self.deck_count).insert(Text::new(format!(
             "{}/{}",
             view.deck_cards, view.deck_total
@@ -897,7 +995,9 @@ impl RunBoard {
                     session.speed,
                     preview,
                 ),
-                Phase::Shop => shop_board(center, view, atlases, session.shop_selection),
+                Phase::Shop => {
+                    shop_board(center, view, atlases, session.shop_selection, text);
+                }
                 Phase::Reward => {
                     label(center, "Blind cleared", 38.0, INK);
                     label(
@@ -966,77 +1066,580 @@ fn value(ui: &mut ChildSpawnerCommands, size: f32, color: Color) -> Entity {
             ..default()
         },
         TextColor(color),
+        text_shadow(),
         Pickable::IGNORE,
     ))
     .id()
 }
 
-fn bottom_hud(ui: &mut ChildSpawnerCommands, hud: &mut [Entity; 8]) {
-    const ACTION_WIDTH: f32 = 1.34;
-    ui.spawn(Node {
-        display: Display::Grid,
-        width: percent(100),
-        flex_shrink: 0.0,
-        grid_template_columns: vec![
-            GridTrack::px(crate::components::tiles::tile_px(ACTION_WIDTH)),
-            GridTrack::flex(1.0),
-        ],
-        column_gap: px(10),
-        ..default()
-    })
-    .with_children(|bottom| {
-        bottom.spawn(column(8.0)).with_children(|actions| {
-            tile_button(
-                actions,
-                "Run Info",
-                RED,
-                (ACTION_WIDTH, 1.37),
-                0.34,
-                Click::OpenRunInfo,
-            );
-            tile_button(
-                actions,
-                "Options",
-                ORANGE,
-                (ACTION_WIDTH, 1.37),
-                0.34,
-                Click::OpenPause,
-            );
-        });
-        bottom
-            .spawn(Node {
-                display: Display::Grid,
-                grid_template_columns: vec![GridTrack::flex(1.0), GridTrack::flex(1.0)],
-                column_gap: px(10),
-                row_gap: px(4),
-                ..default()
-            })
-            .with_children(|stats| {
-                hud[3] = stat(stats, "Hands", BLUE, 1);
-                hud[4] = stat(stats, "Discards", RED, 1);
-                hud[5] = stat(stats, "Money", GOLD, 2);
-                hud[6] = stat(stats, "Ante", GOLD, 1);
-                hud[7] = stat(stats, "Round", GOLD, 1);
+/// "View Deck" over the deck while it is hovered.
+#[derive(Component)]
+pub(crate) struct DeckHoverLabel;
+
+fn deck_hover_label(ui: &mut ChildSpawnerCommands) {
+    ui.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(0),
+            top: px(0),
+            width: px(DECK_AREA.x),
+            height: px(DECK_AREA.y),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        Visibility::Hidden,
+        DeckHoverLabel,
+        Pickable::IGNORE,
+    ))
+    .with_children(|centre| {
+        centre
+            .spawn((
+                Node {
+                    padding: UiRect::all(px(0.1 * TILE)),
+                    ..column(0.0)
+                },
+                PixelBox::new(Color::srgba(0.0, 0.0, 0.0, 0.45)),
+                Pickable::IGNORE,
+            ))
+            .with_children(|text| {
+                shadowed_label(text, "View", text_px(0.5), INK);
+                shadowed_label(text, "Deck", text_px(0.4), INK);
             });
     });
 }
 
-fn stat(ui: &mut ChildSpawnerCommands, name: &str, color: Color, columns: u16) -> Entity {
-    let mut number = Entity::PLACEHOLDER;
-    ui.spawn(box_node(
+fn blind_box_node(display: Display) -> Node {
+    Node {
+        display,
+        min_width: px(4.5 * TILE),
+        padding: UiRect::all(px(0.05 * TILE)),
+        ..column(0.05 * TILE)
+    }
+}
+
+/// `scale_number`: text shrinks as the number grows past `max`.
+fn scale_number(number: f64, scale: f32, max: f64) -> f32 {
+    if number < max {
+        scale
+    } else {
+        (scale as f64 * (max / number).powf(0.25)).max(0.25) as f32
+    }
+}
+
+/// `create_UIBox_HUD_blind`: the blind name in DYN_UI.MAIN over a DYN_UI.DARK box with the
+/// rule, the blind chip and a black box with the target and reward.
+fn spawn_blind_box(
+    ui: &mut ChildSpawnerCommands,
+    stake: Option<ImageNode>,
+    chip: &mut Entity,
+    texts: &mut [Entity; 4],
+) -> Entity {
+    ui.spawn((
+        blind_box_node(Display::None),
+        PixelBox::new(BLACK).emboss(0.05),
+    ))
+    .with_children(|blind| {
+        blind
+            .spawn((
+                Node {
+                    width: percent(100),
+                    min_height: px(0.7 * TILE),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                PixelBox::new(BLACK).emboss(0.05),
+                DynRole::Main,
+            ))
+            .with_children(|name| {
+                texts[0] = name
+                    .spawn((
+                        Text::new(""),
+                        TextFont {
+                            font_size: bevy::text::FontSize::Px(text_px(0.64)),
+                            ..default()
+                        },
+                        TextColor(INK),
+                        text_shadow(),
+                        Floating,
+                        UiTransform::IDENTITY,
+                        Pickable::IGNORE,
+                    ))
+                    .id();
+            });
+        blind
+            .spawn((
+                Node {
+                    width: percent(100),
+                    min_height: px(2.74 * TILE),
+                    justify_content: JustifyContent::Center,
+                    ..column(0.0)
+                },
+                PixelBox::new(BLACK),
+                DynRole::Dark,
+            ))
+            .with_children(|body| {
+                texts[1] = body
+                    .spawn((
+                        Node {
+                            max_width: px(4.2 * TILE),
+                            padding: UiRect::all(px(0.05 * TILE)),
+                            ..default()
+                        },
+                        Text::new(""),
+                        TextFont {
+                            font_size: bevy::text::FontSize::Px(text_px(0.36)),
+                            ..default()
+                        },
+                        TextLayout::justify(Justify::Center),
+                        TextColor(INK),
+                        Pickable::IGNORE,
+                    ))
+                    .id();
+                body.spawn(Node {
+                    padding: UiRect::all(px(0.15 * TILE)),
+                    column_gap: px(0.15 * TILE),
+                    align_items: AlignItems::Center,
+                    ..default()
+                })
+                .with_children(|row| {
+                    *chip = row
+                        .spawn((
+                            Node {
+                                width: px(1.5 * TILE),
+                                height: px(1.5 * TILE),
+                                ..default()
+                            },
+                            Pickable::IGNORE,
+                        ))
+                        .id();
+                    row.spawn((
+                        Node {
+                            min_width: px(2.9 * TILE),
+                            padding: UiRect::all(px(0.05 * TILE)),
+                            ..column(0.0)
+                        },
+                        PixelBox::new(BLACK).emboss(0.05),
+                    ))
+                    .with_children(|target| {
+                        target.spawn((
+                            Text::new(""),
+                            TextFont {
+                                font_size: bevy::text::FontSize::Px(text_px(0.3)),
+                                ..default()
+                            },
+                            TextColor(INK),
+                            text_shadow(),
+                            LocalText::new("ph_blind_score_at_least"),
+                            Pickable::IGNORE,
+                        ));
+                        target
+                            .spawn(Node {
+                                min_height: px(0.6 * TILE),
+                                column_gap: px(0.1 * TILE),
+                                align_items: AlignItems::Center,
+                                ..default()
+                            })
+                            .with_children(|count| {
+                                if let Some(stake) = stake {
+                                    atlas_image(count, stake, 0.5 * TILE, 0.5 * TILE);
+                                }
+                                texts[2] = value(count, text_px(0.7), RED);
+                            });
+                        target
+                            .spawn(Node {
+                                min_height: px(0.45 * TILE),
+                                align_items: AlignItems::Center,
+                                ..default()
+                            })
+                            .with_children(|reward| {
+                                reward.spawn((
+                                    Text::new(""),
+                                    TextFont {
+                                        font_size: bevy::text::FontSize::Px(text_px(0.3)),
+                                        ..default()
+                                    },
+                                    TextColor(INK),
+                                    LocalText::new("ph_blind_reward"),
+                                    Pickable::IGNORE,
+                                ));
+                                texts[3] = value(reward, text_px(0.45), MONEY);
+                            });
+                    });
+                });
+            });
+    })
+    .id()
+}
+
+/// Spacing between HUD counters (`spacing` in `create_UIBox_HUD`).
+const HUD_SPACING: f32 = 0.13;
+
+/// `G.SHOP_SIGN`: the animated sign and the gold line in a DYN_UI.DARK box framed by MAIN.
+fn spawn_shop_sign(ui: &mut ChildSpawnerCommands, image: ImageNode) -> Entity {
+    ui.spawn((
+        shop_sign_node(Display::None),
+        PixelBox::new(BLACK).emboss(0.05),
+        DynRole::Main,
+        Pickable::IGNORE,
+    ))
+    .with_children(|frame| {
+        frame
+            .spawn((
+                Node {
+                    min_width: px(4.72 * TILE),
+                    min_height: px(3.1 * TILE),
+                    padding: UiRect::all(px(0.1 * TILE)),
+                    justify_content: JustifyContent::Center,
+                    ..column(0.1 * TILE)
+                },
+                PixelBox::new(BLACK),
+                DynRole::Dark,
+                Pickable::IGNORE,
+            ))
+            .with_children(|sign| {
+                sign.spawn((
+                    image,
+                    Node {
+                        width: px(4.4 * TILE),
+                        height: px(2.2 * TILE),
+                        ..default()
+                    },
+                    ShopSignFrames,
+                    Pickable::IGNORE,
+                ));
+                sign.spawn((
+                    Text::new(""),
+                    TextFont {
+                        font_size: bevy::text::FontSize::Px(text_px(0.5)),
+                        ..default()
+                    },
+                    TextColor(lighten(crate::components::tiles::GOLD, 0.3)),
+                    text_shadow(),
+                    LocalText::new("ph_improve_run"),
+                    Floating,
+                    UiTransform::IDENTITY,
+                    Pickable::IGNORE,
+                ));
+            });
+    })
+    .id()
+}
+
+fn shop_sign_node(display: Display) -> Node {
+    Node {
+        display,
+        padding: UiRect::all(px(0.1 * TILE)),
+        ..default()
+    }
+}
+
+/// `contents.dollars_chips`: "Round score" beside a dark box with the stake chip and score.
+fn round_score(ui: &mut ChildSpawnerCommands, stake: Option<ImageNode>, score: &mut Entity) {
+    ui.spawn((
         Node {
-            grid_column: GridPlacement::span(columns),
-            height: px(66),
+            padding: UiRect::all(px(0.1 * TILE)),
+            column_gap: px(0.1 * TILE),
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        PixelBox::new(BLACK).emboss(0.05),
+        DynRole::BossMain,
+    ))
+    .with_children(|row| {
+        row.spawn(Node {
+            min_width: px(1.3 * TILE),
+            ..column(0.0)
+        })
+        .with_children(|title| {
+            shadowed_label(title, "Round", text_px(0.42), INK);
+            shadowed_label(title, "score", text_px(0.42), INK);
+        });
+        row.spawn((
+            Node {
+                min_width: px(3.3 * TILE),
+                min_height: px(0.7 * TILE),
+                column_gap: px(0.1 * TILE),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            PixelBox::new(BLACK),
+            DynRole::BossDark,
+        ))
+        .with_children(|count| {
+            if let Some(chip) = stake {
+                atlas_image(count, chip, 0.5 * TILE, 0.5 * TILE);
+            }
+            *score = value(count, text_px(0.85), INK);
+        });
+    });
+}
+
+/// `contents.hand`: the hand name and level over Chips x Mult.
+fn hand_area(ui: &mut ChildSpawnerCommands, title: &mut Entity, tiles: &mut [Entity; 2]) {
+    ui.spawn((
+        Node {
+            padding: UiRect::all(px(0.03 * TILE)),
+            ..column(0.0)
+        },
+        PixelBox::new(darken(BLACK, 0.1)).emboss(0.05),
+    ))
+    .with_children(|area| {
+        area.spawn(Node {
+            min_height: px(1.1 * TILE),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        })
+        .with_children(|name| {
+            *title = value(name, text_px(0.56), INK);
+        });
+        area.spawn(Node {
+            min_height: px(TILE),
+            padding: UiRect::all(px(0.1 * TILE)),
+            column_gap: px(0.05 * TILE),
+            align_items: AlignItems::Center,
+            ..default()
+        })
+        .with_children(|row| {
+            for (index, color) in [BLUE, RED].into_iter().enumerate() {
+                if index == 1 {
+                    shadowed_label(row, "X", text_px(0.8), RED);
+                }
+                row.spawn((
+                    Node {
+                        min_width: px(2.0 * TILE),
+                        min_height: px(TILE),
+                        padding: UiRect::horizontal(px(0.1 * TILE)),
+                        align_items: AlignItems::Center,
+                        justify_content: if index == 0 {
+                            JustifyContent::End
+                        } else {
+                            JustifyContent::Start
+                        },
+                        ..default()
+                    },
+                    PixelBox::new(color).emboss(0.05),
+                ))
+                .with_children(|tile| {
+                    tiles[index] = value(tile, text_px(0.92), INK);
+                });
+            }
+        });
+    });
+}
+
+/// `contents.buttons` and `contents.round`.
+fn bottom_hud(ui: &mut ChildSpawnerCommands, hud: &mut [Entity; 8], ante_end: &mut Entity) {
+    ui.spawn(Node {
+        align_items: AlignItems::Center,
+        ..default()
+    })
+    .with_children(|bottom| {
+        bottom
+            .spawn(Node {
+                padding: UiRect::all(px(0.2 * TILE)),
+                ..column(0.2 * TILE)
+            })
+            .with_children(|actions| {
+                hud_button(actions, &["Run", "Info"], RED, Click::OpenRunInfo);
+                hud_button(actions, &["Options"], ORANGE, Click::OpenPause);
+            });
+        bottom
+            .spawn(column(HUD_SPACING * TILE))
+            .with_children(|stats| {
+                stats
+                    .spawn(Node {
+                        column_gap: px(HUD_SPACING * TILE),
+                        ..default()
+                    })
+                    .with_children(|pair| {
+                        hud[3] = counter(pair, Some("Hands"), (1.45, 0.0), BLUE, 0.8).0;
+                        hud[4] = counter(pair, Some("Discards"), (1.45, 0.0), RED, 0.8).0;
+                    });
+                hud[5] = counter(stats, None, (1.45 * 2.0 + HUD_SPACING, 1.15), MONEY, 0.88).0;
+                stats
+                    .spawn(Node {
+                        column_gap: px(HUD_SPACING * TILE),
+                        ..default()
+                    })
+                    .with_children(|pair| {
+                        let (ante, inner) =
+                            counter(pair, Some("Ante"), (1.45, 1.0), IMPORTANT, 0.8);
+                        hud[6] = ante;
+                        pair.commands_mut().entity(inner).with_children(|box_| {
+                            *ante_end = box_
+                                .spawn((
+                                    Text::new(""),
+                                    TextFont {
+                                        font_size: bevy::text::FontSize::Px(text_px(0.4)),
+                                        ..default()
+                                    },
+                                    TextColor(INK),
+                                    text_shadow(),
+                                    Pickable::IGNORE,
+                                ))
+                                .id();
+                        });
+                        hud[7] = counter(pair, Some("Round"), (1.45, 1.0), IMPORTANT, 0.8).0;
+                    });
+            });
+    });
+}
+
+/// Run Info and Options: 1.5 x 1.75 with a shadow.
+fn hud_button(ui: &mut ChildSpawnerCommands, lines: &[&str], color: Color, action: Click) {
+    let rows: Vec<[(&str, f32); 1]> = lines
+        .iter()
+        .enumerate()
+        .map(|(index, line)| {
+            [(
+                *line,
+                if index == 0 && lines.len() > 1 {
+                    0.48
+                } else {
+                    0.4
+                },
+            )]
+        })
+        .collect();
+    let rows: Vec<&[(&str, f32)]> = rows.iter().map(|row| row.as_slice()).collect();
+    crate::components::tiles::card_button(
+        ui,
+        &rows,
+        color,
+        (1.5, 1.75),
+        UiRect::all(px(0.05 * TILE)),
+        Some(action),
+    );
+}
+
+/// A HUD counter: a BOSS_MAIN box with its title over a BOSS_DARK box holding the number.
+/// Returns the number and the inner box.
+fn counter(
+    ui: &mut ChildSpawnerCommands,
+    title: Option<&str>,
+    (min_w, min_h): (f32, f32),
+    color: Color,
+    scale: f32,
+) -> (Entity, Entity) {
+    let mut number = Entity::PLACEHOLDER;
+    let mut inner = Entity::PLACEHOLDER;
+    ui.spawn((
+        Node {
+            min_width: px(min_w * TILE),
+            min_height: px(min_h * TILE),
+            padding: UiRect::all(px(0.05 * TILE)),
             justify_content: JustifyContent::Center,
             ..column(0.0)
         },
-        WELL,
+        PixelBox::new(BLACK).emboss(0.05),
+        DynRole::BossMain,
     ))
     .with_children(|field| {
-        label(field, name, 18.0, INK);
-        number = value(field, 32.0, color);
+        if let Some(title) = title {
+            field
+                .spawn(Node {
+                    min_height: px(0.33 * TILE),
+                    align_items: AlignItems::Center,
+                    ..default()
+                })
+                .with_children(|row| shadowed_label(row, title, text_px(0.34), INK));
+        }
+        let wide = title.is_none();
+        inner = field
+            .spawn((
+                Node {
+                    min_width: px(if wide { 1.28 * 2.0 + HUD_SPACING } else { 1.2 } * TILE),
+                    min_height: px(if wide { 1.0 } else { 0.0 } * TILE),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                PixelBox::new(BLACK),
+                DynRole::BossDark,
+            ))
+            .with_children(|number_box| {
+                number = value(number_box, text_px(scale), color);
+            })
+            .id();
     });
-    number
+    (number, inner)
+}
+
+/// The shop sign atlas holds 4 frames of 113 x 57, played at `G.ANIMATION_FPS` = 10.
+#[derive(Component)]
+pub(crate) struct ShopSignFrames;
+
+/// DynaText `float`: a slow sway and bob.
+#[derive(Component)]
+pub(crate) struct Floating;
+
+/// Text read from the local localization by key.
+#[derive(Component)]
+pub(crate) struct LocalText {
+    key: &'static str,
+    var: Option<String>,
+}
+
+impl LocalText {
+    pub(crate) fn new(key: &'static str) -> Self {
+        Self { key, var: None }
+    }
+
+    /// A string with `#1#` replaced by `var`.
+    pub(crate) fn with_var(key: &'static str, var: impl ToString) -> Self {
+        Self {
+            key,
+            var: Some(var.to_string()),
+        }
+    }
+}
+
+const SIGN_FRAMES: u32 = 4;
+const SIGN_FRAME: Vec2 = Vec2::new(113.0, 57.0);
+const ANIMATION_FPS: f32 = 10.0;
+
+pub(crate) fn animate_shop_sign(
+    time: Res<Time<Real>>,
+    mut signs: Query<&mut ImageNode, With<ShopSignFrames>>,
+) {
+    let frame = (time.elapsed_secs() * ANIMATION_FPS) as u32 % SIGN_FRAMES;
+    let min = Vec2::new(frame as f32 * SIGN_FRAME.x, 0.0);
+    for mut image in &mut signs {
+        let rect = Rect::from_corners(min, min + SIGN_FRAME);
+        if image.rect != Some(rect) {
+            image.rect = Some(rect);
+        }
+    }
+}
+
+pub(crate) fn float_text(
+    time: Res<Time<Real>>,
+    mut texts: Query<&mut UiTransform, With<Floating>>,
+) {
+    let t = time.elapsed_secs();
+    for mut transform in &mut texts {
+        transform.rotation = Rot2::radians(0.02 * (2.0 * t).sin());
+        transform.translation = Val2::px(0.0, -(1.0 + 0.3 * (0.666 * t).sin()) * 0.05 * TILE);
+    }
+}
+
+pub(crate) fn fill_local_text(
+    text: Option<Res<crate::services::assets::ui_text::UiText>>,
+    mut nodes: Query<(&LocalText, &mut Text), Added<LocalText>>,
+) {
+    let Some(text) = text else {
+        return;
+    };
+    for (local, mut value) in &mut nodes {
+        value.0 = match &local.var {
+            Some(var) => text.with_var(local.key, var),
+            None => text.get(local.key),
+        };
+    }
 }
 
 fn center_layout(phase: Phase) -> Node {
@@ -1053,6 +1656,13 @@ fn center_layout(phase: Phase) -> Node {
         },
         ..column(14.0)
     };
+    if phase == Phase::Shop {
+        // `G.shop` aligns 'tmi' on the hand with offset −5.3; it runs below the window.
+        node.top = px((11.5 - 0.95 * CARD_H - 5.3) * TILE);
+        node.bottom = Val::Auto;
+        node.justify_content = JustifyContent::Start;
+        node.align_items = AlignItems::Center;
+    }
     if phase == Phase::BeforeBlind {
         node.flex_direction = FlexDirection::Row;
         node.align_items = AlignItems::Stretch;
@@ -1362,10 +1972,15 @@ pub fn inspect_deck(
                                     card_hover(&mut entity);
                                     crate::components::tooltip::attach_anchored(
                                 &mut entity,
-                                crate::components::tooltip::Tip::new(
-                                    format!("{} of {}", card.rank, name),
-                                    deck_card_effect(card),
+                                crate::components::tooltip::playing_card(
+                                    card.rank,
+                                    name,
+                                    card.enhancement.unwrap_or_default(),
+                                    card.edition,
+                                    card.seal.unwrap_or_default(),
+                                    card.debuffed,
                                 )
+                                .technical(deck_card_effect(card))
                                 .technical(format!("Deck slot #{index}"))
                                 .technical(format!(
                                     "Debuffed: {} · remaining: {} · effective suits: {}",
@@ -1374,17 +1989,18 @@ pub fn inspect_deck(
                                 crate::components::tooltip::TipAnchor::Left,
                             );
                                     entity.with_children(|art| {
-                                        if let Some(face) = atlases.card(card.rank, name) {
-                                            card_face_with_seal(
-                                                art,
-                                                atlases.card_base(),
-                                                face,
-                                                card.debuffed,
-                                                width,
-                                                card.seal.map(|seal| (seal, atlases.seal(seal))),
-                                                (card.edition, index),
-                                            );
-                                        } else {
+                                        let face = crate::components::widgets::PlayingFace {
+                                            rank: card.rank,
+                                            suit: name,
+                                            enhancement: card.enhancement.unwrap_or_default(),
+                                            edition: card.edition,
+                                            seal: card.seal.unwrap_or_default(),
+                                            debuffed: card.debuffed,
+                                            seed: index,
+                                        };
+                                        if !crate::components::widgets::playing_card_face(
+                                            art, atlases, &face, width,
+                                        ) {
                                             let rank = if card.rank == 'T' {
                                                 "10".to_owned()
                                             } else {
@@ -1601,6 +2217,18 @@ fn deck_card_effect(card: &ante_core::contract::DeckCardView) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_top_of_a_full_deck_leans_up_and_right() {
+        // 51 cards under the top one: 1.26 x 0.15 x 51/52 right, 1.5 x 0.15 x 51/52 up.
+        let top = deck_offset(52, 1);
+        assert!((DECK_PARALLAX_X - 1.256).abs() < 0.01);
+        assert!((top.x - (0.1848 * DECK_STACK_SCALE + DECK_PARALLAX_X / 30.0)).abs() < 0.002);
+        assert!((top.y + 0.2207 * DECK_STACK_SCALE).abs() < 0.001);
+        assert_eq!(deck_offset(52, 52).y, 0.0);
+        let drawn: Vec<_> = drawn_backs(20).collect();
+        assert_eq!(drawn, [20, 18, 9, 1]);
+    }
 
     #[test]
     fn mult_text_follows_number_format() {

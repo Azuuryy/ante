@@ -38,6 +38,11 @@ pub const SHADER_FILES: &[&str] = &[
     "voucher",
 ];
 
+/// Gamma of the original shaders' colour space: their inputs are decoded and their output
+/// encoded with it. 2.2 is LÖVE's; raise it to darken the converted shaders (background,
+/// editions), lower it to brighten them.
+pub const LOVE_GAMMA: f32 = 2.2;
+
 pub fn shader_path(name: &str) -> String {
     format!("resources/shaders/{name}.fs")
 }
@@ -285,14 +290,14 @@ fn assemble(body: &str, uniforms: &[Uniform]) -> String {
          layout(set = 1, binding = 2) uniform sampler love_sampler;\n\
          vec4 love_texel(int image, vec2 coords) {{\n\
              vec4 linear = textureLod(sampler2D(love_texture, love_sampler), coords, 0.0);\n\
-             return vec4(pow(linear.rgb, vec3(1.0 / 2.2)), linear.a);\n\
+             return vec4(pow(linear.rgb, vec3(1.0 / {LOVE_GAMMA:.4})), linear.a);\n\
          }}\n\
          {body}\n\
          layout(location = 0) in vec2 love_uv;\n\
          layout(location = 0) out vec4 love_out;\n\
          void main() {{\n\
              vec4 gamma = effect(vec4(1.0), 0, {coordinates}, gl_FragCoord.xy);\n\
-             love_out = vec4(pow(max(gamma.rgb, vec3(0.0)), vec3(2.2)), gamma.a);\n\
+             love_out = vec4(pow(max(gamma.rgb, vec3(0.0)), vec3({LOVE_GAMMA:.4})), gamma.a);\n\
          }}\n"
     )
 }

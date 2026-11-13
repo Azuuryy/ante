@@ -81,13 +81,6 @@ pub(crate) fn show_options(
                     0.30,
                     Click::ToggleVsync,
                 );
-                #[cfg(feature = "dev-tools")]
-                label(
-                    panel,
-                    "F5 also changes this setting",
-                    menu_ui::text_px(0.3),
-                    MUTED,
-                );
             }
             2 => {
                 let assets = &session.asset_settings;

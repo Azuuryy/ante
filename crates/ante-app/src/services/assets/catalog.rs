@@ -140,6 +140,14 @@ impl Atlases {
         Some(tile(self.card_surfaces.clone()?, 1, 0))
     }
 
+    /// The card centre for an engine enhancement label: `Card:set_ability` swaps the plain
+    /// base for the enhancement's sprite (Gold, Steel, Glass…).
+    pub fn card_base_for(&self, enhancement: &str) -> Option<ImageNode> {
+        enhancement_id(enhancement)
+            .and_then(|id| self.enhancement(id))
+            .or_else(|| self.card_base())
+    }
+
     /// Enhanced card centres, at their original `Enhancers.png` positions.
     pub fn enhancement(&self, id: &str) -> Option<ImageNode> {
         let (column, row) = match id {
@@ -497,6 +505,21 @@ fn square(image: Handle<Image>, size: f32, x: u32, y: u32) -> ImageNode {
     }
 }
 
+/// Original centre key of an engine enhancement label.
+pub(crate) fn enhancement_id(enhancement: &str) -> Option<&'static str> {
+    Some(match enhancement {
+        "Bonus" => "m_bonus",
+        "Mult" => "m_mult",
+        "Wild" => "m_wild",
+        "Glass" => "m_glass",
+        "Steel" => "m_steel",
+        "Stone" => "m_stone",
+        "Gold" => "m_gold",
+        "Lucky" => "m_lucky",
+        _ => return None,
+    })
+}
+
 fn tile(image: Handle<Image>, column: u32, row: u32) -> ImageNode {
     let (x, y) = (column * TILE_WIDTH, row * TILE_HEIGHT);
     ImageNode {
@@ -615,7 +638,7 @@ pub(crate) fn validate_local_file(bytes: &[u8], dimensions: Option<(u32, u32)>) 
     }
 }
 
-fn read_local_font(root: &Path) -> io::Result<Font> {
+pub(crate) fn read_local_font(root: &Path) -> io::Result<Font> {
     let bytes = read_local_file(root, "resources/fonts/m6x11plus.ttf")?;
     validate_font(&bytes)?;
     Ok(Font::from_bytes(bytes))

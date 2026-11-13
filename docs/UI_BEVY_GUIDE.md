@@ -108,6 +108,26 @@ Sous `crates/ante-app/src`, `main.rs` et `lib.rs` sont les points d'entrée. `ap
 
 Le système de session applique seul les commandes au pilote. Les écrans lisent `RunView` et la lecture de score reçoit une trace du même passage moteur. L'aperçu de pioche et la sélection d'une offre restent côté présentation.
 
+`components/tiles.rs` ajuste le canevas de 22 × 12,9 unités (`CANVAS`) et centre la salle dans chaque écran (`presentation::room_node`). `CARD_WIDTH`, `CARD_HEIGHT` et `card_px()` donnent la taille dessinée d'une carte (0,95 × `CARD_W`, `CARD_H`) ; `spread_x` reprend `align_cards` pour les Jokers, les consommables et les offres. `screens/run.rs` place le HUD, les zones Jokers et consommables, le deck (pile de dos selon les cartes restantes) et le panneau de boutique en unités. `screens/shop.rs` suit `G.UIDEF.shop` (`shop_box`, `offer_area`, `price_tag`, `offer_buttons`) et `components/cards.rs` les boutons Sell et Use (`menu_ui::card_button`). La carte d'inventaire sélectionnée reçoit `GlobalZIndex(100)` tant qu'elle l'est, sous les overlays (150 et plus) ; l'offre sélectionnée passe devant ses voisines. La ligne de l'enseigne est une formulation propre à Ante, le texte d'origine étant de la localisation.
+
+`components/pixel_rect.rs` fournit `PixelBox` : un `UiMaterial` avec un WGSL écrit pour Ante (`pixel_rect.wgsl`) qui reproduit les coins en escalier, le relief et l'ombre. Il fournit aussi `DynUi` et `DynRole`, qui suivent les couleurs `G.C.DYN_UI` selon la phase et le blind. `tile_button`, `card_button`, le HUD, la boutique, les étiquettes de prix et les zones de cartes l'utilisent. Les observateurs de bouton colorent la boîte au survol et à la pression.
+
+`components/background.rs` branche le shader `background` importé sur un calque plein canevas derrière la salle. Sans ce shader, le calque reste un aplat de la couleur C.
+
+`services/assets/ui_text.rs` lit dans `localization/en-us.lua` une liste fermée de clés (`ph_improve_run`, `ante_x_voucher`), par motif et sans exécuter de Lua, avec une formulation de secours propre à Ante.
+
+Réglages à tester en jeu :
+- `LOVE_GAMMA` (`services/assets/shaders.rs`) : gamma des shaders d'origine convertis (fond, éditions) ; plus haut assombrit.
+- `UI_GAMMA` (`components/pixel_rect.rs`) : gamma des couleurs plates des boîtes ; plus haut assombrit.
+- `DECK_STACK_SCALE` et `DECK_UNDER_SHADE` (`screens/run.rs`) : étalement de la pile du deck et gris des dos sous la carte du dessus.
+- `SHOP_ROW_GAP` et `PRICE_TAG_OVERLAP` (`screens/shop.rs`) : écart entre les deux rangées de la boutique et descente de l'étiquette de prix derrière la carte.
+
+Pendant un blind, `row_blind` affiche la boîte de `create_UIBox_HUD_blind` (nom, règle, jeton du blind, cible et récompense). Les boutons de main suivent `create_UIBox_buttons`, avec la boîte Sort Hand contournée (`PixelBox::outline`). Le relief et l'ombre étant dessinés dans la boîte, leur hauteur est ajoutée au padding bas pour que le texte reste centré.
+
+Les boutons, panneaux et modales ont `flex_shrink: 0` : une colonne qui déborde ne les écrase plus. La grille de la collection ne passe plus à la ligne. Les tailles de police sont arrondies au pixel physique entier (`snap_font_size`) et réajustées au redimensionnement ; l'ancien calage sur la grille de glyphes réduisait d'un tiers le petit texte à 1080p. Les infobulles sont placées au pixel physique entier, avec 12 px de marge latérale (`PANEL_SIDE_PADDING`) pour que le retour à la ligne ne change pas quand elles bougent. F5 n'existe plus : le VSync se règle dans les Settings.
+
+`text_px` utilise un em d'une unité (73 px) à l'échelle 1 ; `shadowed_label` et `text_shadow` donnent l'ombre de texte d'origine.
+
 La boutique utilise une zone par groupe, un prix par objet et un contrôle d'achat contextuel. Tester les relances, offres gratuites, lots supplémentaires et refus sur les deux builds. L'infobulle se compose près de l'entité source et recalcule sa position à partir de la taille mesurée. Les métadonnées techniques, l'édition brute et l'état interne des jokers sont propres au build Dev et s'affichent dans un panneau gris clair séparé, sous l'infobulle. La ligne « Currently » vient de `JokerView.current` (`CurrentValue`), calculée par la simulation pour les jokers implémentés et mise en forme par `tooltip::currently_text`.
 
 Comparer les proportions des sprites, la hauteur du panneau, les zones et les interactions aux captures à taille cliente égale. Répéter sur fenêtre étroite et ultralarge. Les éditions des jokers sont dessinées en surcouche avec les shaders d'origine convertis (voir ci-dessous) ; sans shader local, le sprite de base reste seul. La grille de pioche expose les comptes visibles disponibles dans la projection. Vérifier séparément les comptes effectifs et les exceptions liées aux cartes masquées avant de déclarer la parité.
@@ -127,6 +147,15 @@ Comparer les proportions des sprites, la hauteur du panneau, les zones et les in
 ## Shaders d'origine
 
 L'import Local Assets copie les `.fs` de `services::assets::shaders::SHADER_FILES` s'ils se convertissent. Au démarrage, `shaders::load` lit chaque fichier depuis le lot local ou `--steam-textures`, le réécrit en GLSL 450 (uniforms `extern` dans un bloc de 16 `vec4`, `number`, `Image`, `Texel`, partie vertex retirée, point d'entrée `fragment` qui calcule les coordonnées d'atlas comme `Sprite:draw_shader`), puis naga valide et produit le WGSL. `components::edition::LoveMaterial` est un `UiMaterial` spécialisé par shader ; `edition::overlay` pose un nœud par shader d'édition au-dessus du sprite. Les Jokers (détenus et en boutique) et les cartes jouables (main, zone de jeu, vue Deck) reçoivent l'édition sur la base et sur la face, sous le sceau. Un shader absent ou refusé laisse le sprite seul et l'écrit dans le journal Dev. Le test ignoré `local_installation_shaders_convert` liste la conversion de l'installation locale.
+
+Le paramètre nommé reçoit `min(3·rotation, 1) + temps/28 + tilt_var.amt` (`edition::tilt_amount`) : l'écart du curseur au coin d'une carte survolée, sinon l'inclinaison ambiante par carte (`EditionSeed`). Les uniformes `mouse_screen_pos`, `hovering` et `screen_scale` ne servent qu'à la partie vertex, retirée. Le sceau Gold reçoit `voucher` et les Spectral `booster` (`edition::consumable_look`). Les fonds d'amélioration viennent de `Atlases::card_base_for` et `widgets::playing_card_face` ; une carte Stone n'a pas de face. Restent à faire : `hologram` sur le sprite flottant des légendaires et de The Soul, `voucher` sur Invisible Joker, la composante `juice` du paramètre.
+
+## Infobulles, HUD et packs
+
+- `tooltip::playing_card` construit la bulle d'une carte jouable comme `generate_card_ui` ; les tailles suivent l'original en tuiles (nom `0.55 − 0.004 × longueur`, description 0.32, badge 0.33, ×1.2 pour le type) et la largeur reste fixe (4,2 tuiles) pour que le texte ne change pas de ligne.
+- Les tailles de texte modifiées après création passent par `presentation::TextSize` ; ne jamais réinsérer `TextFont`, qui remettrait la police par défaut.
+- Le corps du HUD dépasse la salle de 9,25 tuiles en haut et en bas et centre son contenu ; le test `hud_column_fits_the_window` le vérifie.
+- `pack_board` pose la boîte du pack (`sparkles::PackRise`, montée de 0,45 s depuis `ROOM.y + 9`) au-dessus de `hand::hand_rows` ; `sparkles::update` porte `Particles` (fill, timer, scale, lifespan, speed, couleurs) pour Arcana et Spectral, fondu d'une seconde. Le RNG des particules est celui de la présentation.
 
 ## Audio, salle et dissolution
 

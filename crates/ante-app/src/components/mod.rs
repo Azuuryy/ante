@@ -1,9 +1,12 @@
+pub(crate) mod background;
 pub(crate) mod card_drag;
 pub(crate) mod cards;
 pub(crate) mod dissolve;
 pub(crate) mod edition;
 pub(crate) mod info;
+pub(crate) mod pixel_rect;
 pub(crate) mod room;
+pub(crate) mod sparkles;
 pub(crate) mod theme;
 pub(crate) mod tiles;
 pub(crate) mod tooltip;

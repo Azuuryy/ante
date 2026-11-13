@@ -6,7 +6,7 @@ use crate::{
     components::{
         theme::{DISABLED, INK, MUTED},
         tiles as menu_ui, tooltip,
-        widgets::{atlas_image, control, fallback_art, label, row},
+        widgets::{atlas_image, control, fallback_art, label, row, wrap_row},
     },
     services::{assets::catalog::Atlases, profile::Profile},
 };
@@ -34,72 +34,78 @@ pub(crate) fn show_collection(
     menu_ui::panel(ui, |panel| {
         match session.collection_view {
             CollectionView::Hub => {
-                row(panel, |columns| {
-                    columns
-                        .spawn(Node {
-                            flex_direction: FlexDirection::Column,
-                            row_gap: menu_ui::tiles(0.12),
-                            ..default()
-                        })
-                        .with_children(|column| {
-                            tile(
-                                column,
-                                &count_label("JOKERS", ContentGroup::Jokers),
-                                RED,
-                                (4.7, 1.1),
-                                0.5,
-                                Click::CollectionJokers,
-                            );
-                            tile(
-                                column,
-                                "DECKS",
-                                BLUE,
-                                (4.7, 0.75),
-                                0.42,
-                                Click::CollectionDecks,
-                            );
-                            for (name, group) in [
-                                ("VOUCHERS", ContentGroup::Vouchers),
-                                ("TAROT", ContentGroup::Tarots),
-                                ("PLANET", ContentGroup::Planets),
-                                ("SPECTRAL", ContentGroup::Spectrals),
-                            ] {
+                // Two columns side by side; they never wrap under each other.
+                panel
+                    .spawn(Node {
+                        column_gap: menu_ui::tiles(0.15),
+                        ..default()
+                    })
+                    .with_children(|columns| {
+                        columns
+                            .spawn(Node {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: menu_ui::tiles(0.12),
+                                ..default()
+                            })
+                            .with_children(|column| {
                                 tile(
                                     column,
-                                    &count_label(name, group),
+                                    &count_label("JOKERS", ContentGroup::Jokers),
                                     RED,
-                                    (4.7, 0.65),
-                                    0.33,
-                                    Click::CollectionItems(CollectionView::Items(group)),
+                                    (4.7, 1.1),
+                                    0.5,
+                                    Click::CollectionJokers,
                                 );
-                            }
-                        });
-                    columns
-                        .spawn(Node {
-                            flex_direction: FlexDirection::Column,
-                            row_gap: menu_ui::tiles(0.12),
-                            ..default()
-                        })
-                        .with_children(|column| {
-                            for (name, group) in [
-                                ("ENHANCED CARDS", ContentGroup::Enhancements),
-                                ("SEALS", ContentGroup::Seals),
-                                ("EDITIONS", ContentGroup::Editions),
-                                ("BOOSTERS", ContentGroup::Boosters),
-                                ("TAGS", ContentGroup::Tags),
-                                ("BLINDS", ContentGroup::Blinds),
-                            ] {
                                 tile(
                                     column,
-                                    &count_label(name, group),
-                                    PALE_GREEN,
-                                    (4.7, 0.72),
-                                    0.33,
-                                    Click::CollectionItems(CollectionView::Items(group)),
+                                    "DECKS",
+                                    BLUE,
+                                    (4.7, 0.75),
+                                    0.42,
+                                    Click::CollectionDecks,
                                 );
-                            }
-                        });
-                });
+                                for (name, group) in [
+                                    ("VOUCHERS", ContentGroup::Vouchers),
+                                    ("TAROT", ContentGroup::Tarots),
+                                    ("PLANET", ContentGroup::Planets),
+                                    ("SPECTRAL", ContentGroup::Spectrals),
+                                ] {
+                                    tile(
+                                        column,
+                                        &count_label(name, group),
+                                        RED,
+                                        (4.7, 0.65),
+                                        0.33,
+                                        Click::CollectionItems(CollectionView::Items(group)),
+                                    );
+                                }
+                            });
+                        columns
+                            .spawn(Node {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: menu_ui::tiles(0.12),
+                                ..default()
+                            })
+                            .with_children(|column| {
+                                for (name, group) in [
+                                    ("ENHANCED CARDS", ContentGroup::Enhancements),
+                                    ("SEALS", ContentGroup::Seals),
+                                    ("EDITIONS", ContentGroup::Editions),
+                                    ("BOOSTERS", ContentGroup::Boosters),
+                                    ("TAGS", ContentGroup::Tags),
+                                    ("BLINDS", ContentGroup::Blinds),
+                                ] {
+                                    tile(
+                                        column,
+                                        &count_label(name, group),
+                                        PALE_GREEN,
+                                        (4.7, 0.72),
+                                        0.33,
+                                        Click::CollectionItems(CollectionView::Items(group)),
+                                    );
+                                }
+                            });
+                    });
             }
             CollectionView::Decks => {
                 let deck = session.navigation.deck.unwrap_or(DeckChoice::Red);
@@ -144,7 +150,7 @@ pub(crate) fn show_collection(
                 for page_items in
                     catalog[page * PAGE_SIZE..((page + 1) * PAGE_SIZE).min(catalog.len())].chunks(5)
                 {
-                    row(panel, |entries| {
+                    wrap_row(panel, |entries| {
                         for item in page_items {
                             let id = item.id.0;
                             let (name, supported) = (item.name.as_str(), item.supported);

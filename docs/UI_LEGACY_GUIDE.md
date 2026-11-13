@@ -29,7 +29,7 @@ flowchart TB
     O --> T[Focus et infobulles]
 ```
 
-`main.lua::love.resize` recalcule l'échelle de la room et son origine à partir du rapport de fenêtre. Le fond remplit le viewport. Les éléments de la room conservent leurs proportions. `engine/ui.lua` compose les UIBox à partir de lignes, colonnes, textes et objets. Les objets `CardArea` et sprites s'y ancrent. `game.lua` fait évoluer l'état de la partie et monte ou retire le contenu de phase. Les définitions sont dans `functions/UI_definitions.lua`, les actions de boutons dans `functions/button_callbacks.lua`, et les effets différés dans `functions/state_events.lua` et `engine/event.lua`.
+`main.lua::love.resize` recalcule l'échelle de la room et son origine à partir du rapport de fenêtre. La fenêtre contient la salle de 20 × 11,5 unités plus `ROOM_PADDING_W` = 1 et `ROOM_PADDING_H` = 0,7 de chaque côté, soit un canevas de 22 × 12,9 unités : à 1920 × 1056, une unité vaut environ 81,9 px. Le fond remplit le viewport. Les éléments de la room conservent leurs proportions. `engine/ui.lua` compose les UIBox à partir de lignes, colonnes, textes et objets. Les objets `CardArea` et sprites s'y ancrent. `game.lua` fait évoluer l'état de la partie et monte ou retire le contenu de phase. Les définitions sont dans `functions/UI_definitions.lua`, les actions de boutons dans `functions/button_callbacks.lua`, et les effets différés dans `functions/state_events.lua` et `engine/event.lua`.
 
 ## Menu, profils, réglages et collection
 
@@ -193,6 +193,52 @@ Pour les vouchers, `Card:apply_to_run` et les points de lecture des réglages de
 
 `G.UIDEF.shop` compose trois zones d'offres et place la navigation à gauche. `create_shop_card_ui` attache un prix et une commande contextuelle à chaque objet. L'enseigne utilise une séquence dédiée. La capture de référence montre des prix au-dessus des objets, sans nom sous l'illustration.
 
+Dimensions relevées dans le source, en unités :
+
+| Élément | Valeur |
+| --- | --- |
+| Panneau | haut à 3,92 dans la salle, centré sur la zone de main, cadre de la couleur de phase (rouge) avec padding 0,1 |
+| Next Round | 2,8 × 1,5, rouge, deux lignes |
+| Reroll | 2,8 × 1,6, vert, « Reroll » puis le prix en grand |
+| Boîte Jokers | `L_BLACK`, padding 0,2, largeur min 8,2 ; zone `joker_max` × 1,02 × `CARD_W` sur 1,05 × `CARD_H` |
+| Boîte vouchers | `L_BLACK` padding 0,15, boîte noire padding 0,2, libellé vertical, zone 2,1 × `CARD_W` |
+| Boîte boosters | `L_BLACK`, zone 2,4 × `CARD_W` sur 1,15 × `CARD_H`, cartes à 1,27 fois la taille |
+| Étiquette de prix | boîte `darken(BLACK, 0,2)` min 0,6 × 1, boîte intérieure `lighten(BLACK, 0,1)` min 1 × 0,55, prix en `MONEY` à l'échelle 0,5, descendue de 0,38 derrière le haut de la carte |
+| Buy | orange (`G.C.ORANGE`), sous la carte (`bm`, −0,3), min 1,1 × 0,94 ; inactif en gris |
+| Buy & Use | rouge, à droite (`cr`, −0,3), min 1,1 × 1,1, « BUY » puis « & USE » plus petit ; masqué s'il est impossible |
+| Redeem, Open | verts, même placement que Buy |
+| Enseigne | boîte min 4,72 × 3,1, enseigne 4,4 × 2,2, ligne dorée dessous |
+
+`G.UIDEF.use_and_sell_buttons` : Sell est vert (`G.C.GREEN`) quand la vente est possible, sinon inactif ; il est ancré `cr` avec un décalage de −0,4, donc en partie sous la carte ; largeur min 1,25, padding 0,1, coins 0,08 ; « SELL » à l'échelle 0,4 puis « $ » (0,4) et le montant (0,55). Un consommable ajoute Use, rouge, min 1,25 × 1, sous Sell. Les boutons n'apparaissent que sur la carte sélectionnée, dessinés derrière elle.
+
+Dessin des boîtes (`UIElement:draw_pixellated_rect`) : chaque boîte arrondie est un polygone à coins en escalier, avec des marches de 4, 2 et 1 pas depuis chaque bord. Le pas vaut `res` × 1/20 d'unité ; `res` vaut 0,8 si le petit côté dépasse 3,5 unités, 0,6 au-delà de 0,3, sinon 0,15. `emboss` ajoute dessous une lèvre de la même forme assombrie de 0,3 (0,5 au survol). `shadow` dessine une ombre noire à 30 % décalée par la parallaxe (environ 2,25 pas vers le bas). Le texte est rendu avec un em d'une unité à l'échelle 1 (`render_scale` × `FONTSCALE`). Les textes marqués `shadow` ont la même ombre noire à 30 %.
+
+Couleurs dynamiques (`ease_background_colour_blind`, `Blind:change_colour`, `get_blind_main_colour`) :
+- en boutique, `DYN_UI.MAIN` = mix(RED, BLACK, 0,9) ;
+- pour un blind, MAIN est la couleur du blind (Small : mix(BLUE, BLACK, 0,6), Big : mix(ORANGE, BLACK, 0,6), boss : `boss_colour`) et DARK = mix(MAIN, BLACK, 0,4) ;
+- hors boss, `BOSS_MAIN` = darken(BLACK, 0,05) et `BOSS_DARK` = lighten(BLACK, 0,07) ; pour un boss, `BOSS_MAIN` = sa couleur et `BOSS_DARK` = mix(couleur, BLACK, 0,2).
+
+Le fond est le shader `background`, nourri par `G.C.BACKGROUND` (C, L, D et contraste) :
+- Small et Big Blind : #50846e × 0,9, 1,3 et 0,7, contraste 1 ;
+- boss : C = sa couleur, L = 1,3 × lighten(mix(couleur, BLACK, 0,3), 0,1), contraste 2 ;
+- boss final : BLUE, RED et darken(BLACK, 0,4), contraste 3 ;
+- `spin_time` reste à 0 en partie.
+
+HUD (`create_UIBox_HUD`) :
+- cadre : `TRANSPARENT_DARK` (0,03), puis `DYN_UI.MAIN` (0,05), puis le corps `BOSS_DARK` (0,08) ;
+- chaque compteur est une boîte `BOSS_MAIN` avec relief de 0,05 : titre à 0,34, nombre à 0,8 (argent 0,88) dans une boîte `BOSS_DARK` de largeur min 1,2 ;
+- Ante s'affiche « n » en `IMPORTANT`, suivi de « / 8 » plus petit ;
+- Round score : deux lignes à 0,42, puis une boîte de 3,3 × 0,7 avec le jeton de mise (0,5) et le score à 0,85 ;
+- nom de main à 0,56 ; Chips et Mult côte à côte (2 × 1) à 0,92, séparés d'un « X ».
+
+La boutique est ancrée `'tmi'` sur la main avec un décalage de −5,3 : son haut est à 3,587 unités. Son corps `BOSS_DARK` a une hauteur minimum de 30 unités et descend sous la fenêtre.
+
+L'enseigne `shop_sign` a 4 images de 113 × 57 jouées à `ANIMATION_FPS` = 10. Elle est placée dans `DYN_UI.MAIN` (relief 0,05), puis `DYN_UI.DARK` (minimum 4,72 × 3,1), avec `ph_improve_run` dessous en lighten(GOLD, 0,3) à 0,5, qui flotte.
+
+Le deck (`align_cards`, type `deck`) décale chaque carte de `shadow_parrallax` × 0,15/52 par carte au-dessous d'elle. La parallaxe x vaut (centre − 10)/10 × 1,5 ≈ 1,26 et y vaut −1,5. Seuls la première carte, une carte sur neuf et la dernière sont dessinées.
+
+`can_use_consumeable` exige de la place pour les cartes créées : L'Empereur et La Grande Prêtresse demandent un emplacement libre, sauf depuis l'inventaire où la carte libère d'abord le sien (`use_consumeable` crée alors min(2, places libres) cartes). Depuis un pack, avec les emplacements pleins, elles ne sont pas sélectionnables. Buy & Use (`can_buy_and_use`) suit la même règle sans occuper d'emplacement.
+
 `generate_card_ui` et `G.UIDEF.card_h_popup` séparent titre, effet, badges et encarts de contexte. `Game:update_selecting_hand` montre la grille de pioche au survol du deck et masque alors les boutons de main. `G.UIDEF.deck_preview` agrège par rang et couleur et distingue Stone et les modifications effectives. L'inspection au clic reste un parcours séparé.
 
 ## Rythme du score et vitesse
@@ -230,6 +276,8 @@ Une unité de salle vaut 20 × 3,65 = 73 px à l'échelle de base ; la salle mes
 | Jokers | 4,9 × `CARD_W` | x = main − 0,1, y = 0 |
 | Consommables | 2,3 × `CARD_W` | à droite des Jokers + 0,2, y = 0 |
 | Deck | 1,1 × `CARD_W` | x ≈ 17,25, y ≈ 8,89 |
+
+`CardArea:align_cards` répartit les Jokers, consommables et offres : x = (w − card_w) × (k/(m−1) + 0,5 × (m−n)/(m−1)), avec m = max(n, limite). Le HUD de `create_UIBox_HUD` commence 0,7 unité à gauche de la salle sur toute la hauteur du canevas, pour environ 5,1 unités de large : Round score 3,3 × 0,7, nom de main 1,1 de haut, Chips et Mult 2 × 1, Run Info et Options 1,5 × 1,75, Hands et Discards 1,45 × 1,15, argent 3,3 × 0,7, Ante et Round 1,45 × 1.
 
 Une carte sélectionnée en main, une carte qui score et un consommable sélectionné montent de `HIGHLIGHT_H` ; un Joker sélectionné de la moitié. La main s'ouvre en éventail : rotation 0,2 × (k − n/2 − 0,5) / n, avec une légère oscillation ; n est le nombre de cartes présentes dans la main. Une carte du deck est face cachée ; `CardArea:emplace` la retourne en entrant dans la main (`Card:flip`) : `Moveable:move_wh` pince sa largeur de 8 largeurs par seconde réelle jusqu'à zéro, change la face, puis la rouvre au même rythme. Les cartes envoyées à la défausse ne sont pas retournées.
 

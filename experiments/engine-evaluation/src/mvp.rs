@@ -260,6 +260,7 @@ impl MvpRun {
                 description: consumable_description(*c),
                 price: game.price(c.cost()),
                 can_buy: false,
+                can_buy_and_use: false,
                 can_use: legal.contains(&Action::UseConsumable(*c)),
                 can_sell: legal.contains(&Action::SellConsumable(index)),
                 sell_price: c.sell_value(),
@@ -278,6 +279,7 @@ impl MvpRun {
                 description: consumable_description(*c),
                 price: game.shop.consumable_price(c, &game.vouchers),
                 can_buy: legal.contains(&Action::BuyConsumable(*c)),
+                can_buy_and_use: game.can_buy_and_use(c),
                 can_use: false,
                 can_sell: false,
                 sell_price: c.sell_value(),
@@ -384,6 +386,10 @@ impl MvpRun {
                 .open_pack
                 .as_ref()
                 .map_or(0, |pack| pack.picks_remaining),
+            open_pack: game
+                .open_pack
+                .as_ref()
+                .map(|open| open_pack_family(&open.contents)),
             can_apply_target: legal.contains(&Action::ApplyTarot())
                 || legal.contains(&Action::ApplySpectral()),
             can_sort: legal.contains(&Action::SortHand(SortBy::Rank)),
@@ -505,6 +511,32 @@ impl MvpRun {
         })
     }
 
+    /// The shop's "Buy & Use": pays and applies a consumable without taking a slot.
+    fn buy_and_use(&mut self, index: usize, revision: u64) -> Result<ActionOutcome, ActionError> {
+        if revision != self.revision {
+            return Err(ActionError::Unavailable);
+        }
+        let game = &mut self.game;
+        let card = *game
+            .shop
+            .consumables
+            .get(index)
+            .ok_or(ActionError::Unavailable)?;
+        game.buy_and_use_consumable(card)
+            .map_err(|_| ActionError::Unavailable)?;
+        self.revision = self.revision.wrapping_add(1);
+        let phase = phase_from(game.stage);
+        Ok(ActionOutcome {
+            phase,
+            round_score: visible_score(game, phase),
+            campaign_won: game.campaign_won,
+            hand_score: self.last_hand_score,
+            trace: None,
+            trace_time: Duration::ZERO,
+            discovered_item: Some(card.id()),
+        })
+    }
+
     pub fn apply(&mut self, action: MvpAction) -> Result<(), ActionError> {
         self.resolve(action, None).map(|_| ())
     }
@@ -524,6 +556,9 @@ impl MvpRun {
     ) -> Result<ActionOutcome, ActionError> {
         if let MvpAction::Debug(command) = action {
             return self.apply_debug(command);
+        }
+        if let MvpAction::BuyAndUseConsumable { index, revision } = action {
+            return self.buy_and_use(index, revision);
         }
         let game = &mut self.game;
         if action == MvpAction::ContinueEndless {
@@ -726,7 +761,9 @@ impl MvpRun {
             Action::PickPackCard(PackContent::Planet(card)) => Some(card.id()),
             Action::PickPackCard(PackContent::Spectral(card)) => Some(card.id()),
             Action::BuyPack(pack) => match pack_art(pack) {
-                ShopArt::Pack { family, size } => Some(ante_core::contract::booster_id(family, size)),
+                ShopArt::Pack { family, size } => {
+                    Some(ante_core::contract::booster_id(family, size))
+                }
                 _ => None,
             },
             Action::SelectBlind(balatro_rs::stage::Blind::Boss) => {
@@ -883,6 +920,11 @@ fn card_art(card: balatro_rs::card::Card) -> ShopArt {
     ShopArt::Card {
         rank: char::from(card.value),
         suit: suit_name(card.suit),
+        look: ante_core::contract::CardLook {
+            enhancement: card.enhancement.map(enhancement_name),
+            edition: edition_name(card.edition),
+            seal: card.seal.map(seal_name),
+        },
     }
 }
 
@@ -901,6 +943,23 @@ fn pack_art(pack: &balatro_rs::pack::Pack) -> ShopArt {
             Size::Jumbo => PackSize::Jumbo,
             Size::Mega => PackSize::Mega,
         },
+    }
+}
+
+/// The engine keeps no category for an open pack; its contents tell it. Tarots mark an
+/// Arcana pack even with an Omen Globe spectral among them.
+fn open_pack_family(contents: &[PackContent]) -> PackFamily {
+    let has = |test: fn(&PackContent) -> bool| contents.iter().any(test);
+    if has(|c| matches!(c, PackContent::Tarot(_))) {
+        PackFamily::Arcana
+    } else if has(|c| matches!(c, PackContent::Planet(_))) {
+        PackFamily::Celestial
+    } else if has(|c| matches!(c, PackContent::PlayingCard(_))) {
+        PackFamily::Standard
+    } else if has(|c| matches!(c, PackContent::Joker(_))) {
+        PackFamily::Buffoon
+    } else {
+        PackFamily::Spectral
     }
 }
 
@@ -959,9 +1018,7 @@ fn map_trace(trace: NativeTrace) -> ScoreTrace {
                 mult_before: step.mult_before,
                 mult_after: step.mult_after,
                 retrigger: step.retrigger,
-                xmult: step
-                    .xmult
-                    .map(|factor| (factor * 100.0).round() as usize),
+                xmult: step.xmult.map(|factor| (factor * 100.0).round() as usize),
                 money: step.money,
             })
             .collect(),
@@ -1110,11 +1167,27 @@ static ENHANCEMENTS: LazyLock<Vec<Content>> = LazyLock::new(|| {
         rule("m_bonus", "Bonus Card", "+30 Chips"),
         rule("m_mult", "Mult Card", "+4 Mult"),
         rule("m_wild", "Wild Card", "Counts as every suit"),
-        rule("m_glass", "Glass Card", "X2 Mult, 1 in 4 chance to break after scoring"),
+        rule(
+            "m_glass",
+            "Glass Card",
+            "X2 Mult, 1 in 4 chance to break after scoring",
+        ),
         rule("m_steel", "Steel Card", "X1.5 Mult while held in hand"),
-        rule("m_stone", "Stone Card", "+50 Chips; has no rank or suit and always scores"),
-        rule("m_gold", "Gold Card", "Earn $3 if held in hand at end of round"),
-        rule("m_lucky", "Lucky Card", "+20 Mult on a 1 in 5 chance; $20 on a 1 in 15 chance"),
+        rule(
+            "m_stone",
+            "Stone Card",
+            "+50 Chips; has no rank or suit and always scores",
+        ),
+        rule(
+            "m_gold",
+            "Gold Card",
+            "Earn $3 if held in hand at end of round",
+        ),
+        rule(
+            "m_lucky",
+            "Lucky Card",
+            "+20 Mult on a 1 in 5 chance; $20 on a 1 in 15 chance",
+        ),
     ]
 });
 
@@ -1136,7 +1209,11 @@ static SEALS: LazyLock<Vec<Content>> = LazyLock::new(|| {
             "Blue Seal",
             "Held in hand at end of round: creates the Planet of the last played hand",
         ),
-        rule("purple_seal", "Purple Seal", "Discarding this card creates a Tarot card"),
+        rule(
+            "purple_seal",
+            "Purple Seal",
+            "Discarding this card creates a Tarot card",
+        ),
     ]
 });
 
@@ -1357,15 +1434,7 @@ fn consumable_description(c: balatro_rs::consumable::Consumable) -> String {
                 Tarot::Judgement => "Creates a random joker if a slot is free.",
                 Tarot::Fool => "Copies the last tarot or planet used, if there is room.",
             };
-            if t.requires_hand() {
-                format!(
-                    "{effect} Select {} to {} cards.",
-                    t.min_targets(),
-                    t.max_targets()
-                )
-            } else {
-                effect.into()
-            }
+            with_selection(effect, t.requires_hand(), t.max_targets())
         }
         Consumable::Spectral(s) => {
             use balatro_rs::spectral::Spectral;
@@ -1395,16 +1464,18 @@ fn consumable_description(c: balatro_rs::consumable::Consumable) -> String {
                     "Gives a random joker a polychrome edition and removes the others."
                 }
             };
-            if s.requires_hand() {
-                format!(
-                    "{effect} Select {} to {} cards.",
-                    s.min_targets(),
-                    s.max_targets()
-                )
-            } else {
-                effect.into()
-            }
+            with_selection(effect, s.requires_hand(), s.max_targets())
         }
+    }
+}
+
+/// A consumable effect with how many hand cards it takes: nothing when it takes none,
+/// otherwise the most that can be selected.
+fn with_selection(effect: &str, requires_hand: bool, max: usize) -> String {
+    match (requires_hand, max) {
+        (false, _) | (_, 0) => effect.to_owned(),
+        (true, 1) => format!("{effect} Select at most 1 card."),
+        (true, max) => format!("{effect} Select at most {max} cards."),
     }
 }
 
@@ -1542,6 +1613,9 @@ fn joker_current(joker: &balatro_rs::joker::Jokers, game: &Game) -> Option<Curre
                 .count();
             CurrentValue::XMult(100 * (empty + stencils))
         }
+        // Ante shows these too: their value follows the discards left this round.
+        "j_banner" => CurrentValue::Chips(30 * game.discards()),
+        "j_mystic_summit" => CurrentValue::Mult(if game.discards() == 0 { 15 } else { 0 }),
         "j_drivers_license" => CurrentValue::Count(
             full_deck()
                 .iter()
@@ -1578,6 +1652,148 @@ fn visible_score(game: &Game, phase: Phase) -> usize {
 mod scoring_tests {
     use super::*;
     use balatro_rs::joker::Jokers;
+
+    /// Every joker the engine can offer, alone in a fresh run.
+    fn offered_jokers() -> Vec<Jokers> {
+        use balatro_rs::joker::JokerEffects;
+        balatro_rs::joker::joker_catalog()
+            .filter(|joker| joker.is_implemented())
+            .collect()
+    }
+
+    /// Implemented jokers whose original text has a "(Currently ...)" line.
+    const ORIGINAL_CURRENTLY: &[&str] = &[
+        "j_abstract",
+        "j_blue_joker",
+        "j_bull",
+        "j_castle",
+        "j_drivers_license",
+        "j_erosion",
+        "j_green_joker",
+        "j_hit_the_road",
+        "j_obelisk",
+        "j_ride_the_bus",
+        "j_steel_joker",
+        "j_stencil",
+        "j_stone",
+        "j_trousers",
+        "j_wee",
+        "j_yorick",
+    ];
+
+    #[test]
+    fn every_offered_joker_has_its_own_description() {
+        for joker in offered_jokers() {
+            let text = joker_description(joker.id());
+            assert!(!text.is_empty(), "{} has no description", joker.id());
+            assert_ne!(
+                text,
+                joker.desc(),
+                "{} falls back to the engine text",
+                joker.id()
+            );
+        }
+    }
+
+    #[test]
+    fn every_scaling_joker_shows_its_current_value() {
+        let game = start().game;
+        let offered: Vec<_> = offered_jokers().iter().map(|joker| joker.id()).collect();
+        for id in ORIGINAL_CURRENTLY {
+            assert!(offered.contains(id), "{id} is no longer offered");
+            let joker = Jokers::from_id(id).unwrap();
+            assert!(
+                joker_current(&joker, &game).is_some(),
+                "{id} has no Currently line"
+            );
+        }
+        for id in ["j_banner", "j_mystic_summit"] {
+            let joker = Jokers::from_id(id).unwrap();
+            assert!(joker_current(&joker, &game).is_some(), "{id}");
+        }
+    }
+
+    #[test]
+    fn every_offered_joker_scores_a_hand() {
+        for joker in offered_jokers() {
+            let id = joker.id();
+            let mut run = start();
+            run.game.jokers = vec![joker];
+            let before = run.game.clone();
+            run.game
+                .effect_registry
+                .register_jokers(before.jokers.clone(), &before);
+            for index in 0..5 {
+                let card = run.view().cards[index].id;
+                run.apply(MvpAction::ToggleCard(card)).unwrap();
+            }
+            let outcome = run.apply(MvpAction::Play);
+            assert!(outcome.is_ok(), "{id}: {outcome:?}");
+            assert!(
+                run.view().score > 0 || run.view().phase != Phase::Playing,
+                "{id} scored nothing"
+            );
+            assert!(run.view().held_jokers.len() <= 1, "{id} multiplied itself");
+        }
+    }
+
+    #[test]
+    fn banner_and_mystic_summit_follow_the_discards_left() {
+        let mut run = start();
+        let banner = Jokers::from_id("j_banner").unwrap();
+        let summit = Jokers::from_id("j_mystic_summit").unwrap();
+        let left = run.game.discards();
+        assert_eq!(
+            joker_current(&banner, &run.game),
+            Some(CurrentValue::Chips(30 * left))
+        );
+        assert_eq!(
+            joker_current(&summit, &run.game),
+            Some(CurrentValue::Mult(0))
+        );
+        run.game.discards_remaining = 0;
+        assert_eq!(
+            joker_current(&summit, &run.game),
+            Some(CurrentValue::Mult(15))
+        );
+    }
+
+    #[test]
+    fn consumables_name_the_most_cards_they_take() {
+        assert_eq!(
+            with_selection("Effect.", true, 2),
+            "Effect. Select at most 2 cards."
+        );
+        assert_eq!(
+            with_selection("Effect.", true, 1),
+            "Effect. Select at most 1 card."
+        );
+        assert_eq!(with_selection("Effect.", true, 0), "Effect.");
+        assert_eq!(with_selection("Effect.", false, 3), "Effect.");
+    }
+
+    #[test]
+    fn pack_cards_keep_their_enhancement_edition_and_seal() {
+        use balatro_rs::card::{Card, Edition, Enhancement, Seal, Suit, Value};
+        let mut card = Card::new(Value::Ace, Suit::Heart);
+        card.enhancement = Some(Enhancement::Gold);
+        card.edition = Edition::Foil;
+        card.seal = Some(Seal::Red);
+        let ShopArt::Card { look, .. } = pack_content_art(&PackContent::PlayingCard(card)) else {
+            panic!("a playing card projects to card art");
+        };
+        assert_eq!(look.enhancement, Some("Gold"));
+        assert_eq!(look.edition, "Foil");
+        assert_eq!(look.seal, Some("Red"));
+    }
+
+    #[test]
+    fn an_open_pack_family_follows_its_contents() {
+        use balatro_rs::card::{Card, Suit, Value};
+        let cards = [PackContent::PlayingCard(Card::new(Value::Two, Suit::Club))];
+        assert_eq!(open_pack_family(&cards), PackFamily::Standard);
+        assert_eq!(open_pack_family(&[]), PackFamily::Spectral);
+    }
 
     #[test]
     fn trace_steps_keep_the_xmult_factor_and_money() {
@@ -1735,6 +1951,46 @@ mod inventory_tests {
         consumable::Consumable, joker::Jokers, planet::Planets, spectral::Spectral, stage::Stage,
         tarot::Tarot,
     };
+
+    #[test]
+    fn emperor_used_with_full_slots_creates_one_tarot() {
+        let mut run = shop();
+        let slots = run.game.consumable_slots();
+        run.game.consumables = vec![Consumable::Tarot(Tarot::Emperor)];
+        while run.game.consumables.len() < slots {
+            run.game
+                .consumables
+                .push(Consumable::Planet(Planets::Mercury));
+        }
+        let revision = run.view().revision;
+        run.apply(MvpAction::UseConsumable { index: 0, revision })
+            .unwrap();
+        assert_eq!(run.game.consumables.len(), slots);
+        assert!(
+            run.game
+                .consumables
+                .iter()
+                .any(|card| matches!(card, Consumable::Tarot(_)))
+        );
+    }
+
+    #[test]
+    fn buy_and_use_applies_a_planet_without_a_slot() {
+        let mut run = shop();
+        let slots = run.game.consumable_slots();
+        run.game.consumables = vec![Consumable::Tarot(Tarot::Hermit); slots];
+        run.game.shop.consumables = vec![Consumable::Planet(Planets::Mercury)];
+        let view = run.view();
+        assert!(view.consumable_offers[0].can_buy_and_use);
+        assert!(!view.consumable_offers[0].can_buy);
+        run.apply(MvpAction::BuyAndUseConsumable {
+            index: 0,
+            revision: view.revision,
+        })
+        .unwrap();
+        assert!(run.game.shop.consumables.is_empty());
+        assert_eq!(run.game.consumables.len(), slots);
+    }
 
     fn shop() -> MvpRun {
         let mut run = MvpRun::new(7);

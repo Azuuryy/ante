@@ -142,7 +142,7 @@ pub fn main_menu(ui: &mut ChildSpawnerCommands, atlases: &Atlases) {
     ui.spawn(Node {
         position_type: PositionType::Absolute,
         right: tiles(0.3),
-        bottom: tiles(0.15),
+        bottom: tiles(0.05),
         ..default()
     })
     .with_children(|anchor| {
@@ -157,18 +157,13 @@ pub fn main_menu(ui: &mut ChildSpawnerCommands, atlases: &Atlases) {
     ui.spawn(Node {
         position_type: PositionType::Absolute,
         left: tiles(0.3),
-        bottom: tiles(0.15),
+        bottom: tiles(0.05),
         flex_direction: FlexDirection::Column,
         row_gap: px(2),
         ..default()
     })
     .with_children(|anchor| {
-        label(
-            anchor,
-            "F3 profiler  |  F4 export  |  F5 VSync",
-            text_px(0.3),
-            MUTED,
-        );
+        label(anchor, "F3 profiler  |  F4 export", text_px(0.3), MUTED);
         if let Some(status) = atlases.status {
             label(anchor, status, text_px(0.3), MUTED);
         }

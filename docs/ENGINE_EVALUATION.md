@@ -1,6 +1,6 @@
 # Engine evaluation (2026-11-02)
 
-Status: preliminary; no external engine has been adopted. The isolated experiment requires local checkouts in `target/engine-evaluation/`: balatro-rs at `3d66de905d5824bcb92c453214dc2badfbb9fc3f` and Balatrust at `57c3512844243e3fdd3ef30285dc417e918543ab`. Clone the listed revisions into those paths and apply the eleven patches in the order below before testing.
+Status: preliminary; no external engine has been adopted. The isolated experiment requires local checkouts in `target/engine-evaluation/`: balatro-rs at `3d66de905d5824bcb92c453214dc2badfbb9fc3f` and Balatrust at `57c3512844243e3fdd3ef30285dc417e918543ab`. Clone the listed revisions into those paths and apply the twelve patches in the order below before testing.
 
 Balatrust includes an MIT license naming Yannick Herrero; `balatrust_core` depends on rand. balatro-rs core declares MIT in its manifest, but no root LICENSE was found; it depends on balatro-types and balatro-seed as well as rand, rand_chacha, itertools, indexmap, strum and thiserror, with serde enabled by default. Its seed crate identifies itself as a port and attributes research to TheSoul. Provenance and rights of all components remain unverified; no upstream code is copied into Ante.
 
@@ -18,7 +18,7 @@ Both evaluators classified one independently assembled example of each of the tw
 
 The experimental binary uses `balatro-rs` in Fast mode. The default campaign goes to ante 8. Pass `--one-ante` to replay the historical route below. The production workspace remains independent of the experiment. This milestone validates the interaction flow with generated UI cards and requires no game assets.
 
-Use the two checkouts pinned above. On a fresh pinned `balatro-rs` checkout, apply the patches once from the Ante root. The eleven patches, in order: align the optional UUID dependency (`bevy-uuid`); expose the score trace from the actual play action (`play-trace`); add the optional Joker rules (`jokers`); extend the campaign with bounded Endless (`endless`); add the tag and shop transitions (`shop-tags`); restrict consumable use to the original eligibility rules through a single `consumable_usable` predicate, with 16 dedicated tests in `core/src/consumable_use_tests.rs` (`consumable-use`); add the `debug_add_score` and `debug_next_ante` entry points used by the Dev panel, with 4 tests in `core/src/debug_tests.rs` (`debug`); make the Joker counters and the full-deck and non-debuffed helpers readable so the tooltip can show the value an effect will use (`joker-current`); record on each score step the factor of a multiplicative Mult change and the money earned, without changing any computed value, with 3 tests in `core/src/trace_effect_tests.rs` (`trace-effects`); bring five Joker rules in line with the original, keeping their state on the Joker itself: Green Joker (+1 Mult per hand, -1 per discard, kept for the run), Castle (+3 Chips per discarded card of the round's suit, kept for the run), Obelisk (X0.2 per hand that is not strictly the most played, per card), Yorick (X1 more per 23 cards discarded since it was acquired) and Joker Stencil (X empty slots plus Stencils held), with the affected tests rewritten and 2 new ones (`joker-rules`); keep Mult fractional like the original, so XMult no longer truncates and the score is floor(chips x Mult), and halve The Flint's base values to the nearest whole number with Mult at least 1, with the affected expectations recomputed (`fractional-mult`). The `jokers` patch also makes `test_exactly_74_jokers_implemented` count the three optional jokers. On the patched checkout, `cargo test -p balatro-rs` passes 511 unit tests, with or without `ante-extra-jokers`.
+Use the two checkouts pinned above. On a fresh pinned `balatro-rs` checkout, apply the patches once from the Ante root. The twelve patches, in order: align the optional UUID dependency (`bevy-uuid`); expose the score trace from the actual play action (`play-trace`); add the optional Joker rules (`jokers`); extend the campaign with bounded Endless (`endless`); add the tag and shop transitions (`shop-tags`); restrict consumable use to the original eligibility rules through a single `consumable_usable` predicate, with 16 dedicated tests in `core/src/consumable_use_tests.rs` (`consumable-use`); add the `debug_add_score` and `debug_next_ante` entry points used by the Dev panel, with 4 tests in `core/src/debug_tests.rs` (`debug`); make the Joker counters and the full-deck and non-debuffed helpers readable so the tooltip can show the value an effect will use (`joker-current`); record on each score step the factor of a multiplicative Mult change and the money earned, without changing any computed value, with 3 tests in `core/src/trace_effect_tests.rs` (`trace-effects`); bring five Joker rules in line with the original, keeping their state on the Joker itself: Green Joker (+1 Mult per hand, -1 per discard, kept for the run), Castle (+3 Chips per discarded card of the round's suit, kept for the run), Obelisk (X0.2 per hand that is not strictly the most played, per card), Yorick (X1 more per 23 cards discarded since it was acquired) and Joker Stencil (X empty slots plus Stencils held), with the affected tests rewritten and 2 new ones (`joker-rules`); keep Mult fractional like the original, so XMult no longer truncates and the score is floor(chips x Mult), and halve The Flint's base values to the nearest whole number with Mult at least 1, with the affected expectations recomputed (`fractional-mult`); require room for the cards The Emperor, The High Priestess, The Fool, Judgement, Wraith and The Soul create when they are picked from a pack, and add `can_buy_and_use` and `buy_and_use_consumable` for the shop's Buy & Use, with 6 tests in `core/src/consumable_room_tests.rs` (`consumable-room`). The `jokers` patch also makes `test_exactly_74_jokers_implemented` count the three optional jokers. On the patched checkout, `cargo test -p balatro-rs` passes 517 unit tests, with or without `ante-extra-jokers`.
 
 ```bash
 git -C target/engine-evaluation/balatro-rs apply --ignore-space-change --unidiff-zero ../../../experiments/engine-evaluation/patches/balatro-rs-bevy-uuid.patch
@@ -32,6 +32,7 @@ git -C target/engine-evaluation/balatro-rs apply --ignore-space-change ../../../
 git -C target/engine-evaluation/balatro-rs apply --ignore-space-change ../../../experiments/engine-evaluation/patches/balatro-rs-trace-effects.patch
 git -C target/engine-evaluation/balatro-rs apply --ignore-space-change ../../../experiments/engine-evaluation/patches/balatro-rs-joker-rules.patch
 git -C target/engine-evaluation/balatro-rs apply --ignore-space-change ../../../experiments/engine-evaluation/patches/balatro-rs-fractional-mult.patch
+git -C target/engine-evaluation/balatro-rs apply --ignore-space-change ../../../experiments/engine-evaluation/patches/balatro-rs-consumable-room.patch
 ```
 
 Launch from the Ante root in native Windows. Select Play, enable Seeded Run, and type 0 to replay the route below.
@@ -90,6 +91,20 @@ cargo run --release --manifest-path experiments/engine-evaluation/Cargo.toml --l
 1. Use the first command for placeholder cards and the second for explicitly authorised local textures. The menu reports the asset status. Check the four suits, face cards and a mapped Joker in the shop. The 1x atlas covers all 52 card faces and a subset of supported Joker portraits. Other portraits use text.
 2. In each mode, run the seed 0 route once with F3 closed and once with F3 open. Use F2 immediately before the same scoring hand and F4 shortly afterwards to retain that sample. Copy each CSV to a distinct name before the next export. Compare frame median, p95 and peak from the `frame` metric and the matching non-zero CPU and render measurements. The startup atlas load is exported separately.
 3. Confirm that closing the profiler leaves the main window open. Verify the same final scores with ×1, ×4 and Instant, and retry after a loss. The comparison of native presentation timings is part of this manual recipe.
+
+### Development iteration (2026-11-13)
+
+Measured on the development Windows machine after editing `screens/run.rs`, with `dev-tools`: an incremental debug rebuild takes 13 to 19 s, mostly compiling `ante-app` rather than linking.
+
+- `rust-lld` as the linker gave the same times within noise (15 to 16 s), so it is not configured.
+- Bevy `dynamic_linking` cannot link on Windows: the `bevy_dylib` DLL would export about 593 000 symbols, over the 65 535 limit of the format. It is not offered.
+- Restart on save, with the installed `cargo-watch`:
+
+```powershell
+cargo watch -w crates -w experiments/engine-evaluation/src -x "run --manifest-path experiments/engine-evaluation/Cargo.toml --locked --features dev-tools --bin ante-mvp"
+```
+
+- Bevy hotpatching (`dx serve --hot-patch`, Dioxus Subsecond) was tried and dropped: on this machine it did not pick up file saves on its own and was no faster than a restart.
 
 ### Behaviour coverage
 

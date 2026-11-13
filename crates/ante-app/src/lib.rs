@@ -17,7 +17,10 @@ use bevy::{
 use crate::services::diagnostics::journal;
 use crate::{
     app::{
-        presentation::{animate, apply_local_font, fit_room, render, use_nearest_glyph_sampling},
+        presentation::{
+            animate, apply_local_font, apply_text_size, fit_room, render, resnap_fonts,
+            use_nearest_glyph_sampling,
+        },
         session::{Backend, Click, Session, edit_seed, process_clicks, right_click_clear},
     },
     components::{card_drag, tooltip},
@@ -114,7 +117,12 @@ pub fn run(backend: impl GameBackend) {
         .init_resource::<components::room::RoomShake>()
         .add_plugins(defaults)
         .insert_resource(RenderErrorHandler(render_error))
-        .add_plugins((PerformancePlugin, components::edition::EditionPlugin))
+        .add_plugins((
+            PerformancePlugin,
+            components::edition::EditionPlugin,
+            components::pixel_rect::PixelRectPlugin,
+            components::background::BackgroundPlugin,
+        ))
         .add_systems(
             Update,
             (
@@ -135,6 +143,15 @@ pub fn run(backend: impl GameBackend) {
                 atlas::load,
                 services::assets::shaders::load,
                 services::assets::sounds::load,
+                services::assets::ui_text::load,
+            ),
+        )
+        .add_systems(
+            Update,
+            (
+                screens::run::animate_shop_sign,
+                screens::run::float_text,
+                screens::run::fill_local_text,
             ),
         )
         .add_systems(
@@ -155,9 +172,13 @@ pub fn run(backend: impl GameBackend) {
                 fit_room,
                 tooltip::update,
                 apply_local_font,
+                resnap_fonts,
             )
                 .chain(),
         )
+        .add_systems(Update, apply_text_size.after(apply_local_font))
+        .init_resource::<components::sparkles::PackOpening>()
+        .add_systems(Update, components::sparkles::update.after(render))
         .add_systems(
             PostUpdate,
             (

@@ -1,4 +1,10 @@
-use super::{info::Info, theme::MUTED, widgets::label};
+use super::{
+    info::Info,
+    pixel_rect::PixelBox,
+    theme::MUTED,
+    tiles::{BLACK, TILE, darken, lighten, text_px, tiles},
+    widgets::{label, text_shadow},
+};
 use ante_core::contract::CurrentValue;
 use bevy::{
     ecs::system::EntityCommands,
@@ -7,10 +13,34 @@ use bevy::{
     window::PrimaryWindow,
 };
 
-const TOOLTIP_WIDTH: f32 = 225.0;
+/// Fixed popup width, so the text wraps the same wherever the popup sits.
+const TOOLTIP_WIDTH: f32 = 4.2 * TILE;
+/// Space between the panel edge and its text. Wide enough that no line sits at the limit,
+/// where a sub-pixel move could change the wrapping.
+const PANEL_SIDE_PADDING: f32 = 12.0;
 /// Side boxes (`info_queue`) hang left of the main popup, centred on it, like `align = 'cl'`.
-const SIDE_WIDTH: f32 = 140.0;
+const SIDE_WIDTH: f32 = 3.0 * TILE;
 const SIDE_GAP: f32 = 4.0;
+/// `G.C.JOKER_GREY`.
+const JOKER_GREY: Color = Color::srgb(
+    0xBF as f32 / 255.0,
+    0xC7 as f32 / 255.0,
+    0xD5 as f32 / 255.0,
+);
+/// `G.C.SECONDARY_SET.Enhanced`.
+const ENHANCED: Color = Color::srgb(
+    0x83 as f32 / 255.0,
+    0x89 as f32 / 255.0,
+    0xDD as f32 / 255.0,
+);
+/// `G.C.PURPLE`.
+const PURPLE: Color = Color::srgb(
+    0x88 as f32 / 255.0,
+    0x67 as f32 / 255.0,
+    0xA5 as f32 / 255.0,
+);
+/// Description text scale: `0.32 × DESCSCALE` (1 for m6x11plus).
+const DESC_SCALE: f32 = 0.32;
 /// `info_tip_from_rows` title box: the original grey lightened by 0.15.
 const SIDE_PANEL: Color = Color::srgb(
     0x77 as f32 / 255.0,
@@ -35,8 +65,6 @@ const DEBUG_PANEL: Color = Color::srgba(0.86, 0.88, 0.90, 0.96);
 const ROOM_HEIGHT_UNITS: f32 = 11.5;
 const CARD_HEIGHT_UNITS: f32 = 2.4 * 47.0 / 41.0;
 const GAP: f32 = 10.0;
-const TOOLTIP_PANEL: Color = Color::srgb(0.231, 0.275, 0.296);
-const TOOLTIP_OUTLINE: Color = Color::srgb(0.875, 0.890, 0.918);
 const MULT: Color = Color::srgb(
     0xFE as f32 / 255.0,
     0x5F as f32 / 255.0,
@@ -127,6 +155,8 @@ pub struct Tip {
     badges: Vec<String>,
     details: Vec<String>,
     side: Vec<Info>,
+    /// Playing cards show their name in dark text on a white box (`name_from_rows`).
+    paper_name: bool,
     #[cfg(feature = "dev-tools")]
     technical: Vec<String>,
 }
@@ -140,9 +170,16 @@ impl Tip {
             badges: Vec::new(),
             details: Vec::new(),
             side: Vec::new(),
+            paper_name: false,
             #[cfg(feature = "dev-tools")]
             technical: Vec::new(),
         }
+    }
+
+    /// A playing card popup: the name sits on a white box.
+    pub(crate) fn paper_name(mut self) -> Self {
+        self.paper_name = true;
+        self
     }
 
     pub fn currently(mut self, value: CurrentValue) -> Self {
@@ -185,6 +222,67 @@ impl Tip {
             let _ = text;
             self
         }
+    }
+}
+
+/// A playing card popup as `generate_card_ui` builds it: the name on a white box, the chips
+/// it scores and its enhancement rule. The edition and seal are badges with side boxes;
+/// nothing is listed for a card without them.
+pub(crate) fn playing_card(
+    rank: char,
+    suit: &str,
+    enhancement: &str,
+    edition: &str,
+    seal: &str,
+    debuffed: bool,
+) -> Tip {
+    let enhanced = super::info::enhancement(enhancement);
+    let stone = enhancement == "Stone";
+    let (title, mut effect) = if stone {
+        ("Stone Card".to_owned(), "+50 Chips".to_owned())
+    } else {
+        (
+            format!("{} of {suit}", rank_name(rank)),
+            format!("+{} chips", rank_chips(rank)),
+        )
+    };
+    if let Some(rule) = enhanced.as_ref().filter(|_| !stone) {
+        effect.push('\n');
+        effect.push_str(rule.body);
+    }
+    let mut tip = Tip::new(title, effect).paper_name();
+    if debuffed {
+        tip = tip.badge("Debuffed");
+    } else if let Some(rule) = &enhanced {
+        tip = tip.badge(rule.title);
+    }
+    if let Some(info) = super::info::edition(edition, false) {
+        tip = tip.badge(info.title).info([info]);
+    }
+    if let Some(info) = super::info::seal(seal) {
+        tip = tip.badge(info.title).info([info]);
+    }
+    tip
+}
+
+/// `G.P_CARDS` rank names.
+fn rank_name(rank: char) -> String {
+    match rank {
+        'T' => "10".to_owned(),
+        'J' => "Jack".to_owned(),
+        'Q' => "Queen".to_owned(),
+        'K' => "King".to_owned(),
+        'A' => "Ace".to_owned(),
+        other => other.to_string(),
+    }
+}
+
+/// Base chips of a rank: its number, 10 for faces and 11 for the Ace.
+fn rank_chips(rank: char) -> u32 {
+    match rank {
+        'A' => 11,
+        'T' | 'J' | 'Q' | 'K' => 10,
+        other => other.to_digit(10).unwrap_or(0),
     }
 }
 
@@ -331,7 +429,11 @@ pub(crate) fn update(
             window.size(),
             *anchor,
         );
+        // Whole physical pixels, so text wraps the same wherever the panel sits.
         Vec2::new((pos.x - side).max(0.0), pos.y)
+            .mul_add(Vec2::splat(dpi), Vec2::ZERO)
+            .round()
+            / dpi
     };
     if let Some((entity, existing, measured, mut layout)) = current {
         if existing.source == *source && existing.tip == *tip {
@@ -393,23 +495,33 @@ pub(crate) fn update(
                             }
                         });
                     }
+                    // `card_h_popup`: a JOKER_GREY frame around a translucent dark body.
                     row.spawn((
                         Node {
                             width: px(width),
                             flex_shrink: 0.0,
-                            padding: UiRect::all(px(6)),
-                            border: UiRect::all(px(2)),
-                            border_radius: BorderRadius::all(px(9)),
-                            row_gap: px(4),
-                            flex_direction: FlexDirection::Column,
-                            overflow: Overflow::clip(),
+                            padding: UiRect::all(tiles(0.05)),
                             ..default()
                         },
-                        BackgroundColor(TOOLTIP_PANEL),
-                        BorderColor::all(TOOLTIP_OUTLINE),
+                        PixelBox::new(lighten(JOKER_GREY, 0.5)).emboss(0.07),
                         Pickable::IGNORE,
                     ))
-                    .with_children(|panel| main_panel(panel, tip));
+                    .with_children(|frame| {
+                        frame
+                            .spawn((
+                                Node {
+                                    flex_grow: 1.0,
+                                    padding: UiRect::axes(px(PANEL_SIDE_PADDING), tiles(0.07)),
+                                    row_gap: tiles(0.07),
+                                    align_items: AlignItems::Center,
+                                    flex_direction: FlexDirection::Column,
+                                    ..default()
+                                },
+                                PixelBox::new(darken(BLACK, 0.1).with_alpha(0.8)),
+                                Pickable::IGNORE,
+                            ))
+                            .with_children(|panel| main_panel(panel, tip));
+                    });
                 });
             #[cfg(feature = "dev-tools")]
             if !tip.technical.is_empty() {
@@ -417,7 +529,7 @@ pub(crate) fn update(
                     .spawn((
                         Node {
                             width: px(width),
-                            padding: UiRect::all(px(6)),
+                            padding: UiRect::axes(px(PANEL_SIDE_PADDING), px(6)),
                             border_radius: BorderRadius::all(px(6)),
                             row_gap: px(2),
                             flex_direction: FlexDirection::Column,
@@ -435,74 +547,229 @@ pub(crate) fn update(
         });
 }
 
-/// One `info_tip_from_rows` box: a light frame, a grey title band and a white rule box.
+/// One `info_tip_from_rows` box in a JOKER_GREY frame: the title on grey, then the rule
+/// on a white box.
 fn side_box(ui: &mut ChildSpawnerCommands, info: &Info) {
     ui.spawn((
         Node {
             width: percent(100),
-            padding: UiRect::all(px(3)),
-            border_radius: BorderRadius::all(px(7)),
+            padding: UiRect::all(tiles(0.05)),
             ..default()
         },
-        BackgroundColor(TOOLTIP_OUTLINE),
+        PixelBox::new(lighten(JOKER_GREY, 0.5)).emboss(0.05),
         Pickable::IGNORE,
     ))
     .with_children(|frame| {
         frame
             .spawn((
                 Node {
-                    width: percent(100),
-                    padding: UiRect::all(px(3)),
-                    border_radius: BorderRadius::all(px(6)),
-                    row_gap: px(3),
+                    flex_grow: 1.0,
                     align_items: AlignItems::Center,
                     flex_direction: FlexDirection::Column,
                     ..default()
                 },
-                BackgroundColor(SIDE_PANEL),
+                PixelBox::new(SIDE_PANEL),
                 Pickable::IGNORE,
             ))
             .with_children(|panel| {
-                label(panel, info.title, 16.0, Color::WHITE);
+                panel
+                    .spawn((
+                        Node {
+                            min_height: tiles(0.36),
+                            padding: UiRect::all(tiles(0.03)),
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        Pickable::IGNORE,
+                    ))
+                    .with_children(|title| {
+                        styled_text(title, info.title, text_px(DESC_SCALE), Color::WHITE, true);
+                    });
                 panel
                     .spawn((
                         Node {
                             width: percent(100),
-                            padding: UiRect::all(px(5)),
-                            border_radius: BorderRadius::all(px(5)),
+                            min_height: tiles(0.4),
+                            padding: UiRect::all(tiles(0.08)),
+                            justify_content: JustifyContent::Center,
                             flex_direction: FlexDirection::Column,
                             ..default()
                         },
-                        BackgroundColor(PAPER),
+                        PixelBox::new(PAPER),
                         Pickable::IGNORE,
                     ))
-                    .with_children(|rule| effect_line(rule, info.body, TEXT_DARK));
+                    .with_children(|rule| {
+                        effect_line(rule, info.body, TEXT_DARK, text_px(DESC_SCALE));
+                    });
             });
     });
 }
 
+/// A text node with the game font size and an optional drop shadow.
+fn styled_text(
+    ui: &mut ChildSpawnerCommands,
+    text: impl Into<String>,
+    size: f32,
+    color: Color,
+    shadow: bool,
+) {
+    let mut entity = ui.spawn((
+        Text::new(text.into()),
+        TextFont {
+            font_size: bevy::text::FontSize::Px(size),
+            ..default()
+        },
+        TextColor(color),
+        Pickable::IGNORE,
+    ));
+    if shadow {
+        entity.insert(text_shadow());
+    }
+}
+
+/// The `playing_card` name line on one row at the description scale: the rank and "of" in
+/// `G.C.L_BLACK`, the suit in its colour.
+fn playing_card_name(ui: &mut ChildSpawnerCommands, title: &str) {
+    let size = text_px(DESC_SCALE);
+    ui.spawn((
+        Node {
+            flex_wrap: FlexWrap::NoWrap,
+            column_gap: px(size * 0.3),
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        Pickable::IGNORE,
+    ))
+    .with_children(|row| {
+        for word in title.split_whitespace() {
+            let color = suit_color(&word.to_ascii_lowercase()).unwrap_or(TEXT_DARK);
+            label(row, word, size, color);
+        }
+    });
+}
+
+/// `G.C.SUITS` colours by suit word.
+fn suit_color(word: &str) -> Option<Color> {
+    Some(match word {
+        "heart" | "hearts" => Color::srgb(0.92, 0.06, 0.19),
+        "diamond" | "diamonds" => Color::srgb(0.74, 0.32, 0.04),
+        "club" | "clubs" => Color::srgb(0.00, 0.40, 0.27),
+        "spade" | "spades" => Color::srgb(0.35, 0.20, 0.54),
+        _ => return None,
+    })
+}
+
+/// Chances read "1 / 4": "1 in 4" and "one-in-two" become a numerator over a total.
+pub(crate) fn chance_fractions(line: &str) -> String {
+    let number = |word: &str| -> Option<String> {
+        let trimmed = word.trim_matches(|c: char| !c.is_alphanumeric());
+        if !trimmed.is_empty() && trimmed.bytes().all(|c| c.is_ascii_digit()) {
+            return Some(trimmed.to_owned());
+        }
+        let value = match trimmed.to_ascii_lowercase().as_str() {
+            "one" => 1,
+            "two" => 2,
+            "three" => 3,
+            "four" => 4,
+            "five" => 5,
+            "six" => 6,
+            "seven" => 7,
+            "eight" => 8,
+            "nine" => 9,
+            "ten" => 10,
+            _ => return None,
+        };
+        Some(value.to_string())
+    };
+    let words: Vec<&str> = line.split_whitespace().collect();
+    let mut out: Vec<String> = Vec::new();
+    let mut index = 0;
+    while index < words.len() {
+        let word = words[index];
+        // "one-in-two" in a single token.
+        if let Some((left, right)) = word.split_once("-in-")
+            && let (Some(a), Some(b)) = (number(left), number(right))
+        {
+            let tail: String = right.chars().skip_while(|c| c.is_alphanumeric()).collect();
+            let lead: String = left.chars().take_while(|c| !c.is_alphanumeric()).collect();
+            out.push(format!("{lead}{a} / {b}{tail}"));
+            index += 1;
+            continue;
+        }
+        if index + 2 < words.len()
+            && words[index + 1].eq_ignore_ascii_case("in")
+            && let (Some(a), Some(b)) = (number(word), number(words[index + 2]))
+        {
+            let lead: String = word.chars().take_while(|c| !c.is_alphanumeric()).collect();
+            let tail: String = words[index + 2]
+                .chars()
+                .skip_while(|c| !c.is_alphanumeric())
+                .skip_while(|c| c.is_alphanumeric())
+                .collect();
+            out.push(format!("{lead}{a} / {b}{tail}"));
+            index += 3;
+            continue;
+        }
+        out.push(word.to_owned());
+        index += 1;
+    }
+    out.join(" ")
+}
+
+/// Name scale of `localize{type = 'name'}`: `0.55 - 0.004 x length`.
+fn name_scale(name: &str) -> f32 {
+    0.55 - 0.004 * name.chars().count() as f32
+}
+
 fn main_panel(panel: &mut ChildSpawnerCommands, tip: &Tip) {
-    label(panel, &tip.title, 23.0, Color::WHITE);
+    let name_size = text_px(name_scale(&tip.title));
+    if tip.paper_name {
+        panel
+            .spawn((
+                Node {
+                    padding: UiRect::axes(tiles(0.1), tiles(0.05)),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                PixelBox::new(PAPER).emboss(0.05),
+                Pickable::IGNORE,
+            ))
+            .with_children(|name| playing_card_name(name, &tip.title));
+    } else {
+        panel
+            .spawn((
+                Node {
+                    padding: UiRect::all(tiles(0.05)),
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                Pickable::IGNORE,
+            ))
+            .with_children(|name| styled_text(name, &tip.title, name_size, Color::WHITE, true));
+    }
     if !tip.effect.is_empty() || tip.currently.is_some() {
+        // `desc_from_rows`: a white box of at least 2 x 0.8 tiles.
         panel
             .spawn((
                 Node {
                     width: percent(100),
-                    padding: UiRect::all(px(7)),
-                    border_radius: BorderRadius::all(px(6)),
+                    min_width: tiles(2.0),
+                    min_height: tiles(0.8),
+                    padding: UiRect::all(tiles(0.07)),
+                    justify_content: JustifyContent::Center,
                     flex_direction: FlexDirection::Column,
-                    row_gap: px(3),
+                    row_gap: tiles(0.03),
                     ..default()
                 },
-                BackgroundColor(PAPER),
+                PixelBox::new(PAPER).emboss(0.05),
                 Pickable::IGNORE,
             ))
             .with_children(|effect| {
                 for line in tip.effect.lines() {
-                    effect_line(effect, line, TEXT_DARK);
+                    effect_line(effect, line, TEXT_DARK, text_px(DESC_SCALE));
                 }
                 if let Some(currently) = &tip.currently {
-                    effect_line(effect, currently, TEXT_INACTIVE);
+                    effect_line(effect, currently, TEXT_INACTIVE, text_px(DESC_SCALE));
                 }
             });
     }
@@ -513,38 +780,51 @@ fn main_panel(panel: &mut ChildSpawnerCommands, tip: &Tip) {
                     width: percent(100),
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
-                    row_gap: px(3),
+                    row_gap: tiles(0.03),
                     ..default()
                 },
                 Pickable::IGNORE,
             ))
             .with_children(|badges| {
-                for badge in &tip.badges {
-                    let rarity = is_rarity_badge(badge);
+                for (index, badge) in tip.badges.iter().enumerate() {
+                    // `create_badge`; the card type badge is drawn at 1.2 times the size.
+                    let scaling = if index == 0 && is_type_badge(badge) {
+                        1.2
+                    } else {
+                        1.0
+                    };
                     badges
                         .spawn((
                             Node {
-                                min_width: if rarity { px(148) } else { px(0) },
-                                padding: UiRect::axes(
-                                    px(if rarity { 14.0 } else { 7.0 }),
-                                    px(if rarity { 4.0 } else { 2.0 }),
-                                ),
+                                min_width: tiles(2.0),
+                                min_height: tiles(0.4 * scaling),
+                                padding: UiRect::axes(tiles(0.06), tiles(0.03 * scaling)),
                                 justify_content: JustifyContent::Center,
-                                border_radius: BorderRadius::all(px(5)),
+                                align_items: AlignItems::Center,
                                 ..default()
                             },
-                            BackgroundColor(badge_color(badge)),
+                            PixelBox::new(badge_color(badge)).emboss(0.05),
                             Pickable::IGNORE,
                         ))
                         .with_children(|pill| {
-                            label(pill, badge, if rarity { 19.0 } else { 16.0 }, Color::WHITE)
+                            styled_text(pill, badge, text_px(0.33 * scaling), Color::WHITE, true);
                         });
                 }
             });
     }
     for detail in &tip.details {
-        label(panel, detail, 15.0, MUTED);
+        label(panel, detail, text_px(0.28), MUTED);
     }
+}
+
+/// Card type badges (rarity, consumable set, voucher, booster, enhancement).
+fn is_type_badge(badge: &str) -> bool {
+    is_rarity_badge(badge)
+        || matches!(
+            badge,
+            "Tarot" | "Planet" | "Spectral" | "Voucher" | "Booster" | "Debuffed"
+        )
+        || badge.ends_with(" Card")
 }
 
 fn is_rarity_badge(badge: &str) -> bool {
@@ -565,6 +845,11 @@ fn badge_color(badge: &str) -> Color {
         "Edition" => EDITION,
         "Foil" | "Holographic" | "Polychrome" | "Negative" => DARK_EDITION,
         "Locked" => LOCKED,
+        "Gold Seal" => crate::components::tiles::GOLD,
+        "Red Seal" | "Debuffed" => crate::components::tiles::RED,
+        "Blue Seal" => crate::components::tiles::BLUE,
+        "Purple Seal" => PURPLE,
+        badge if badge.ends_with(" Card") => ENHANCED,
         _ => crate::components::tiles::BLUE,
     }
 }
@@ -579,7 +864,8 @@ enum Ink {
     Attention,
 }
 
-fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color) {
+fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color, size: f32) {
+    let line = chance_fractions(line);
     let words: Vec<_> = line.split_whitespace().collect();
     let normalized: Vec<_> = words
         .iter()
@@ -593,8 +879,8 @@ fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color) {
             flex_wrap: FlexWrap::Wrap,
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
-            column_gap: px(4),
-            row_gap: px(2),
+            column_gap: px(size * 0.3),
+            row_gap: px(size * 0.1),
             ..default()
         },
         Pickable::IGNORE,
@@ -614,23 +900,41 @@ fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color) {
             if multiplier {
                 let explicit_times =
                     word_key.starts_with('x') || word_key.ends_with('x') || word.contains('×');
+                // Trailing punctuation stays outside the box.
+                let figure = word.trim_end_matches(|c: char| !c.is_alphanumeric());
+                let trailing = &word[figure.len()..];
                 let display = if explicit_times {
-                    word.to_owned()
+                    figure.to_owned()
                 } else {
-                    format!("×{word}")
+                    format!("×{figure}")
                 };
+                // `{X:mult}`: a box with `r = 0.05` corners, far smaller than the panels'
+                // stepped corners, so it is drawn as a plain rectangle.
                 row.spawn((
                     Node {
-                        padding: UiRect::axes(px(3), px(0)),
-                        border_radius: BorderRadius::all(px(3)),
+                        column_gap: px(0),
+                        align_items: AlignItems::Center,
                         ..default()
                     },
-                    BackgroundColor(color),
                     Pickable::IGNORE,
                 ))
-                .with_children(|pill| label(pill, display, 17.0, Color::WHITE));
+                .with_children(|group| {
+                    group
+                        .spawn((
+                            Node {
+                                padding: UiRect::axes(tiles(0.04), tiles(0.01)),
+                                ..default()
+                            },
+                            BackgroundColor(color),
+                            Pickable::IGNORE,
+                        ))
+                        .with_children(|pill| label(pill, display, size, Color::WHITE));
+                    if !trailing.is_empty() {
+                        label(group, trailing, size, base);
+                    }
+                });
             } else {
-                label(row, word, 17.0, color);
+                label(row, word, size, color);
             }
         }
     });
@@ -640,7 +944,10 @@ fn word_ink(word: &str, key: &str, normalized: &[String], index: usize) -> Ink {
     if word.contains('$') {
         return Ink::Money;
     }
-    if key.contains("chance") || is_chance_token(normalized, index) {
+    if key.contains("chance")
+        || is_chance_token(normalized, index)
+        || is_fraction(normalized, index)
+    {
         return Ink::Chance;
     }
     let next = normalized.get(index + 1).map_or("", String::as_str);
@@ -737,6 +1044,19 @@ fn is_rank_word(word: &str) -> bool {
     )
 }
 
+/// "1 / 4": the two numbers and the slash of a chance fraction.
+fn is_fraction(normalized: &[String], index: usize) -> bool {
+    let at = |i: usize| normalized.get(i).map(String::as_str);
+    let digits = |word: Option<&str>| {
+        word.is_some_and(|w| !w.is_empty() && w.bytes().all(|c| c.is_ascii_digit()))
+    };
+    let raw = |i: usize| at(i).is_some_and(str::is_empty);
+    // The slash normalizes to an empty word.
+    (raw(index) && index > 0 && digits(at(index - 1)) && digits(at(index + 1)))
+        || (digits(at(index)) && raw(index + 1) && digits(at(index + 2)))
+        || (index >= 2 && digits(at(index)) && raw(index - 1) && digits(at(index - 2)))
+}
+
 fn is_chance_token(normalized: &[String], index: usize) -> bool {
     let key = &normalized[index];
     if key.contains("-in-") {
@@ -823,6 +1143,25 @@ mod tests {
             .enumerate()
             .map(|(index, word)| word_ink(word, &normalized[index], &normalized, index))
             .collect()
+    }
+
+    #[test]
+    fn chances_read_as_fractions() {
+        assert_eq!(
+            chance_fractions("1 in 4 chance to break"),
+            "1 / 4 chance to break"
+        );
+        assert_eq!(chance_fractions("(one-in-two)"), "(1 / 2)");
+        assert_eq!(
+            chance_fractions("on a 1 in 15 chance;"),
+            "on a 1 / 15 chance;"
+        );
+        assert_eq!(
+            chance_fractions("9 in your full deck"),
+            "9 in your full deck"
+        );
+        let line = chance_fractions("1 in 5 chance");
+        assert_eq!(inks(&line)[..3], [Ink::Chance, Ink::Chance, Ink::Chance]);
     }
 
     #[test]

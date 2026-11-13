@@ -270,7 +270,7 @@ fn profiler_controls(
     (mut pacing, mut toggle_pacing): (ResMut<FramePacing>, MessageReader<ToggleFramePacing>),
 ) {
     let requested_toggle = toggle_pacing.read().next().is_some();
-    if keys.just_pressed(KeyCode::F5) || requested_toggle {
+    if requested_toggle {
         pacing.benchmark = !pacing.benchmark;
         pacing.previous_tick = None;
         for mut window in &mut windows {
@@ -481,7 +481,7 @@ fn refresh_panel(
         };
     }
     let summary = format!(
-        "Frame profiler | F2 reset | F3 close | F4 export | F5 FPS mode\n{} | {:.0} FPS (last 1 s) | {:.2} ms latest | {} samples\nMedian {:.2} ms | P95 {:.2} ms | Peak {:.2} ms",
+        "Frame profiler | F2 reset | F3 close | F4 export\n{} | {:.0} FPS (last 1 s) | {:.2} ms latest | {} samples\nMedian {:.2} ms | P95 {:.2} ms | Peak {:.2} ms",
         pacing.label(),
         metrics.recent_fps(),
         current,
@@ -602,8 +602,8 @@ mod tests {
         {
             let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
             keys.clear_just_pressed(KeyCode::F3);
-            keys.press(KeyCode::F5);
         }
+        app.world_mut().write_message(ToggleFramePacing);
         app.update();
         for id in [main, window] {
             assert_eq!(
@@ -612,8 +612,6 @@ mod tests {
             );
         }
         let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
-        keys.clear_just_pressed(KeyCode::F5);
-        keys.release(KeyCode::F5);
         keys.release(KeyCode::F3);
         keys.press(KeyCode::F3);
         app.update();

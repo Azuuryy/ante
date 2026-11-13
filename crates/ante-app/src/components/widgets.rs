@@ -25,8 +25,12 @@ pub(crate) fn click_target(entity: &mut bevy::ecs::system::EntityCommands, actio
     );
 }
 
-/// Playing card height in UI pixels.
-pub(crate) const CARD_HEIGHT: f32 = 159.0;
+/// Playing card size in UI pixels: 0.95 x (CARD_W, CARD_H) tiles.
+pub(crate) const CARD_HEIGHT: f32 = menu_ui::CARD_HEIGHT;
+pub(crate) const CARD_WIDTH: f32 = menu_ui::CARD_WIDTH;
+/// The hand area is 6 cards wide and spreads its cards over at least the hand size.
+const HAND_AREA: f32 = 6.0 * menu_ui::CARD_W * menu_ui::TILE;
+const HAND_SLOTS: usize = 8;
 /// A highlighted card rises by 0.2 card heights, as in the original card areas.
 pub(crate) const HIGHLIGHT_LIFT: f32 = 0.2 * CARD_HEIGHT;
 /// The play area sits 3.6 room units above the hand area.
@@ -298,22 +302,24 @@ pub(crate) fn card_control(
     ui: &mut ChildSpawnerCommands,
     action: Option<Click>,
     card: &CardView,
-    details: String,
+    tip: tooltip::Tip,
     (count, position): (usize, usize),
     (reorderable, played): (bool, bool),
     content: impl FnOnce(&mut ChildSpawnerCommands),
 ) {
-    let spacing = (790.0 / count.max(1) as f32 - 120.0).min(6.0);
+    // `align_cards` steps (w − card_w)/(max(n, limit) − 1); the row stays centred.
+    let slots = count.max(HAND_SLOTS);
+    let spacing = (HAND_AREA - CARD_WIDTH) / (slots - 1) as f32 - CARD_WIDTH;
     let lifted = card.selected && !played;
     let mut entity = ui.spawn((
         Node {
-            width: px(120),
+            width: px(CARD_WIDTH),
             height: px(CARD_HEIGHT),
             flex_shrink: 0.0,
             border: UiRect::all(px(2)),
             border_radius: BorderRadius::all(px(6)),
             margin: UiRect {
-                left: px(spacing),
+                left: px(if position > 0 { spacing } else { 0.0 }),
                 top: px(if lifted { -HIGHLIGHT_LIFT } else { 0.0 }),
                 ..default()
             },
@@ -328,11 +334,7 @@ pub(crate) fn card_control(
     ));
     tooltip::attach(
         &mut entity,
-        tooltip::Tip::from(details)
-            .info(super::info::edition(&card.edition, false))
-            .info(super::info::seal(&card.seal))
-            .badge("Playing card")
-            .technical(format!("Card #{} · {}{}", card.id.0, card.rank, card.suit))
+        tip.technical(format!("Card #{} · {}{}", card.id.0, card.rank, card.suit))
             .technical(format!(
                 "Selected {} · enabled {} · debuffed {} · base chips {}",
                 card.selected, card.enabled, card.debuffed, card.chips
@@ -378,9 +380,27 @@ pub(crate) fn fallback_art(ui: &mut ChildSpawnerCommands, name: &str, width: f32
     .with_children(|art| label(art, name, 15.0, INK));
 }
 
+/// A centred row that never wraps: wrapped menu rows kept a one-line height and their
+/// second line covered the next row.
 pub(crate) fn row(ui: &mut ChildSpawnerCommands, content: impl FnOnce(&mut ChildSpawnerCommands)) {
     ui.spawn(Node {
+        flex_shrink: 0.0,
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        column_gap: px(10),
+        ..default()
+    })
+    .with_children(content);
+}
+
+/// A row of cards that may wrap onto more lines (collection pages, vouchers, pack choices).
+pub(crate) fn wrap_row(
+    ui: &mut ChildSpawnerCommands,
+    content: impl FnOnce(&mut ChildSpawnerCommands),
+) {
+    ui.spawn(Node {
         flex_wrap: FlexWrap::Wrap,
+        flex_shrink: 0.0,
         justify_content: JustifyContent::Center,
         column_gap: px(10),
         row_gap: px(10),
@@ -402,6 +422,33 @@ pub(crate) fn label(
             ..default()
         },
         TextColor(color),
+        Pickable::IGNORE,
+    ));
+}
+
+/// Shadow of text marked `shadow = true` in the original: black at 30%, a little lower.
+pub(crate) fn text_shadow() -> TextShadow {
+    TextShadow {
+        offset: Vec2::new(0.0, 0.04 * menu_ui::TILE),
+        color: Color::srgba(0.0, 0.0, 0.0, 0.3),
+    }
+}
+
+pub(crate) fn shadowed_label(
+    ui: &mut ChildSpawnerCommands,
+    text: impl Into<String>,
+    font_size: f32,
+    color: Color,
+) {
+    ui.spawn((
+        Text::new(text),
+        TextFont {
+            font_size: FontSize::Px(font_size),
+            ..default()
+        },
+        TextColor(color),
+        text_shadow(),
+        TextLayout::no_wrap(),
         Pickable::IGNORE,
     ));
 }
@@ -475,20 +522,45 @@ pub(crate) fn atlas_image(
     ));
 }
 
-pub(crate) fn card_face(
+/// A playing card as `Card:draw` layers it: the enhancement centre (or the plain base), the
+/// rank and suit face unless it is a Stone card, the edition shader and the seal.
+pub(crate) struct PlayingFace<'a> {
+    pub(crate) rank: char,
+    pub(crate) suit: &'a str,
+    pub(crate) enhancement: &'a str,
+    pub(crate) edition: &'a str,
+    pub(crate) seal: &'a str,
+    pub(crate) debuffed: bool,
+    pub(crate) seed: usize,
+}
+
+/// Draws `card`; false when the local card art is missing, so the caller can fall back.
+pub(crate) fn playing_card_face(
     ui: &mut ChildSpawnerCommands,
-    base: Option<ImageNode>,
-    face: ImageNode,
-    debuffed: bool,
+    atlases: &crate::services::assets::catalog::Atlases,
+    card: &PlayingFace,
     width: f32,
-) {
-    card_face_with_seal(ui, base, face, debuffed, width, None, ("", 0));
+) -> bool {
+    let Some(face) = atlases.card(card.rank, card.suit) else {
+        return false;
+    };
+    let stone = card.enhancement == "Stone";
+    card_face_with_seal(
+        ui,
+        atlases.card_base_for(card.enhancement),
+        (!stone).then_some(face),
+        card.debuffed,
+        width,
+        Some((card.seal, atlases.seal(card.seal))),
+        (card.edition, card.seed),
+    );
+    true
 }
 
 pub(crate) fn card_face_with_seal(
     ui: &mut ChildSpawnerCommands,
     base: Option<ImageNode>,
-    face: ImageNode,
+    face: Option<ImageNode>,
     debuffed: bool,
     width: f32,
     seal: Option<(&str, Option<ImageNode>)>,
@@ -502,7 +574,7 @@ pub(crate) fn card_face_with_seal(
     .with_children(|layers| {
         let seal_sprite = seal.as_ref().and_then(|(_, sprite)| sprite.clone());
         // Like `Card:draw`, the edition shader covers the base and the face, under the seal.
-        let sprites: Vec<ImageNode> = base.into_iter().chain([face]).collect();
+        let sprites: Vec<ImageNode> = base.into_iter().chain(face).collect();
         for image in &sprites {
             spawn_layer(layers, image.clone());
         }
@@ -510,7 +582,11 @@ pub(crate) fn card_face_with_seal(
             super::edition::overlay(layers, edition, image, seed);
         }
         if let Some(image) = seal_sprite {
-            spawn_layer(layers, image);
+            spawn_layer(layers, image.clone());
+            // `Card:draw` shines the Gold seal with the voucher shader.
+            if seal.as_ref().is_some_and(|(name, _)| *name == "Gold") {
+                super::edition::overlay(layers, "Voucher", &image, seed);
+            }
         }
         fn spawn_layer(layers: &mut ChildSpawnerCommands, image: ImageNode) {
             layers.spawn((
@@ -665,6 +741,6 @@ mod tests {
     #[test]
     fn card_areas_use_original_proportions() {
         assert!((PLAY_AREA_RISE - 262.8).abs() < 1e-3);
-        assert!((HIGHLIGHT_LIFT - 31.8).abs() < 1e-3);
+        assert!((HIGHLIGHT_LIFT - 38.16).abs() < 0.01);
     }
 }

@@ -41,14 +41,14 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | Collection / sceaux | Not implemented | Brancher le catalogue. |
 | Collection / blinds | Not implemented | Brancher le catalogue. |
 | Challenges | Not implemented | Inventorier conditions, sélection et sortie. |
-| HUD et compteurs | In progress | Comparer ancres, compteurs et enseigne. |
+| HUD et compteurs | In progress | Reconstruit d'après `create_UIBox_HUD` : boîtes intérieures, jeton de mise, Chips × Mult côte à côte, enseigne animée, couleurs dynamiques et coins pixelisés. À comparer à 1920 × 1056 ; l'ombre portée ne suit pas encore la parallaxe horizontale. |
 | Choix des blinds | In progress | Vérifier les trois états et l’objectif du boss. |
 | Tags détenus | In progress | Comparer pile, acquisition et disparition. |
 | Main et actions | In progress | Comparer taille, sélection et recouvrement. Vérifier le glisser-déposer et le tri Rank/Suit. |
 | Aperçu Chips × Mult | In progress | Vérifier niveau, sélection vide et lecture du score. |
 | Résolution du score | In progress | Vérifier la trace et les interactions. Les effets animés viendront au jalon VFX. |
 | Encaissement | MVP | Ajouter les lignes de détail de la récompense. |
-| Boutique / cartes | In progress | Comparer offres variables et contrôles. Ajouter l'action atomique Buy & Use. |
+| Boutique / cartes | In progress | Haut à 3,587 unités, cadre `UIBox_dyn_container` jusqu'en bas, Buy & Use atomique. Comparer offres variables et contrôles. |
 | Boutique / vouchers | In progress | Recetter achats multiples, prix et prérequis. |
 | Boutique / boosters | In progress | Comparer atlas, tailles, prix et ouverture. |
 | Packs / Standard | In progress | Comparer choix de cartes et retour. |
@@ -61,11 +61,11 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | Deck / Full Deck | In progress | Comparer groupes et compteurs. |
 | Deck / Remaining | In progress | Vérifier la pioche restante et le retour à la sélection. |
 | Deck / grille au survol | In progress | Vérifier comptes, cartes masquées et valeurs effectives. |
-| Infobulle / carte à jouer | In progress | Les choix de packs exposent déjà leur description; vérifier la présentation et comparer badges, bords et débuffs. |
+| Infobulle / carte à jouer | In progress | Nom centré sur boîte blanche, chips et règle d'amélioration, badges et boîtes latérales d'édition et de sceau (`card_h_popup`). À comparer à taille égale : largeur fixe de 4,2 tuiles contre la largeur au contenu de l'original. |
 | Infobulle / joker | In progress | Comparer rareté, état et valeurs dynamiques. Le « Currently » n'est calculé que pour les jokers observables; vérifier chaque valeur suivie et ne pas exposer l'état brut hors build Dev. |
 | Infobulle / consommable | In progress | Comparer badges et valeurs. |
 | Infobulle / voucher | In progress | Comparer description et états de découverte. |
-| Infobulle / booster | In progress | Vérifier taille et nombre de choix; le choix de pack utilise désormais la même échelle de carte que la boutique. |
+| Infobulle / booster | In progress | Texte `p_<famille>_<taille>` local avec « choisir N parmi M ». Ouverture Arcana/Spectral : main visible, montée de la boîte et particules ; ordre choix puis cibles du moteur (écart documenté). |
 | Infobulle / tag | In progress | Vérifier effet et cible Orbital. |
 | Infobulle / blind | MVP | Vérifier les données et conditions de focus. |
 | Run Info / Poker Hands | In progress | Comparer niveaux et nombres de mains. |

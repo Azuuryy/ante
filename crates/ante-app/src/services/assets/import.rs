@@ -11,6 +11,7 @@ use crate::services::assets::{
     catalog::{LOCAL_FILES, read_local_file, validate_local_file},
     shaders::{SHADER_FILES, shader_path, validate as validate_shader},
     sounds::{SOUND_FILES, sound_path, validate as validate_sound},
+    ui_text::{TEXT_FILES, validate as validate_text},
 };
 
 pub struct AssetSettings {
@@ -115,6 +116,20 @@ impl AssetSettings {
                 }
                 let destination = stage.join(&relative);
                 fs::create_dir_all(destination.parent().expect("shader parent"))?;
+                fs::write(destination, bytes)?;
+                count += 1;
+            }
+            // Interface strings: read by key at startup, never executed.
+            for &relative in TEXT_FILES {
+                if fs::symlink_metadata(source.join(relative)).is_err() {
+                    continue;
+                }
+                let bytes = read_local_file(&source, relative)?;
+                if validate_text(&bytes).is_err() {
+                    continue;
+                }
+                let destination = stage.join(relative);
+                fs::create_dir_all(destination.parent().expect("text parent"))?;
                 fs::write(destination, bytes)?;
                 count += 1;
             }

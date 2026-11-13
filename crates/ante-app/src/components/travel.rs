@@ -30,7 +30,7 @@ const TRAIL_LIFETIME: f32 = 0.25;
 /// The original discard pile sits off screen to the right, about 1.1 units above the play area.
 const DISCARD_RISE: f32 = 1.1 * TILE;
 /// Playing card width in UI pixels, so a discarded card leaves the screen entirely.
-const CARD_WIDTH: f32 = 120.0;
+const CARD_WIDTH: f32 = super::tiles::CARD_WIDTH;
 
 /// Deck pile on the board, where drawn cards come from.
 #[derive(Component)]

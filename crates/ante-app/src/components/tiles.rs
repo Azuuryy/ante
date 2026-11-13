@@ -1,8 +1,9 @@
 use crate::{
     app::{navigation::DeckChoice, session::Click},
     components::{
+        pixel_rect::PixelBox,
         theme::{INK, MUTED},
-        widgets::{atlas_image, label},
+        widgets::{atlas_image, label, shadowed_label},
     },
 };
 use bevy::{
@@ -18,8 +19,38 @@ use bevy::{
 pub const TILE: f32 = 73.0;
 /// Virtual room: 20 x 11.5 tiles at the default TILESCALE.
 pub const ROOM: Vec2 = Vec2::new(1460.0, 839.5);
-/// m6x11plus design size (16 px) x TILESCALE; tunable, not pinned by source facts.
-pub const FONT_BASE: f32 = 58.4;
+/// The original fits the room plus `ROOM_PADDING_W` = 1 and `ROOM_PADDING_H` = 0.7 tiles
+/// on each side to the window (`love.resize`), so the canvas is 22 x 12.9 tiles.
+pub const CANVAS: Vec2 = Vec2::new(1606.0, 941.7);
+/// Card size in tiles (`G.CARD_W`, `G.CARD_H`) and the drawn scale of a card (`Card.T.scale`).
+pub const CARD_W: f32 = 2.4 * 35.0 / 41.0;
+pub const CARD_H: f32 = 2.4 * 47.0 / 41.0;
+pub const CARD_SCALE: f32 = 0.95;
+
+/// Drawn card size in UI pixels: 0.95 x (CARD_W, CARD_H) tiles.
+pub fn card_px() -> Vec2 {
+    Vec2::new(CARD_WIDTH, CARD_HEIGHT)
+}
+/// Joker and consumable areas of `set_screen_positions`: 4.9 and 2.3 cards wide.
+pub const JOKER_AREA: f32 = 4.9 * CARD_W * TILE;
+pub const CONSUMABLE_AREA: f32 = 2.3 * CARD_W * TILE;
+/// Drawn card width and height in UI pixels.
+pub const CARD_WIDTH: f32 = CARD_W * CARD_SCALE * TILE;
+pub const CARD_HEIGHT: f32 = CARD_H * CARD_SCALE * TILE;
+
+/// Left edge of card `k` of `n` in an area `area` px wide that holds `limit` cards, as the
+/// Joker, consumable and shop areas of `CardArea:align_cards` spread them.
+pub fn spread_x(k: usize, n: usize, limit: usize, area: f32, card: f32) -> f32 {
+    let m = n.max(limit);
+    if m <= 1 {
+        return (area - card) / 2.0;
+    }
+    let span = (m - 1) as f32;
+    (area - card) * (k as f32 / span + 0.5 * (m - n) as f32 / span)
+}
+/// Em size of text at scale 1: the original renders fonts at `render_scale` x `FONTSCALE`
+/// = 20 x 0.1 steps per scale, one room unit.
+pub const FONT_BASE: f32 = TILE;
 
 pub const RED: Color = Color::srgb(
     0xFE as f32 / 255.0,
@@ -46,6 +77,88 @@ pub const L_BLACK: Color = Color::srgb(
     0x63 as f32 / 255.0,
     0x67 as f32 / 255.0,
 );
+/// `G.C.GREEN`, used by Sell, Redeem, Open and Reroll.
+pub const GREEN: Color = Color::srgb(
+    0x4B as f32 / 255.0,
+    0xC2 as f32 / 255.0,
+    0x92 as f32 / 255.0,
+);
+/// `G.C.UI.BACKGROUND_INACTIVE`.
+pub const INACTIVE: Color = Color::srgb(0.4, 0.4, 0.4);
+/// `G.C.MONEY`, the colour of prices.
+pub const MONEY: Color = Color::srgb(
+    0xF3 as f32 / 255.0,
+    0xB9 as f32 / 255.0,
+    0x58 as f32 / 255.0,
+);
+/// `G.C.BLACK` and `G.C.GOLD`.
+pub const BLACK: Color = Color::srgb(
+    0x37 as f32 / 255.0,
+    0x42 as f32 / 255.0,
+    0x44 as f32 / 255.0,
+);
+pub const GOLD: Color = Color::srgb(
+    0xEA as f32 / 255.0,
+    0xC0 as f32 / 255.0,
+    0x58 as f32 / 255.0,
+);
+
+/// `G.C.UI.TEXT_INACTIVE`.
+pub const TEXT_INACTIVE: Color = Color::srgba(
+    0x88 as f32 / 255.0,
+    0x88 as f32 / 255.0,
+    0x88 as f32 / 255.0,
+    0x99 as f32 / 255.0,
+);
+/// `G.C.GREY`.
+pub const GREY: Color = Color::srgb(
+    0x5F as f32 / 255.0,
+    0x73 as f32 / 255.0,
+    0x77 as f32 / 255.0,
+);
+/// `G.C.IMPORTANT` and `G.C.UI.TRANSPARENT_DARK`.
+pub const IMPORTANT: Color = Color::srgb(1.0, 0x9A as f32 / 255.0, 0.0);
+pub const TRANSPARENT_DARK: Color = Color::srgba(
+    0x22 as f32 / 255.0,
+    0x22 as f32 / 255.0,
+    0x22 as f32 / 255.0,
+    0x22 as f32 / 255.0,
+);
+
+/// `mix_colours(a, b, p)`: `p` of `a` and the rest of `b`.
+pub fn mix(a: Color, b: Color, p: f32) -> Color {
+    let (a, b) = (a.to_srgba(), b.to_srgba());
+    let m = |x: f32, y: f32| x * p + y * (1.0 - p);
+    Color::srgba(
+        m(a.red, b.red),
+        m(a.green, b.green),
+        m(a.blue, b.blue),
+        m(a.alpha, b.alpha),
+    )
+}
+
+/// `darken(colour, amount)`.
+pub fn darken(color: Color, amount: f32) -> Color {
+    shade(color, -amount)
+}
+
+/// `lighten(colour, amount)`.
+pub fn lighten(color: Color, amount: f32) -> Color {
+    shade(color, amount)
+}
+
+/// Lighten (positive) or darken (negative) like the original `lighten`/`darken`.
+pub fn shade(color: Color, amount: f32) -> Color {
+    let c = color.to_srgba();
+    let mix = |v: f32| {
+        if amount >= 0.0 {
+            v + (1.0 - v) * amount
+        } else {
+            v * (1.0 + amount)
+        }
+    };
+    Color::srgba(mix(c.red), mix(c.green), mix(c.blue), c.alpha)
+}
 
 pub fn tiles(t: f32) -> Val {
     Val::Px(t * TILE)
@@ -80,9 +193,9 @@ pub fn hover_overlay(color: Color) -> Color {
 }
 
 pub fn viewport_fit(physical_size: Vec2) -> (Vec2, f32) {
-    let scale = (physical_size.x / ROOM.x).min(physical_size.y / ROOM.y);
+    let scale = (physical_size.x / CANVAS.x).min(physical_size.y / CANVAS.y);
     if !scale.is_finite() || scale <= 0.0 {
-        return (ROOM, 1.0);
+        return (CANVAS, 1.0);
     }
     (physical_size / scale, scale)
 }
@@ -106,15 +219,15 @@ pub fn tile_button(
         Node {
             width: tiles(w),
             height: tiles(h),
-            border_radius: BorderRadius::all(tiles(0.1)),
+            flex_shrink: 0.0,
             justify_content: JustifyContent::Center,
             align_items: AlignItems::Center,
             ..default()
         },
-        BackgroundColor(color),
+        PixelBox::new(color).shadow(),
     ));
     attach_button(&mut node, color, action);
-    node.with_children(|parent| label(parent, text, text_px(text_scale), INK));
+    node.with_children(|parent| shadowed_label(parent, text, text_px(text_scale), INK));
 }
 
 fn attach_button(node: &mut bevy::ecs::system::EntityCommands, color: Color, action: Click) {
@@ -130,38 +243,96 @@ fn attach_button(node: &mut bevy::ecs::system::EntityCommands, color: Color, act
             }
         },
     )
+    .observe(|event: On<PointerOver>, mut buttons: Query<ButtonParts>| {
+        if let Ok((style, bg, pixel)) = buttons.get_mut(event.entity) {
+            paint(bg, pixel, style.hovered);
+        }
+    })
+    .observe(|event: On<PointerOut>, mut buttons: Query<ButtonParts>| {
+        if let Ok((style, bg, pixel)) = buttons.get_mut(event.entity) {
+            paint(bg, pixel, style.normal);
+        }
+    })
+    .observe(|event: On<PointerPress>, mut buttons: Query<ButtonParts>| {
+        if event.button == PointerButton::Primary
+            && let Ok((style, bg, pixel)) = buttons.get_mut(event.entity)
+        {
+            paint(bg, pixel, style.pressed);
+        }
+    })
     .observe(
-        |event: On<PointerOver>, mut buttons: Query<(&ButtonTheme, &mut BackgroundColor)>| {
-            if let Ok((style, mut bg)) = buttons.get_mut(event.entity) {
-                bg.0 = style.hovered;
-            }
-        },
-    )
-    .observe(
-        |event: On<PointerOut>, mut buttons: Query<(&ButtonTheme, &mut BackgroundColor)>| {
-            if let Ok((style, mut bg)) = buttons.get_mut(event.entity) {
-                bg.0 = style.normal;
-            }
-        },
-    )
-    .observe(
-        |event: On<PointerPress>, mut buttons: Query<(&ButtonTheme, &mut BackgroundColor)>| {
+        |event: On<PointerRelease>, mut buttons: Query<ButtonParts>| {
             if event.button == PointerButton::Primary
-                && let Ok((style, mut bg)) = buttons.get_mut(event.entity)
+                && let Ok((style, bg, pixel)) = buttons.get_mut(event.entity)
             {
-                bg.0 = style.pressed;
-            }
-        },
-    )
-    .observe(
-        |event: On<PointerRelease>, mut buttons: Query<(&ButtonTheme, &mut BackgroundColor)>| {
-            if event.button == PointerButton::Primary
-                && let Ok((style, mut bg)) = buttons.get_mut(event.entity)
-            {
-                bg.0 = style.hovered;
+                paint(bg, pixel, style.hovered);
             }
         },
     );
+}
+
+type ButtonParts = (
+    &'static ButtonTheme,
+    Option<&'static mut BackgroundColor>,
+    Option<&'static mut PixelBox>,
+);
+
+/// Hover and press colour a plain node through its background, a pixel box through its fill.
+fn paint(bg: Option<Mut<BackgroundColor>>, pixel: Option<Mut<PixelBox>>, color: Color) {
+    if let Some(mut pixel) = pixel {
+        pixel.fill = color;
+    } else if let Some(mut bg) = bg {
+        bg.0 = color;
+    }
+}
+
+/// A card button of `G.UIDEF.use_and_sell_buttons` or `create_shop_card_ui`: rows of
+/// (text, scale) parts, minimum size and padding in tiles. Without an action it is drawn
+/// in the inactive colour and ignores clicks.
+pub fn card_button(
+    ui: &mut ChildSpawnerCommands,
+    rows: &[&[(&str, f32)]],
+    color: Color,
+    (min_w, min_h): (f32, f32),
+    padding: UiRect,
+    action: Option<Click>,
+) {
+    let mut node = ui.spawn((
+        Node {
+            min_width: tiles(min_w),
+            min_height: tiles(min_h),
+            flex_shrink: 0.0,
+            padding,
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        PixelBox::new(if action.is_some() { color } else { INACTIVE }).shadow(),
+    ));
+    match action {
+        Some(action) => attach_button(&mut node, color, action),
+        None => {
+            node.insert(Pickable::IGNORE);
+        }
+    }
+    node.with_children(|button| {
+        for row in rows {
+            button
+                .spawn((
+                    Node {
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    Pickable::IGNORE,
+                ))
+                .with_children(|line| {
+                    for &(text, scale) in *row {
+                        shadowed_label(line, text, text_px(scale), INK);
+                    }
+                });
+        }
+    });
 }
 
 pub fn screen_heading(ui: &mut ChildSpawnerCommands, text: &str) {
@@ -175,6 +346,7 @@ pub fn panel(ui: &mut ChildSpawnerCommands, content: impl FnOnce(&mut ChildSpawn
             border: UiRect::all(tiles(0.1)),
             border_radius: BorderRadius::all(tiles(0.18)),
             min_width: tiles(11.5),
+            flex_shrink: 0.0,
             flex_direction: FlexDirection::Column,
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
@@ -206,31 +378,30 @@ pub fn tile_optional(
             action,
         );
     } else {
-        let bg = if selected {
-            BLUE
-        } else {
-            Color::srgb(0.20, 0.24, 0.24)
-        };
+        let bg = if selected { BLUE } else { INACTIVE };
         ui.spawn((
             Node {
                 width: tiles(size.0),
                 height: tiles(size.1),
-                border: UiRect::all(tiles(0.08)),
-                border_radius: BorderRadius::all(tiles(0.1)),
+                flex_shrink: 0.0,
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 ..default()
             },
-            BackgroundColor(bg),
+            PixelBox::new(bg),
             Pickable::IGNORE,
         ))
         .with_children(|parent| {
-            label(
-                parent,
-                text,
-                text_px(text_scale),
-                if selected { INK } else { MUTED },
-            );
+            parent.spawn((
+                Text::new(text),
+                TextFont {
+                    font_size: FontSize::Px(text_px(text_scale)),
+                    ..default()
+                },
+                TextColor(if selected { INK } else { TEXT_INACTIVE }),
+                TextLayout::no_wrap(),
+                Pickable::IGNORE,
+            ));
         });
     }
 }
@@ -274,6 +445,7 @@ pub fn menu_button(ui: &mut ChildSpawnerCommands, text: &str, color: Color, acti
         Node {
             min_width: px(132),
             height: px(48),
+            flex_shrink: 0.0,
             padding: UiRect::horizontal(px(12)),
             border_radius: BorderRadius::all(px(8)),
             justify_content: JustifyContent::Center,
@@ -305,18 +477,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn cards_spread_like_the_original_areas() {
+        // Two Jokers in five slots sit centred where slots 2 and 3 of five would be.
+        let (area, card) = (500.0, 100.0);
+        assert!((spread_x(0, 2, 5, area, card) - 150.0).abs() < 1e-3);
+        assert!((spread_x(1, 2, 5, area, card) - 250.0).abs() < 1e-3);
+        // A full row spans the area; overflow overlaps.
+        assert!((spread_x(4, 5, 5, area, card) - 400.0).abs() < 1e-3);
+        assert!((spread_x(5, 6, 5, area, card) - 400.0).abs() < 1e-3);
+        assert!((spread_x(0, 1, 1, area, card) - 200.0).abs() < 1e-3);
+    }
+
+    #[test]
     fn viewport_is_covered_without_distortion() {
-        for window in [ROOM, Vec2::new(1080.0, 700.0), Vec2::new(3440.0, 1440.0)] {
+        for window in [CANVAS, Vec2::new(1080.0, 700.0), Vec2::new(3440.0, 1440.0)] {
             let (canvas, scale) = viewport_fit(window);
             assert!((canvas * scale - window).length() < 1e-3);
-            assert!((canvas + Vec2::splat(1e-3)).cmpge(ROOM).all());
+            assert!((canvas + Vec2::splat(1e-3)).cmpge(CANVAS).all());
         }
+    }
+
+    #[test]
+    fn the_room_unit_matches_the_original_at_1080p() {
+        // love.resize: 1056 px of height hold 12.9 tiles, about 81.9 px per tile.
+        let (_, scale) = viewport_fit(Vec2::new(1920.0, 1056.0));
+        assert!((TILE * scale - 1056.0 / 12.9).abs() < 0.1);
+        let card = card_px();
+        assert!((card.x - 142.1).abs() < 0.1 && (card.y - 190.8).abs() < 0.1);
     }
 
     #[test]
     fn fit_of_zero_window_is_finite() {
         let (canvas, scale) = viewport_fit(Vec2::ZERO);
-        assert_eq!(canvas, ROOM);
+        assert_eq!(canvas, CANVAS);
         assert_eq!(scale, 1.0);
     }
 
@@ -324,7 +517,8 @@ mod tests {
     fn tile_and_text_helpers() {
         assert_eq!(tiles(1.0), Val::Px(73.0));
         assert_eq!(tile_px(2.0), 146.0);
-        assert!((text_px(0.9) - 52.56).abs() < 1e-3);
+        // Text at scale 1 has an em of one room unit.
+        assert!((text_px(0.9) - 65.7).abs() < 1e-3);
     }
 
     #[test]
