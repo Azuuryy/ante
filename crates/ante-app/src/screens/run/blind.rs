@@ -1,0 +1,324 @@
+use super::*;
+
+pub(super) fn blind_box_node(display: Display) -> Node {
+    Node {
+        display,
+        min_width: px(4.5 * TILE),
+        padding: UiRect::all(px(0.05 * TILE)),
+        ..column(0.05 * TILE)
+    }
+}
+
+/// `scale_number`: text shrinks as the number grows past `max`.
+pub(super) fn scale_number(number: f64, scale: f32, max: f64) -> f32 {
+    if number < max {
+        scale
+    } else {
+        (scale as f64 * (max / number).powf(0.25)).max(0.25) as f32
+    }
+}
+
+/// `create_UIBox_HUD_blind`: the blind name in DYN_UI.MAIN over a DYN_UI.DARK box with the
+/// rule, the blind chip and a black box with the target and reward.
+pub(super) fn spawn_blind_box(
+    ui: &mut ChildSpawnerCommands,
+    stake: Option<ImageNode>,
+    chip: &mut Entity,
+    texts: &mut [Entity; 4],
+) -> Entity {
+    ui.spawn((
+        blind_box_node(Display::None),
+        PixelBox::new(BLACK).emboss(0.05),
+    ))
+    .with_children(|blind| {
+        blind
+            .spawn((
+                Node {
+                    width: percent(100),
+                    min_height: px(0.7 * TILE),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                PixelBox::new(BLACK).emboss(0.05),
+                DynRole::Main,
+            ))
+            .with_children(|name| {
+                texts[0] = name
+                    .spawn((
+                        Text::new(""),
+                        TextFont {
+                            font_size: bevy::text::FontSize::Px(text_px(0.64)),
+                            ..default()
+                        },
+                        TextColor(INK),
+                        text_shadow(),
+                        Floating,
+                        UiTransform::IDENTITY,
+                        Pickable::IGNORE,
+                    ))
+                    .id();
+            });
+        blind
+            .spawn((
+                Node {
+                    width: percent(100),
+                    min_height: px(2.74 * TILE),
+                    justify_content: JustifyContent::Center,
+                    ..column(0.0)
+                },
+                PixelBox::new(BLACK),
+                DynRole::Dark,
+            ))
+            .with_children(|body| {
+                texts[1] = body
+                    .spawn((
+                        Node {
+                            max_width: px(4.2 * TILE),
+                            padding: UiRect::all(px(0.05 * TILE)),
+                            ..default()
+                        },
+                        Text::new(""),
+                        TextFont {
+                            font_size: bevy::text::FontSize::Px(text_px(0.36)),
+                            ..default()
+                        },
+                        TextLayout::justify(Justify::Center),
+                        TextColor(INK),
+                        Pickable::IGNORE,
+                    ))
+                    .id();
+                body.spawn(Node {
+                    padding: UiRect::all(px(0.15 * TILE)),
+                    column_gap: px(0.15 * TILE),
+                    align_items: AlignItems::Center,
+                    ..default()
+                })
+                .with_children(|row| {
+                    *chip = row
+                        .spawn((
+                            Node {
+                                width: px(1.5 * TILE),
+                                height: px(1.5 * TILE),
+                                ..default()
+                            },
+                            Pickable::IGNORE,
+                        ))
+                        .id();
+                    row.spawn((
+                        Node {
+                            min_width: px(2.9 * TILE),
+                            padding: UiRect::all(px(0.05 * TILE)),
+                            ..column(0.0)
+                        },
+                        PixelBox::new(BLACK).emboss(0.05),
+                    ))
+                    .with_children(|target| {
+                        target.spawn((
+                            Text::new(""),
+                            TextFont {
+                                font_size: bevy::text::FontSize::Px(text_px(0.3)),
+                                ..default()
+                            },
+                            TextColor(INK),
+                            text_shadow(),
+                            LocalText::new("ph_blind_score_at_least"),
+                            Pickable::IGNORE,
+                        ));
+                        target
+                            .spawn(Node {
+                                min_height: px(0.6 * TILE),
+                                column_gap: px(0.1 * TILE),
+                                align_items: AlignItems::Center,
+                                ..default()
+                            })
+                            .with_children(|count| {
+                                if let Some(stake) = stake {
+                                    atlas_image(count, stake, 0.5 * TILE, 0.5 * TILE);
+                                }
+                                texts[2] = value(count, text_px(0.7), RED);
+                            });
+                        target
+                            .spawn(Node {
+                                min_height: px(0.45 * TILE),
+                                align_items: AlignItems::Center,
+                                ..default()
+                            })
+                            .with_children(|reward| {
+                                reward.spawn((
+                                    Text::new(""),
+                                    TextFont {
+                                        font_size: bevy::text::FontSize::Px(text_px(0.3)),
+                                        ..default()
+                                    },
+                                    TextColor(INK),
+                                    LocalText::new("ph_blind_reward"),
+                                    Pickable::IGNORE,
+                                ));
+                                texts[3] = value(reward, text_px(0.45), MONEY);
+                            });
+                    });
+                });
+            });
+    })
+    .id()
+}
+
+pub(super) fn tag_icon(
+    ui: &mut ChildSpawnerCommands,
+    atlases: &Atlases,
+    tag: &ante_core::contract::TagView,
+) {
+    let mut icon = ui.spawn(Node {
+        width: px(43),
+        height: px(43),
+        align_items: AlignItems::Center,
+        justify_content: JustifyContent::Center,
+        ..default()
+    });
+    crate::components::tooltip::attach(
+        &mut icon,
+        crate::components::tooltip::Tip::new(&tag.name, &tag.content.description)
+            .badge("Tag")
+            .info(crate::components::info::references(tag.content.id.0))
+            .technical(tag.content.id.0),
+    );
+    icon.with_children(|art| {
+        if let Some(image) = atlases.tag_icon(tag.content.id.0) {
+            atlas_image(art, image, 43.0, 43.0);
+        } else {
+            label(art, "Tag", 19.0, GOLD);
+        }
+    });
+}
+
+pub(super) fn blind_panel(
+    ui: &mut ChildSpawnerCommands,
+    blind: &BlindView,
+    index: usize,
+    atlases: &Atlases,
+    revision: u64,
+) {
+    let color = match index {
+        0 => BLUE,
+        1 => GOLD,
+        _ => Color::srgb(0.63, 0.63, 0.55),
+    };
+    let muted = crate::components::tiles::emboss(color);
+    let offset = if blind.selectable { 0.0 } else { 38.0 };
+    let mut panel = ui.spawn((
+        Node {
+            margin: UiRect::top(px(offset)),
+            flex_grow: 1.0,
+            flex_basis: px(0),
+            max_width: px(260),
+            padding: UiRect::all(px(10)),
+            border: UiRect::all(px(4)),
+            border_radius: BorderRadius::all(px(15)),
+            ..column(14.0)
+        },
+        BackgroundColor(if blind.selectable {
+            PANEL
+        } else {
+            Color::srgb(0.16, 0.23, 0.23)
+        }),
+        BorderColor::all(if blind.selectable { color } else { muted }),
+    ));
+    let effect = if blind.description.is_empty() {
+        format!("Score at least {}", blind.target)
+    } else {
+        blind.description.clone()
+    };
+    crate::components::tooltip::attach(
+        &mut panel,
+        crate::components::tooltip::Tip::new(&blind.name, effect)
+            .badge(["Small", "Big", "Boss"][index])
+            .technical(format!(
+                "{} · target {} · reward {}",
+                blind.id, blind.target, blind.reward
+            ))
+            .technical(format!(
+                "Selectable: {} · passed: {} · skipped: {} · can skip: {}",
+                blind.selectable, blind.passed, blind.skipped, blind.can_skip
+            ))
+            .technical(format!(
+                "Tag: {}",
+                blind.tag.as_ref().map_or("none", |tag| tag.content.id.0)
+            )),
+    );
+    panel.with_children(|card| {
+        let selection = if blind.selectable {
+            "Select"
+        } else if blind.skipped {
+            "Skipped"
+        } else if blind.passed {
+            "Defeated"
+        } else {
+            "Upcoming"
+        };
+        tile_optional(
+            card,
+            selection,
+            ORANGE,
+            (2.49, 0.64),
+            0.42,
+            blind.selectable.then_some(Click::Play(Command::StartBlind)),
+            false,
+        );
+        label(
+            card,
+            &blind.name,
+            text_px(0.45),
+            if blind.selectable { INK } else { MUTED },
+        );
+        if let Some(mut chip) = atlases.blind_chip(blind.id) {
+            if !blind.selectable {
+                chip.color = Color::srgb(0.65, 0.66, 0.62);
+            }
+            atlas_image(card, chip, 86.0, 86.0);
+        } else {
+            label(card, ["Small", "Big", "Boss"][index], 28.0, color);
+        }
+        card.spawn(box_node(
+            Node {
+                width: percent(100),
+                padding: UiRect::all(px(10)),
+                ..column(4.0)
+            },
+            WELL,
+        ))
+        .with_children(|score| {
+            if !blind.description.is_empty() {
+                label(score, &blind.description, 21.0, MUTED);
+            }
+            label(score, "Score at least", 21.0, INK);
+            label(score, score_text(blind.target), 36.0, RED);
+            label(
+                score,
+                format!("Reward: {}", "$".repeat(blind.reward)),
+                20.0,
+                GOLD,
+            );
+        });
+        if let Some(tag) = &blind.tag {
+            label(card, "or", 23.0, INK);
+            row(card, |skip| {
+                tag_icon(skip, atlases, tag);
+                tile_optional(
+                    skip,
+                    "Skip Blind",
+                    RED,
+                    (1.92, 0.68),
+                    0.37,
+                    blind
+                        .can_skip
+                        .then_some(Click::Play(Command::SkipBlind { revision })),
+                    false,
+                );
+            });
+            label(card, &tag.name, 20.0, MUTED);
+        } else {
+            label(card, "Final blind of the ante", 20.0, GOLD);
+        }
+    });
+}
