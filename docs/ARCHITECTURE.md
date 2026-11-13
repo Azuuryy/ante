@@ -1,7 +1,16 @@
 # Architecture
 
-`ante-core` contains portable card, sorting, hand evaluation and RNG foundations and has no Bevy dependency. `ante-app` owns presentation and consumes core data. `ante-cli` is a separate headless executable using the same core. Presentation must not control simulation outcomes. `ante-core::contract` defines the command, event, projection (`RunView`) and score-trace contract shared by the native slice and the experimental engine backend. Scoring lives in `ante-core::score`; local asset import and atlas resolution live in `ante-app::services::assets`.
+| Crate | Role | Depends on |
+| --- | --- | --- |
+| `engine/balatro-rs`, `balatro-types`, `balatro-seed` | Vendored rules engine: game state, legal actions, RNG, scoring and its trace. See [ENGINE.md](ENGINE.md). | — |
+| `crates/ante-core` | Headless simulation boundary. `contract` defines commands, events, the `RunView` projection and the score trace; `engine` adapts balatro-rs to it (`EngineRun`, `ExternalBackend`). No Bevy dependency. | engine |
+| `crates/ante-app` | Bevy client and the `ante` binary: session, navigation, presentation, screens, shared UI and services. | ante-core |
 
-RNG version 1 is SplitMix64 with wrapping integer arithmetic. Its state is private; save/restore and independent streams remain future work. This sequence is an Ante implementation, not a claim of Balatro seed compatibility.
+The simulation owns gameplay state. The client sends a `Command` through the session command system, the only writer to the run driver, and reads back a confirmed `RunView` and its ordered trace. Score playback consumes the committed trace and never draws randomness. Presentation must not control simulation outcomes.
 
-An isolated comparison of candidate engines and its current limits is documented in [ENGINE_EVALUATION.md](ENGINE_EVALUATION.md). The production simulation still uses ante-core.
+In `ante-app`, `app/` holds session and presentation, `screens/` screen composition, `components/` shared UI and `services/` storage, assets and diagnostics. Content IDs resolve to art in the client (`services::assets`). Profiler, diagnostics, structured logs and technical tooltip fields compile only with `dev-tools`.
+
+## Code layout
+
+- Files stay around 400 lines at most. A file that grows beyond that is split by responsibility into a module directory (`run.rs` with `run/board.rs`, `run/hud.rs`, …); a large `impl` can be spread over several files of the same module.
+- Unit tests follow the Rust convention: a `#[cfg(test)] mod tests` in the module they test, moved to a sibling `<module>/tests.rs` when the module is long. Integration tests that only need the public API live in each crate's `tests/` directory.

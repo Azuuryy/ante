@@ -2,8 +2,8 @@
 
 ## Jalons
 
-1. **Parité fonctionnelle et composition statique.** Stabiliser le contrat de simulation, réutiliser les composants du client et terminer les parcours jouables. Le moteur Fast épinglé alimente le client pendant le développement.
-2. **Moteur natif en parallèle.** La tranche d'une blind passe par le CLI. Étendre ensuite aux boutiques, packs, campagnes et effets. Basculer le client après validation des transitions, scores, traces et reprises. Mesurer la représentation des très grands scores avant d'étendre Endless. Auditer séparément le RNG et l'ordre des tirages avant d'engager la compatibilité des graines Balatro.
+1. **Parité fonctionnelle et composition statique.** Stabiliser le contrat de simulation, réutiliser les composants du client et terminer les parcours jouables. Le moteur vendoré dans `engine/` (mode Fast) alimente le client.
+2. **Moteur intégré.** Étendre les règles du moteur vendoré (boutiques, packs, campagnes et effets) directement dans `engine/`, avec des tests sur les transitions, scores, traces et reprises. Mesurer la représentation des très grands scores avant d'étendre Endless. Auditer séparément le RNG et l'ordre des tirages avant d'engager la compatibilité des graines Balatro.
 3. **Effets visuels.** Relever les animations, transitions, mouvements, parallaxes et shaders de fond ou d'édition. Concevoir leur adaptation Bevy et vérifier la provenance avant toute réutilisation.
 4. **Polish 1:1.** Vérifier la fidélité par état et par format de fenêtre, puis corriger les écarts de rendu, de mouvement et de timing.
 

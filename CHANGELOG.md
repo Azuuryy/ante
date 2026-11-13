@@ -73,6 +73,11 @@
 
 ### Changed
 
+- The balatro-rs engine is vendored in `engine/` with Ante's twelve patches applied, its Python bindings and colored output removed; `engine/NOTICE.md` records its origin and unverified provenance. It no longer needs a local checkout or a manual patch sequence.
+- `ante-core` holds the contract and the engine adapter (`ante-core::engine`, `EngineRun`, `ExternalBackend`); `ante-app` builds the `ante` binary on it. `extra-jokers` is an `ante-core` feature relayed by `ante-app`. Release builds keep integer overflow checks.
+- Large client, contract and engine files are split into modules by responsibility, and long test modules move to sibling `tests.rs` files. Behavior is unchanged.
+- `scripts/build-windows-client.ps1` builds from the workspace into `target/windows`; the check script and CI cover the engine and the optional features.
+- `docs/ENGINE_EVALUATION.md` becomes `docs/ENGINE.md`.
 - Chances read as a fraction in every popup ("1 / 4 chance" for "1 in 4"), coloured like the original chance text. This departs from the original wording at the user's request.
 - Tarot and Spectral cards that take hand cards say "Select at most N cards"; those that take none say nothing about selection.
 - Banner and Mystic Summit show a "(Currently ...)" line from the discards left (an Ante addition; the original has none for them).
@@ -102,6 +107,10 @@
 - The Instant speed is replaced by the original speed range; Skip still ends playback.
 - Project policy: the original logic, formulas and constants are ported faithfully; the original files are never committed or shipped and are loaded from the user's installation.
 - The jokers engine patch counts the three optional jokers in `test_exactly_74_jokers_implemented`.
+
+### Removed
+
+- The native one-blind engine, `ante-cli`, the `experiments/engine-evaluation` crate, the Balatrust comparisons and the `score_stress` example.
 
 ### Fixed
 

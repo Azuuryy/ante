@@ -23,7 +23,7 @@ sequenceDiagram
     participant E as Moteur
     Input->>UI: Click typé
     alt Action de jeu
-        UI->>M: MvpAction et révision si nécessaire
+        UI->>M: Command et révision si nécessaire
         M->>E: Action validée
         E-->>M: État et trace
         M-->>UI: RunView et résultat
@@ -33,7 +33,7 @@ sequenceDiagram
     UI-->>Input: Géométrie, état et infobulle
 ```
 
-Le moteur possède la partie, le hasard, les actions légales, les capacités et les objectifs. `MvpRun` traduit `MvpAction`, journalise via le client et fournit une projection `RunView` sans tirage aléatoire. Les actions indexées vérifient la révision. `Playback` lit une trace déjà calculée, avec la projection avant action tant que l'animation la représente. La navigation, les modaux et l'onglet du deck appartiennent à la présentation. Ouvrir le deck ou les réglages suspend la présentation et n'exécute aucune action de jeu.
+Le moteur possède la partie, le hasard, les actions légales, les capacités et les objectifs. `EngineRun` traduit `Command`, journalise via le client et fournit une projection `RunView` sans tirage aléatoire. Les actions indexées vérifient la révision. `Playback` lit une trace déjà calculée, avec la projection avant action tant que l'animation la représente. La navigation, les modaux et l'onglet du deck appartiennent à la présentation. Ouvrir le deck ou les réglages suspend la présentation et n'exécute aucune action de jeu.
 
 ## Contrat visuel
 
@@ -88,7 +88,7 @@ La suite automatisée couvre les états moteur et client, le déterminisme, les 
 | Mesures et ancres | `components::tiles::viewport_fit`, `fit_room`, `RunBoard` | Le canvas couvre la fenêtre à échelle uniforme. Comparer les centres et bords des zones après redimensionnement. |
 | Images et police | `Atlases` et `services::assets::catalog::load` | Charger depuis le chemin local validé. Les silhouettes, libellés et textes de secours permettent d'utiliser le même contrôle sans atlas. Les vouchers, les packs et l’enseigne statique utilisent les atlas locaux. |
 | Métadonnées contextuelles | `tooltip::attach`, `Tip::currently` et projection du moteur | À partir du même type de carte, vérifier une offre, un objet détenu et une entrée inconnue. Comparer les couleurs Balatro (chance en vert, argent en jaune, valeurs et comptes en orange) et les lignes « Currently ». Tester près des quatre bords et après fermeture d'un modal. |
-| Trace et résultat | `MvpRun::apply_traced`, `Playback` et tuiles de score | Les trois vitesses, Passer et la consultation du deck conservent l'état confirmé et la suite aléatoire. |
+| Trace et résultat | `EngineRun::apply_traced`, `Playback` et tuiles de score | Les trois vitesses, Passer et la consultation du deck conservent l'état confirmé et la suite aléatoire. |
 
 
 ## Aperçu et contenus de boutique
@@ -108,7 +108,7 @@ Sous `crates/ante-app/src`, `main.rs` et `lib.rs` sont les points d'entrée. `ap
 
 Le système de session applique seul les commandes au pilote. Les écrans lisent `RunView` et la lecture de score reçoit une trace du même passage moteur. L'aperçu de pioche et la sélection d'une offre restent côté présentation.
 
-`components/tiles.rs` ajuste le canevas de 22 × 12,9 unités (`CANVAS`) et centre la salle dans chaque écran (`presentation::room_node`). `CARD_WIDTH`, `CARD_HEIGHT` et `card_px()` donnent la taille dessinée d'une carte (0,95 × `CARD_W`, `CARD_H`) ; `spread_x` reprend `align_cards` pour les Jokers, les consommables et les offres. `screens/run.rs` place le HUD, les zones Jokers et consommables, le deck (pile de dos selon les cartes restantes) et le panneau de boutique en unités. `screens/shop.rs` suit `G.UIDEF.shop` (`shop_box`, `offer_area`, `price_tag`, `offer_buttons`) et `components/cards.rs` les boutons Sell et Use (`menu_ui::card_button`). La carte d'inventaire sélectionnée reçoit `GlobalZIndex(100)` tant qu'elle l'est, sous les overlays (150 et plus) ; l'offre sélectionnée passe devant ses voisines. La ligne de l'enseigne est une formulation propre à Ante, le texte d'origine étant de la localisation.
+`components/tiles.rs` ajuste le canevas de 22 × 12,9 unités (`CANVAS`) et centre la salle dans chaque écran (`presentation::room_node`). `CARD_WIDTH`, `CARD_HEIGHT` et `card_px()` donnent la taille dessinée d'une carte (0,95 × `CARD_W`, `CARD_H`) ; `spread_x` reprend `align_cards` pour les Jokers, les consommables et les offres. `screens/run/` (`board.rs`, `hud.rs`, `blind.rs`, `deck.rs`) place le HUD, les zones Jokers et consommables, le deck (pile de dos selon les cartes restantes) et le panneau de boutique en unités. `screens/shop/offer.rs` suit `G.UIDEF.shop` (`shop_box`, `offer_area`, `price_tag`, `offer_buttons`) et `components/cards.rs` les boutons Sell et Use (`tiles::card_button`, dans `components/tiles/buttons.rs`). La carte d'inventaire sélectionnée reçoit `GlobalZIndex(100)` tant qu'elle l'est, sous les overlays (150 et plus) ; l'offre sélectionnée passe devant ses voisines. La ligne de l'enseigne est une formulation propre à Ante, le texte d'origine étant de la localisation.
 
 `components/pixel_rect.rs` fournit `PixelBox` : un `UiMaterial` avec un WGSL écrit pour Ante (`pixel_rect.wgsl`) qui reproduit les coins en escalier, le relief et l'ombre. Il fournit aussi `DynUi` et `DynRole`, qui suivent les couleurs `G.C.DYN_UI` selon la phase et le blind. `tile_button`, `card_button`, le HUD, la boutique, les étiquettes de prix et les zones de cartes l'utilisent. Les observateurs de bouton colorent la boîte au survol et à la pression.
 
@@ -119,7 +119,7 @@ Le système de session applique seul les commandes au pilote. Les écrans lisent
 Réglages à tester en jeu :
 - `LOVE_GAMMA` (`services/assets/shaders.rs`) : gamma des shaders d'origine convertis (fond, éditions) ; plus haut assombrit.
 - `UI_GAMMA` (`components/pixel_rect.rs`) : gamma des couleurs plates des boîtes ; plus haut assombrit.
-- `DECK_STACK_SCALE` et `DECK_UNDER_SHADE` (`screens/run.rs`) : étalement de la pile du deck et gris des dos sous la carte du dessus.
+- `DECK_STACK_SCALE` et `DECK_UNDER_SHADE` (`screens/run/board.rs`) : étalement de la pile du deck et gris des dos sous la carte du dessus.
 - `SHOP_ROW_GAP` et `PRICE_TAG_OVERLAP` (`screens/shop.rs`) : écart entre les deux rangées de la boutique et descente de l'étiquette de prix derrière la carte.
 
 Pendant un blind, `row_blind` affiche la boîte de `create_UIBox_HUD_blind` (nom, règle, jeton du blind, cible et récompense). Les boutons de main suivent `create_UIBox_buttons`, avec la boîte Sort Hand contournée (`PixelBox::outline`). Le relief et l'ombre étant dessinés dans la boîte, leur hauteur est ajoutée au padding bas pour que le texte reste centré.
