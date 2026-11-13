@@ -1,0 +1,14 @@
+[package]
+name = "balatro-types"
+version = "0.1.0"
+edition = "2024"
+description = "Vendored balatro-rs domain vocabulary used by Ante"
+license = "MIT"
+publish = false
+
+[dependencies]
+strum = { version = "0.26", features = ["derive"] }
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+serde = ["dep:serde"]

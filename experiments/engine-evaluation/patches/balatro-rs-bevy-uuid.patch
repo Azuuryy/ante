@@ -1,6 +1,0 @@
-diff --git a/core/Cargo.toml b/core/Cargo.toml
---- a/core/Cargo.toml
-+++ b/core/Cargo.toml
-@@ -17 +17 @@
--uuid  = {version = "~1.9.1", optional = true, features = ["v7"]}
-+uuid  = {version = "1", optional = true, features = ["v7"]}

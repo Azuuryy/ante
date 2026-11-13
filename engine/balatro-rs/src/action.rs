@@ -1,0 +1,133 @@
+use crate::card::Card;
+use crate::consumable::Consumable;
+use crate::joker::{joker_display, Jokers};
+use crate::pack::{Pack, PackContent};
+use crate::stage::{blind_display, Blind};
+use crate::voucher::Voucher;
+use std::fmt;
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum MoveDirection {
+    Left,
+    Right,
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum SortBy {
+    Rank,
+    Suit,
+}
+
+impl fmt::Display for MoveDirection {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Left => {
+                write!(f, "left")
+            }
+            Self::Right => {
+                write!(f, "right")
+            }
+        }
+    }
+}
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum Action {
+    SelectCard(Card),
+    DeselectCard(Card),
+    MoveCard(MoveDirection, Card),
+    Play(),
+    Discard(),
+    CashOut(usize),
+    BuyJoker(Jokers),
+    BuyConsumable(Consumable),
+    BuyVoucher(Voucher),
+    // Only reachable with the Magic Trick voucher redeemed — it is what
+    // puts playing cards in the shop at all.
+    BuyPlayingCard(Card),
+    UseConsumable(Consumable),
+    NextRound(),
+    SelectBlind(Blind),
+    SkipBlind(Blind),
+    ApplyTarot(),
+    ApplySpectral(),
+    SellJoker(usize),
+    SellConsumable(usize),
+    BuyPack(Pack),
+    PickPackCard(PackContent),
+    SkipPack(),
+    SortHand(SortBy),
+    Reroll(),
+    RerollBoss(),
+}
+
+impl fmt::Display for Action {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::SelectCard(card) => {
+                write!(f, "SelectCard: {}", card)
+            }
+            Self::DeselectCard(card) => {
+                write!(f, "DeselectCard: {}", card)
+            }
+            Self::Play() => {
+                write!(f, "Play")
+            }
+            Self::Discard() => {
+                write!(f, "Discard")
+            }
+            Self::MoveCard(dir, card) => {
+                write!(f, "MoveCard: {} - {}", card, dir)
+            }
+            Self::CashOut(reward) => {
+                write!(f, "CashOut: {}", reward)
+            }
+            Self::BuyJoker(joker) => {
+                write!(f, "BuyJoker: {}", joker_display(joker))
+            }
+            Self::BuyConsumable(consumable) => {
+                write!(f, "BuyConsumable: {}", consumable.name())
+            }
+            Self::BuyVoucher(voucher) => {
+                write!(f, "BuyVoucher: {}", voucher.name())
+            }
+            Self::BuyPlayingCard(card) => {
+                write!(f, "BuyPlayingCard: {}", card)
+            }
+            Self::UseConsumable(consumable) => {
+                write!(f, "UseConsumable: {}", consumable.name())
+            }
+            Self::NextRound() => {
+                write!(f, "NextRound")
+            }
+            Self::SelectBlind(blind) => {
+                write!(f, "SelectBlind: {}", blind_display(blind))
+            }
+            Self::SkipBlind(blind) => {
+                write!(f, "SkipBlind: {}", blind_display(blind))
+            }
+            Self::ApplyTarot() => write!(f, "ApplyTarot"),
+            Self::ApplySpectral() => write!(f, "ApplySpectral"),
+            Self::SellJoker(idx) => write!(f, "SellJoker: {}", idx),
+            Self::SellConsumable(idx) => write!(f, "SellConsumable: {}", idx),
+            Self::BuyPack(pack) => write!(f, "BuyPack: {}", pack.name()),
+            Self::PickPackCard(content) => write!(f, "PickPackCard: {}", content.name()),
+            Self::SkipPack() => write!(f, "SkipPack"),
+            Self::SortHand(sort_by) => write!(f, "SortHand: {}", sort_by),
+            Self::RerollBoss() => write!(f, "Reroll Boss"),
+            Self::Reroll() => write!(f, "Reroll"),
+        }
+    }
+}
+
+impl fmt::Display for SortBy {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Rank => write!(f, "rank"),
+            Self::Suit => write!(f, "suit"),
+        }
+    }
+}

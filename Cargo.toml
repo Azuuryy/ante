@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/ante-core", "crates/ante-app", "crates/ante-cli"]
+members = ["crates/ante-core", "crates/ante-app", "crates/ante-cli", "engine/balatro-rs", "engine/balatro-types", "engine/balatro-seed"]
 resolver = "2"
 
 [workspace.package]

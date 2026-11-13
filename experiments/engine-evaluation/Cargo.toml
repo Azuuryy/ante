@@ -19,8 +19,8 @@ required-features = ["mvp"]
 [dependencies]
 ante-core = { path = "../../crates/ante-core" }
 ante-app = { path = "../../crates/ante-app", optional = true }
-balatro-rs = { path = "../../target/engine-evaluation/balatro-rs/core" }
-balatro-types = { path = "../../target/engine-evaluation/balatro-rs/balatro-types" }
+balatro-rs = { path = "../../engine/balatro-rs" }
+balatro-types = { path = "../../engine/balatro-types" }
 serde_json = "1"
 strum = "0.26"
 

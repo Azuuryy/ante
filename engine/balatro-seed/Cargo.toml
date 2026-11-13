@@ -1,0 +1,15 @@
+[package]
+name = "balatro-seed"
+version = "0.1.0"
+edition = "2024"
+description = "Vendored balatro-rs seed and RNG port used by Ante"
+license = "MIT"
+publish = false
+
+[dependencies]
+balatro-types = { path = "../balatro-types" }
+strum = "0.26"
+serde = { version = "1", features = ["derive"], optional = true }
+
+[features]
+serde = ["dep:serde"]
