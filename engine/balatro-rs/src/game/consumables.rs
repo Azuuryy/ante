@@ -1,4 +1,5 @@
 use super::*;
+use crate::spectral::Spectral;
 
 impl Game {
     /// Règles d'utilisation d'un consommable, paraphrasées de Card:can_use_consumeable.
@@ -99,7 +100,41 @@ impl Game {
                 s.apply(self)?;
             }
         }
+        self.unhighlight_after(consumable);
         Ok(())
+    }
+
+    /// Clears the hand selection after the consumables whose original
+    /// `Card:use_consumeable` ends with `G.hand:unhighlight_all()`: the enhancement and
+    /// suit Tarots, Strength and Death, and the seal Spectrals.
+    pub(super) fn unhighlight_after(&mut self, consumable: Consumable) {
+        let clears = match consumable {
+            Consumable::Tarot(t) => matches!(
+                t,
+                Tarot::Magician
+                    | Tarot::Empress
+                    | Tarot::Hierophant
+                    | Tarot::Lovers
+                    | Tarot::Chariot
+                    | Tarot::Justice
+                    | Tarot::Strength
+                    | Tarot::Death
+                    | Tarot::Devil
+                    | Tarot::Tower
+                    | Tarot::Star
+                    | Tarot::Moon
+                    | Tarot::Sun
+                    | Tarot::World
+            ),
+            Consumable::Spectral(s) => matches!(
+                s,
+                Spectral::Talisman | Spectral::DejaVu | Spectral::Trance | Spectral::Medium
+            ),
+            Consumable::Planet(_) => false,
+        };
+        if clears {
+            self.available.deselect_all();
+        }
     }
 
     // Room for cards a consumable creates when it is not already in a consumable slot,
@@ -178,6 +213,7 @@ impl Game {
         if t != Tarot::Fool {
             self.last_consumable_used = Some(Consumable::Tarot(t));
         }
+        self.unhighlight_after(Consumable::Tarot(t));
         self.stage = prev;
         // Only reachable via a pack pick now, finish_pack handles hand cleanup
         if prev.is_pack_open() {
@@ -210,6 +246,7 @@ impl Game {
         }
         // Fool only ever copies the last Tarot or Planet used, never a Spectral.
         s.apply(self)?;
+        self.unhighlight_after(Consumable::Spectral(s));
         self.stage = prev;
         // Only reachable via a pack pick now; finish_pack handles hand cleanup
         if prev.is_pack_open() {

@@ -42,6 +42,8 @@ mod tests;
 mod consumable_use_tests;
 
 #[cfg(test)]
+mod consumable_highlight_tests;
+#[cfg(test)]
 mod consumable_room_tests;
 #[cfg(test)]
 mod debug_tests;

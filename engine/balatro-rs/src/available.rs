@@ -44,6 +44,12 @@ impl Available {
         }
     }
 
+    pub(crate) fn deselect_all(&mut self) {
+        for (_, selected) in &mut self.cards {
+            *selected = false;
+        }
+    }
+
     pub fn selected(&self) -> Vec<Card> {
         self.cards
             .iter()

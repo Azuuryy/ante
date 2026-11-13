@@ -114,6 +114,7 @@
 
 ### Fixed
 
+- After the enhancement and suit Tarots, Strength, Death and the seal Spectrals, the hand selection is cleared like the original `G.hand:unhighlight_all()`; a second Tarot picked from the same pack no longer starts with the previous targets selected. The engine's action space now follows the same consumable and pack rules as its action list, which fixes the occasional failure or hang of the upstream random-game test.
 - Small text was snapped to the font's glyph grid, which shrank tooltip descriptions to about 16 px at 1080p; sizes now only round to whole physical pixels.
 - The blind target number kept Bevy's default font after each update; text sizes now change through `TextSize` and the game font stays.
 - The Emperor and The High Priestess can no longer be picked from a pack with full consumable slots, where they created nothing; used from the inventory with full slots, The Emperor creates one Tarot as before.

@@ -140,37 +140,15 @@ impl Game {
     }
 
     pub(super) fn unmask_action_space_use_consumable(&self, space: &mut ActionSpace) {
+        // Same rules as gen_actions_use_consumable.
         if matches!(
             self.stage,
-            Stage::End(_) | Stage::TarotHand(_) | Stage::SpectralHand(_)
+            Stage::End(_) | Stage::TarotHand(_) | Stage::SpectralHand(_) | Stage::PackOpen()
         ) {
             return;
         }
-        let selected_count = self.available.selected().len();
         self.consumables.iter().enumerate().for_each(|(i, c)| {
-            let valid = match c {
-                Consumable::Planet(_) => true,
-                Consumable::Tarot(t) => {
-                    if !t.requires_targets() {
-                        true
-                    } else if self.stage.is_blind() {
-                        selected_count >= t.min_targets() && selected_count <= t.max_targets()
-                    } else {
-                        true
-                    }
-                }
-                // Same eligibility shape as Tarot above.
-                Consumable::Spectral(s) => {
-                    if !s.requires_targets() {
-                        true
-                    } else if self.stage.is_blind() {
-                        selected_count >= s.min_targets() && selected_count <= s.max_targets()
-                    } else {
-                        true
-                    }
-                }
-            };
-            if valid {
+            if self.consumable_usable(c) {
                 space
                     .unmask_use_consumable(i)
                     .expect("valid index for use consumable");
@@ -256,10 +234,7 @@ impl Game {
             .contents
             .iter()
             .enumerate()
-            .filter(|(_, c)| match c {
-                PackContent::Joker(joker) => self.can_add_joker(joker),
-                _ => true,
-            })
+            .filter(|(_, c)| self.pack_card_pickable(c))
             .for_each(|(i, _)| {
                 space
                     .unmask_pick_pack_card(i)

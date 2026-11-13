@@ -1,7 +1,5 @@
 use crate::action::{Action, MoveDirection, SortBy};
-use crate::consumable::Consumable;
 use crate::game::Game;
-use crate::pack::PackContent;
 use crate::space::ActionSpace;
 use crate::stage::{Blind, BlindExt, Stage};
 

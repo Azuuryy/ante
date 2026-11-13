@@ -85,9 +85,9 @@ On the development Windows machine, an incremental debug rebuild with `dev-tools
 cargo watch -w crates -w engine -x "run --locked -p ante-app --bin ante --features dev-tools"
 ```
 
-## Known issues
+## Action space and selection after a consumable
 
-- The fixed-size action space (`gen_action_space`, `space.rs`) still offers some moves that the stricter consumable rules refuse: The Fool picked from a pack without a free slot, Lovers or Justice used outside a valid target, a Planet used from an open pack. Replaying 1,500 seeds with random choices, 8 action-space games end on such a refused move or never leave the target stage; the `gen_actions` path finishes every game. The upstream `test_game` in `engine/balatro-rs/tests/test.rs` picks moves with an unseeded RNG, so it fails or hangs about once in a hundred runs. The Ante client uses `gen_actions` and the adapter, not the action space. The same results were measured on the patched checkout before vendoring.
+The fixed-size action space (`gen_action_space`) used to offer moves that the stricter consumable rules refused (The Fool picked from a pack without a free slot, a consumable used while a pack is open) and could stall in a Tarot target stage. Its consumable and pack masks now use the same `consumable_usable` and `pack_card_pickable` rules as `gen_actions`. As in the original `Card:use_consumeable`, the enhancement and suit Tarots, Strength, Death and the seal Spectrals now clear the hand selection after use, so a second Tarot picked from the same pack starts with no card selected; Aura, Cryptid and the other consumables keep it. `engine/balatro-rs/tests/action_space.rs` replays the eight seeds that used to fail; 1,500 seeded random games finish through both paths, and the upstream `test_game` passed 300 runs in a row.
 
 ## Behaviour coverage
 

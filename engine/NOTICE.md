@@ -29,4 +29,8 @@ These patches were applied in this order before the code was vendored. Their his
 11. `fractional-mult`: keep Mult fractional and halve The Flint's base values like the original.
 12. `consumable-room`: require room for created cards from packs; add Buy & Use (`consumable_room_tests.rs`).
 
+Changes made after vendoring:
+
+- The action space follows the same consumable and pack rules as `gen_actions`, and the enhancement and suit Tarots, Strength, Death and the seal Spectrals clear the hand selection after use, like `G.hand:unhighlight_all()` in the original (`consumable_highlight_tests.rs`, `tests/action_space.rs`).
+
 When vendoring, Ante also removed the Python bindings (`python` feature), colored terminal output (`colored` feature), the upstream binaries (`calc`, `explore`), the benchmark and the Python smoke test. The other upstream crates (`cli`, `tui`, `pylatro`, `balatro-jkr`, `balatro-profile`, `balatro-storage`) are not included.
