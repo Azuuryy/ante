@@ -69,3 +69,66 @@ fn card_areas_use_original_proportions() {
     assert!((PLAY_AREA_RISE - 262.8).abs() < 1e-3);
     assert!((HIGHLIGHT_LIFT - 38.16).abs() < 0.01);
 }
+
+#[test]
+fn played_cards_keep_the_play_area_step_apart() {
+    // `play_W = 5.3 × CARD_W` over `card_limit = 5`: centres 1.075 cards apart.
+    let card = menu_ui::CARD_W * menu_ui::TILE;
+    for count in 1..=5 {
+        let step = CARD_WIDTH + row_gap(count, true);
+        assert!((step - 1.075 * card).abs() < 1e-3, "{count} played cards");
+        assert!(row_gap(count, true) > 0.0);
+    }
+}
+
+#[test]
+fn hand_rows_keep_their_spacing() {
+    let slots = 8.0 - 1.0;
+    let expected = (HAND_AREA - CARD_WIDTH) / slots - CARD_WIDTH;
+    assert!((row_gap(5, false) - expected).abs() < 1e-3);
+}
+
+#[test]
+fn a_drag_shift_eases_toward_its_slot() {
+    let mut motion = HoverMotion {
+        shift_target: 120.0,
+        ..default()
+    };
+    motion.step(1.0 / 60.0, 0.0);
+    assert!(motion.shift > 0.0 && motion.shift < 120.0);
+    for _ in 0..60 {
+        motion.step(1.0 / 60.0, 0.0);
+    }
+    assert_eq!(motion.shift, 120.0);
+}
+
+/// `ease_hover` rewrites every resting card's transform each frame; a drag shift must
+/// survive it, or neighbours only move once the drop rebuilds the row.
+#[test]
+fn ease_hover_keeps_a_neighbours_drag_shift() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins)
+        .add_message::<crate::services::assets::sounds::Sfx>()
+        .add_systems(Update, ease_hover);
+    let card = app
+        .world_mut()
+        .spawn((
+            Node::default(),
+            UiTransform::IDENTITY,
+            Visibility::Inherited,
+            HoverMotion {
+                shift_target: 80.0,
+                ..default()
+            },
+        ))
+        .id();
+    for _ in 0..30 {
+        app.update();
+        std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    let x = match app.world().get::<UiTransform>(card).unwrap().translation.x {
+        Val::Px(x) => x,
+        other => panic!("{other:?}"),
+    };
+    assert!(x > 1.0, "translation {x}");
+}

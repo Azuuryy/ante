@@ -6,9 +6,7 @@ use crate::{
         pixel_rect::{DynRole, PixelBox},
         theme::INK,
         tiles as menu_ui, tooltip,
-        widgets::{
-            atlas_image, card_hover, click_target, fallback_art, label, shadowed_label, wrap_row,
-        },
+        widgets::{atlas_image, card_hover, click_target, fallback_art, label, shadowed_label},
     },
     services::assets::{catalog::Atlases, ui_text::UiText},
 };

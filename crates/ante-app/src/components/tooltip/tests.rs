@@ -29,19 +29,22 @@ fn inks(line: &str) -> Vec<Ink> {
 fn chances_read_as_fractions() {
     assert_eq!(
         chance_fractions("1 in 4 chance to break"),
-        "1 / 4 chance to break"
+        "1/4 chance to break"
     );
-    assert_eq!(chance_fractions("(one-in-two)"), "(1 / 2)");
+    assert_eq!(chance_fractions("(one-in-two)"), "(1/2)");
     assert_eq!(
         chance_fractions("on a 1 in 15 chance;"),
-        "on a 1 / 15 chance;"
+        "on a 1/15 chance;"
     );
     assert_eq!(
         chance_fractions("9 in your full deck"),
         "9 in your full deck"
     );
+    // One word, so a line can never break inside the fraction.
     let line = chance_fractions("1 in 5 chance");
-    assert_eq!(inks(&line)[..3], [Ink::Chance, Ink::Chance, Ink::Chance]);
+    assert_eq!(line.split_whitespace().count(), 2);
+    assert_eq!(inks(&line)[0], Ink::Chance);
+    assert_eq!(inks("(1/2)")[0], Ink::Chance);
 }
 
 #[test]

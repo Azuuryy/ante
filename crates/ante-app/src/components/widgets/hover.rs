@@ -10,6 +10,25 @@ pub(super) const HAND_AREA: f32 = 6.0 * menu_ui::CARD_W * menu_ui::TILE;
 
 pub(super) const HAND_SLOTS: usize = 8;
 
+/// The play area is 5.3 cards wide with 5 slots (`play_W`, `card_limit`).
+pub(super) const PLAY_AREA: f32 = 5.3 * menu_ui::CARD_W * menu_ui::TILE;
+
+pub(super) const PLAY_SLOTS: usize = 5;
+
+/// Gap between neighbouring cards of a row, from `align_cards`: centres step
+/// `(w − card_w) / (max(n, limit) − 1)`. The play area steps by the unscaled card width,
+/// like the original, so drawn cards keep a small gap.
+pub(crate) fn row_gap(count: usize, played: bool) -> f32 {
+    if played {
+        let slots = count.max(PLAY_SLOTS);
+        let card = menu_ui::CARD_W * menu_ui::TILE;
+        (PLAY_AREA - card) / (slots - 1) as f32 - CARD_WIDTH
+    } else {
+        let slots = count.max(HAND_SLOTS);
+        (HAND_AREA - CARD_WIDTH) / (slots - 1) as f32 - CARD_WIDTH
+    }
+}
+
 /// A highlighted card rises by 0.2 card heights, as in the original card areas.
 pub(crate) const HIGHLIGHT_LIFT: f32 = 0.2 * CARD_HEIGHT;
 
@@ -41,6 +60,10 @@ pub(crate) struct HoverMotion {
     /// `exp(-190·dt)` and position with `exp(-50·dt)` toward the aligned slot.
     pub(super) tilt: f32,
     pub(super) drop: f32,
+    /// Horizontal offset (px) toward the slot a drag moved the card to, eased like the
+    /// original `Moveable` position so neighbours slide while a card is dragged over them.
+    pub(super) shift: f32,
+    pub(crate) shift_target: f32,
 }
 
 /// Eased look of a card that survives a rebuild of the hand.
@@ -124,6 +147,8 @@ impl Default for HoverMotion {
             fan: Fan::default(),
             tilt: 0.0,
             drop: 0.0,
+            shift: 0.0,
+            shift_target: 0.0,
         }
     }
 }
@@ -171,6 +196,10 @@ impl HoverMotion {
         let target = if self.hovered { HOVER_SCALE } else { 1.0 };
         self.scale += (target - self.scale) * scale_k;
         self.lift += (self.raise - self.lift) * position_k;
+        self.shift += (self.shift_target - self.shift) * position_k;
+        if (self.shift - self.shift_target).abs() < 0.05 {
+            self.shift = self.shift_target;
+        }
         if (self.scale - target).abs() < 1e-4 {
             self.scale = target;
         }
@@ -257,7 +286,10 @@ pub(crate) fn ease_hover(
         let (scale, lift, rotation) = motion.step(dt, now);
         let (tilt, drop) = (motion.tilt, motion.drop);
         let next = UiTransform {
-            translation: Val2::new(Val::Px(offset.x), Val::Px(offset.y + drop - lift)),
+            translation: Val2::new(
+                Val::Px(offset.x + motion.shift),
+                Val::Px(offset.y + drop - lift),
+            ),
             scale: Vec2::new(scale * pinch, scale),
             rotation: Rot2::radians(rotation + tilt),
         };

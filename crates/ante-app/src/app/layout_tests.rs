@@ -282,3 +282,43 @@ fn hud_column_fits_the_window() {
     assert!(counted >= 5, "only {counted} HUD boxes laid out");
     drop(board);
 }
+
+/// A drag writes the held card's `GlobalZIndex` every frame. Bevy moves a node whose
+/// z-index changed to the top of its ties, so hand cards need distinct layers that
+/// follow their position, like `card.rank` in the original.
+#[test]
+fn hand_cards_stay_in_position_order_after_a_layer_write() {
+    use crate::app::presentation::ScoredCard;
+    use ante_core::{
+        contract::{Command, RunDriver, TraceMode},
+        engine::EngineRun,
+    };
+    let mut run = EngineRun::new(0);
+    RunDriver::apply(&mut run, Command::StartBlind, TraceMode::Off).unwrap();
+    let view = RunDriver::view(&run);
+    let ids: Vec<_> = view.cards.iter().map(|card| card.id).collect();
+    let mut app = layout(move |ui, _, atlases| {
+        ui.spawn(Node::default()).with_children(|area| {
+            crate::screens::hand::hand_rows(area, &view, atlases, false);
+        });
+    });
+    let drawn = |app: &App| -> Vec<_> {
+        let stack = &app.world().resource::<bevy::ui::UiStack>().uinodes;
+        stack
+            .iter()
+            .filter_map(|entity| app.world().get::<ScoredCard>(*entity).map(|card| card.id))
+            .collect()
+    };
+    assert_eq!(drawn(&app), ids);
+    let held = app
+        .world_mut()
+        .query::<(Entity, &ScoredCard)>()
+        .iter(app.world())
+        .find(|(_, card)| card.id == ids[2])
+        .unwrap()
+        .0;
+    let layer = app.world().get::<GlobalZIndex>(held).unwrap().0;
+    app.world_mut().get_mut::<GlobalZIndex>(held).unwrap().0 = layer;
+    app.update();
+    assert_eq!(drawn(&app), ids);
+}

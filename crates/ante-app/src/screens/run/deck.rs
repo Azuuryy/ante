@@ -165,6 +165,13 @@ pub fn inspect_deck(
                                     / count.saturating_sub(1).max(1) as f32)
                                     .min(66.0);
                                 for (index, card) in cards.enumerate() {
+                                    // Atlas cards draw their own rounded face; only the text
+                                    // fallback needs a card-coloured box behind it.
+                                    let backing = if atlases.card(card.rank, name).is_some() {
+                                        Color::NONE
+                                    } else {
+                                        CREAM
+                                    };
                                     let mut entity = lane.spawn(box_node(
                                         Node {
                                             position_type: PositionType::Absolute,
@@ -176,7 +183,7 @@ pub fn inspect_deck(
                                             justify_content: JustifyContent::Center,
                                             ..default()
                                         },
-                                        CREAM,
+                                        backing,
                                     ));
                                     card_hover(&mut entity);
                                     crate::components::tooltip::attach_anchored(

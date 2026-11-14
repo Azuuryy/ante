@@ -98,7 +98,8 @@ pub(super) const LOCKED: Color = Color::srgb(
     0x58 as f32 / 255.0,
 );
 
-/// Chances read "1 / 4": "1 in 4" and "one-in-two" become a numerator over a total.
+/// Chances read "1/4": "1 in 4" and "one-in-two" become one word, numerator over total,
+/// so a wrapped line never splits the fraction.
 pub(crate) fn chance_fractions(line: &str) -> String {
     let number = |word: &str| -> Option<String> {
         let trimmed = word.trim_matches(|c: char| !c.is_alphanumeric());
@@ -131,7 +132,7 @@ pub(crate) fn chance_fractions(line: &str) -> String {
         {
             let tail: String = right.chars().skip_while(|c| c.is_alphanumeric()).collect();
             let lead: String = left.chars().take_while(|c| !c.is_alphanumeric()).collect();
-            out.push(format!("{lead}{a} / {b}{tail}"));
+            out.push(format!("{lead}{a}/{b}{tail}"));
             index += 1;
             continue;
         }
@@ -145,7 +146,7 @@ pub(crate) fn chance_fractions(line: &str) -> String {
                 .skip_while(|c| !c.is_alphanumeric())
                 .skip_while(|c| c.is_alphanumeric())
                 .collect();
-            out.push(format!("{lead}{a} / {b}{tail}"));
+            out.push(format!("{lead}{a}/{b}{tail}"));
             index += 3;
             continue;
         }
@@ -352,6 +353,12 @@ pub(super) fn is_fraction(normalized: &[String], index: usize) -> bool {
         word.is_some_and(|w| !w.is_empty() && w.bytes().all(|c| c.is_ascii_digit()))
     };
     let raw = |i: usize| at(i).is_some_and(str::is_empty);
+    if let Some((numerator, total)) = at(index).and_then(|word| word.split_once('/'))
+        && digits(Some(numerator))
+        && digits(Some(total))
+    {
+        return true;
+    }
     // The slash normalizes to an empty word.
     (raw(index) && index > 0 && digits(at(index - 1)) && digits(at(index + 1)))
         || (digits(at(index)) && raw(index + 1) && digits(at(index + 2)))

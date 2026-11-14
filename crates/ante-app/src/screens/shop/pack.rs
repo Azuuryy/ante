@@ -15,6 +15,35 @@ pub(crate) fn pack_counts(
     (if size == Mega { 2 } else { 1 }, extra)
 }
 
+/// Width of the pack card area of `create_UIBox_*_pack`: `n × CARD_W` for Arcana and
+/// Spectral, `× 1.1` for Standard and Buffoon, `× 1.1 + 0.5` for Celestial. The cards
+/// share one row and close up instead of wrapping.
+pub(super) fn pack_area_width(
+    family: Option<ante_core::contract::PackFamily>,
+    count: usize,
+) -> f32 {
+    use ante_core::contract::PackFamily::*;
+    let card = menu_ui::CARD_W * menu_ui::TILE;
+    let n = count.max(1) as f32;
+    match family {
+        Some(Arcana | Spectral) => n * card,
+        Some(Celestial) => n * card * 1.1 + 0.5 * menu_ui::TILE,
+        Some(Standard | Buffoon) | None => n * card * 1.1,
+    }
+}
+
+/// Left edge of pack card `index`: the `consumeable` alignment spreads the cards over the
+/// area by the unscaled card width and centres a single card.
+pub(super) fn pack_card_left(index: usize, count: usize, area: f32) -> f32 {
+    let card = menu_ui::CARD_W * menu_ui::TILE;
+    let slot = if count > 1 {
+        (area - card) * index as f32 / (count - 1) as f32
+    } else {
+        (area - card) / 2.0
+    };
+    slot + 0.5 * (card - menu_ui::CARD_WIDTH)
+}
+
 /// Localization key parts of a booster: `p_<family>_<size>`.
 pub(super) fn pack_key(
     family: ante_core::contract::PackFamily,
@@ -90,9 +119,22 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
         ))
         .with_children(|pack| {
             let size = menu_ui::card_px();
-            wrap_row(pack, |choices| {
+            let count = view.pack_choices.len();
+            let area = pack_area_width(view.open_pack, count);
+            pack.spawn(Node {
+                width: px(area),
+                height: px(size.y),
+                flex_shrink: 0.0,
+                ..default()
+            })
+            .with_children(|choices| {
                 for (index, item) in view.pack_choices.iter().enumerate() {
-                    let mut card = choices.spawn(Node::default());
+                    let mut card = choices.spawn(Node {
+                        position_type: PositionType::Absolute,
+                        left: px(pack_card_left(index, count, area)),
+                        top: px(0),
+                        ..default()
+                    });
                     card_hover(&mut card);
                     if item.enabled {
                         click_target(
@@ -186,3 +228,6 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
         }
     });
 }
+
+#[cfg(test)]
+mod tests;

@@ -2,6 +2,7 @@ use crate::app::{
     navigation::Screen,
     session::{Click, Session},
 };
+use crate::components::widgets::HoverMotion;
 use ante_core::contract::{CardKey, Command, MoveDirection};
 use bevy::{
     ecs::system::EntityCommands,
@@ -37,6 +38,20 @@ struct Grab {
     moved: bool,
     origin: usize,
     target: usize,
+    /// The dragged card's row when it started moving.
+    homes: Vec<Home>,
+    /// UI pixels per physical pixel in the row, room scale included.
+    px_per_physical: f32,
+}
+
+/// A card of the dragged row, as laid out when the drag started moving.
+struct Home {
+    entity: Entity,
+    index: usize,
+    /// Centre of its slot, in physical pixels.
+    center: f32,
+    /// Resting transform, restored on cards without hover easing.
+    transform: UiTransform,
 }
 
 #[derive(Default)]
@@ -115,6 +130,8 @@ pub(crate) fn attach(
                     moved: false,
                     origin: slot.index,
                     target: slot.index,
+                    homes: Vec::new(),
+                    px_per_physical: 1.0,
                 });
             }
         },
@@ -140,19 +157,22 @@ pub(crate) fn attach(
     );
 }
 
+type RowCard<'a> = (
+    Entity,
+    &'a mut Slot,
+    &'a ComputedNode,
+    &'a UiGlobalTransform,
+    &'a mut UiTransform,
+    &'a mut GlobalZIndex,
+    Option<&'a mut HoverMotion>,
+);
+
 pub(crate) fn update(
     mut drag: ResMut<CardDrag>,
     session: Res<Session>,
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    mut slots: Query<(
-        Entity,
-        &mut Slot,
-        &ComputedNode,
-        &UiGlobalTransform,
-        &mut UiTransform,
-        &mut GlobalZIndex,
-    )>,
+    mut slots: Query<RowCard>,
     mut clicks: MessageWriter<Click>,
 ) {
     if mouse.just_pressed(MouseButton::Left) && drag.grab.is_none() && drag.sweep.is_none() {
@@ -168,12 +188,16 @@ pub(crate) fn update(
     let Some(grab) = drag.grab.as_mut() else {
         return;
     };
-    let Ok((_, slot, node, global, mut transform, mut z)) = slots.get_mut(grab.entity) else {
+    let Ok((_, slot, node, global, transform, ..)) = slots.get(grab.entity) else {
         drag.grab = None;
         return;
     };
-    let slot = *slot;
-    let lane = slot.lane;
+    let (slot, inverse_scale, global, resting_scale) = (
+        *slot,
+        node.inverse_scale_factor(),
+        *global,
+        transform.scale.x,
+    );
     let window = windows.single().ok().filter(|window| window.focused);
     let cursor = window.and_then(Window::physical_cursor_position);
     let valid = session.navigation.screen == Screen::Run
@@ -188,77 +212,15 @@ pub(crate) fn update(
         let delta = cursor - grab.start;
         grab.moved |= delta.length() >= 4.0 * window.resolution.base_scale_factor();
         if mouse.pressed(MouseButton::Left) {
-            if grab.moved
-                && let Some(inverse) = global.try_inverse()
-            {
-                let shift = inverse.transform_vector2(delta)
-                    * grab.transform.scale
-                    * node.inverse_scale_factor();
-                let px_value = |value| {
-                    if let Val::Px(value) = value {
-                        value
-                    } else {
-                        0.0
-                    }
-                };
-                transform.translation.x = px(px_value(grab.transform.translation.x) + shift.x);
-                transform.translation.y = px(px_value(grab.transform.translation.y) + shift.y);
-                // Keep the card in its current stack position while it follows the cursor.
-                z.0 = grab.z;
-            }
             if grab.moved {
-                let desired_x = grab.center.x + delta.x;
-                let neighbor = slots
-                    .iter()
-                    .filter(|(entity, other, ..)| {
-                        *entity != grab.entity
-                            && other.lane == slot.lane
-                            && (other.index as isize - grab.target as isize).abs() == 1
-                    })
-                    .min_by(|(_, _, _, a, ..), (_, _, _, b, ..)| {
-                        (a.translation.x - desired_x)
-                            .abs()
-                            .total_cmp(&(b.translation.x - desired_x).abs())
-                    })
-                    .map(|(entity, other, node, global, ..)| {
-                        (entity, other.index, node.size().x, global.translation.x)
-                    });
-                if let Some((entity, neighbor_index, width, neighbor_x)) = neighbor {
-                    let crossed = if neighbor_index > grab.target {
-                        desired_x > neighbor_x
-                    } else {
-                        desired_x < neighbor_x
-                    };
-                    if crossed
-                        && let Ok((_, mut other, _, _, mut other_transform, _)) =
-                            slots.get_mut(entity)
-                    {
-                        let sign = if neighbor_index > grab.target {
-                            -1.0
-                        } else {
-                            1.0
-                        };
-                        let x = match other_transform.translation.x {
-                            Val::Px(value) => value,
-                            _ => 0.0,
-                        };
-                        other_transform.translation.x = px(x + sign * width);
-                        let old_index = grab.target;
-                        other.index = old_index;
-                        if let Ok((_, mut dragged, _, _, _, _)) = slots.get_mut(grab.entity) {
-                            dragged.index = neighbor_index;
-                        }
-                        grab.target = neighbor_index;
-                        for (entity, slot, _, _, _, mut layer) in &mut slots {
-                            if slot.lane == lane {
-                                layer.0 = slot.index as i32;
-                            }
-                            if entity == grab.entity {
-                                layer.0 = grab.z;
-                            }
-                        }
-                    }
+                if grab.homes.is_empty() {
+                    grab.homes = row_homes(&slots, slot.lane);
+                    grab.px_per_physical =
+                        inverse_scale * resting_scale / global.matrix2.x_axis.length().max(1e-6);
                 }
+                follow_cursor(grab, &mut slots, global, inverse_scale, delta);
+                let held_x = grab.center.x + delta.x;
+                reorder_row(grab, &mut slots, held_x);
             }
             return;
         }
@@ -266,47 +228,177 @@ pub(crate) fn update(
             if let Some(click) = slot.click {
                 clicks.write(click);
             }
-        } else {
-            let to = grab.target;
-            if to != grab.origin {
-                match slot.lane {
-                    Lane::Hand => {
-                        if let Some(id) = slot.hand_card {
-                            let direction = if to < grab.origin {
-                                MoveDirection::Left
-                            } else {
-                                MoveDirection::Right
-                            };
-                            for _ in 0..to.abs_diff(grab.origin) {
-                                clicks.write(Click::Play(Command::MoveCard { id, direction }));
-                            }
-                        }
-                    }
-                    Lane::Jokers => {
-                        clicks.write(Click::Play(Command::ReorderJoker {
-                            from: grab.origin,
-                            to,
-                            revision: grab.revision,
-                        }));
-                    }
-                    Lane::Consumables => {
-                        clicks.write(Click::Play(Command::ReorderConsumable {
-                            from: grab.origin,
-                            to,
-                            revision: grab.revision,
-                        }));
-                    }
-                }
-            }
+        } else if grab.target != grab.origin {
+            send_reorder(grab, slot, &mut clicks);
         }
     } else if valid && window.is_some() && mouse.pressed(MouseButton::Left) {
         return;
     }
-    *transform = if grab.z > 0 {
-        grab.transform
-    } else {
-        UiTransform::IDENTITY
-    };
-    z.0 = grab.z;
+    // Back in place, or the confirmed view rebuilds the row in its new order.
+    if grab.target == grab.origin || !valid {
+        settle_row(grab, &mut slots);
+    }
+    if let Ok((.., mut transform, mut z, _)) = slots.get_mut(grab.entity) {
+        *transform = if grab.z > 0 {
+            grab.transform
+        } else {
+            UiTransform::IDENTITY
+        };
+        z.set_if_neq(GlobalZIndex(grab.z));
+    }
     drag.grab = None;
 }
+
+fn row_homes(slots: &Query<RowCard>, lane: Lane) -> Vec<Home> {
+    let mut homes: Vec<Home> = slots
+        .iter()
+        .filter(|(_, slot, ..)| slot.lane == lane)
+        .map(|(entity, slot, _, global, transform, ..)| Home {
+            entity,
+            index: slot.index,
+            center: global.translation.x,
+            transform: *transform,
+        })
+        .collect();
+    homes.sort_by_key(|home| home.index);
+    homes
+}
+
+/// The held card follows the pointer, in its own (possibly tilted) frame.
+fn follow_cursor(
+    grab: &Grab,
+    slots: &mut Query<RowCard>,
+    global: UiGlobalTransform,
+    inverse_scale: f32,
+    delta: Vec2,
+) {
+    let (Some(inverse), Ok((.., mut transform, _, _))) =
+        (global.try_inverse(), slots.get_mut(grab.entity))
+    else {
+        return;
+    };
+    let shift = inverse.transform_vector2(delta) * grab.transform.scale * inverse_scale;
+    transform.translation.x = px(px_value(grab.transform.translation.x) + shift.x);
+    transform.translation.y = px(px_value(grab.transform.translation.y) + shift.y);
+}
+
+/// Live reorder, like `align_cards` sorting a row by x every frame: the held card takes
+/// the slot of every card whose resting centre it passed, and those cards slide over.
+fn reorder_row(grab: &mut Grab, slots: &mut Query<RowCard>, held_x: f32) {
+    let target = held_target(&grab.homes, grab.origin, held_x);
+    grab.target = target;
+    for home in &grab.homes {
+        let held = home.entity == grab.entity;
+        let index = if held {
+            target
+        } else {
+            shifted_index(home.index, grab.origin, target)
+        };
+        let Ok((_, mut slot, .., mut transform, mut z, motion)) = slots.get_mut(home.entity) else {
+            continue;
+        };
+        slot.index = index;
+        // A card keeps the layer of its slot; a selected inventory card stays in front.
+        let layer = if held && grab.z != grab.origin as i32 {
+            grab.z
+        } else {
+            index as i32
+        };
+        z.set_if_neq(GlobalZIndex(layer));
+        if held {
+            continue;
+        }
+        let Some(slot) = grab.homes.iter().find(|other| other.index == index) else {
+            continue;
+        };
+        let shift = (slot.center - home.center) * grab.px_per_physical;
+        match motion {
+            Some(mut motion) => motion.shift_target = shift,
+            None => {
+                transform.translation.x = px(px_value(home.transform.translation.x) + shift);
+            }
+        }
+    }
+}
+
+/// Slot of the held card: one past every other card whose resting centre lies left of it.
+fn held_target(homes: &[Home], origin: usize, held_x: f32) -> usize {
+    homes
+        .iter()
+        .filter(|home| home.index != origin && home.center < held_x)
+        .count()
+}
+
+/// Index of the card resting at `index` once the held card moved from `origin` to `target`.
+fn shifted_index(index: usize, origin: usize, target: usize) -> usize {
+    if origin < target && index > origin && index <= target {
+        index - 1
+    } else if target < origin && index >= target && index < origin {
+        index + 1
+    } else {
+        index
+    }
+}
+
+/// Every other card of the row goes back to its resting slot and layer.
+fn settle_row(grab: &Grab, slots: &mut Query<RowCard>) {
+    for home in &grab.homes {
+        if home.entity == grab.entity {
+            continue;
+        }
+        if let Ok((_, mut slot, .., mut transform, mut z, motion)) = slots.get_mut(home.entity) {
+            slot.index = home.index;
+            z.set_if_neq(GlobalZIndex(home.index as i32));
+            match motion {
+                Some(mut motion) => motion.shift_target = 0.0,
+                None => *transform = home.transform,
+            }
+        }
+    }
+    if let Ok((_, mut slot, ..)) = slots.get_mut(grab.entity) {
+        slot.index = grab.origin;
+    }
+}
+
+fn send_reorder(grab: &Grab, slot: Slot, clicks: &mut MessageWriter<Click>) {
+    let to = grab.target;
+    match slot.lane {
+        Lane::Hand => {
+            if let Some(id) = slot.hand_card {
+                let direction = if to < grab.origin {
+                    MoveDirection::Left
+                } else {
+                    MoveDirection::Right
+                };
+                for _ in 0..to.abs_diff(grab.origin) {
+                    clicks.write(Click::Play(Command::MoveCard { id, direction }));
+                }
+            }
+        }
+        Lane::Jokers => {
+            clicks.write(Click::Play(Command::ReorderJoker {
+                from: grab.origin,
+                to,
+                revision: grab.revision,
+            }));
+        }
+        Lane::Consumables => {
+            clicks.write(Click::Play(Command::ReorderConsumable {
+                from: grab.origin,
+                to,
+                revision: grab.revision,
+            }));
+        }
+    }
+}
+
+fn px_value(value: Val) -> f32 {
+    if let Val::Px(value) = value {
+        value
+    } else {
+        0.0
+    }
+}
+
+#[cfg(test)]
+mod tests;

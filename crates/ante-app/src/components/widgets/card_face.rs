@@ -29,9 +29,8 @@ pub(crate) fn card_control(
     (reorderable, played): (bool, bool),
     content: impl FnOnce(&mut ChildSpawnerCommands),
 ) {
-    // `align_cards` steps (w − card_w)/(max(n, limit) − 1); the row stays centred.
-    let slots = count.max(HAND_SLOTS);
-    let spacing = (HAND_AREA - CARD_WIDTH) / (slots - 1) as f32 - CARD_WIDTH;
+    // The row stays centred; `row_gap` follows the hand or play area of `align_cards`.
+    let spacing = row_gap(count, played);
     let lifted = card.selected && !played;
     let mut entity = ui.spawn((
         Node {
@@ -79,7 +78,9 @@ pub(crate) fn card_control(
             action,
             Some(card.id),
             card.selected,
-            0,
+            // Later cards draw over earlier ones, like `card.rank` in the original; distinct
+            // layers keep the order stable when a drag rewrites one of them.
+            position as i32,
         );
     }
     entity.with_children(content);

@@ -78,7 +78,8 @@
 - Large client, contract and engine files are split into modules by responsibility, and long test modules move to sibling `tests.rs` files. Behavior is unchanged.
 - `scripts/build-windows-client.ps1` builds from the workspace into `target/windows`; the check script and CI cover the engine and the optional features.
 - `docs/ENGINE_EVALUATION.md` becomes `docs/ENGINE.md`.
-- Chances read as a fraction in every popup ("1 / 4 chance" for "1 in 4"), coloured like the original chance text. This departs from the original wording at the user's request.
+- Chances read as a fraction in every popup ("1/4 chance" for "1 in 4"), written as one word so a line never breaks inside it, and coloured like the original chance text. This departs from the original wording at the user's request.
+- Neighbouring cards slide aside while a hand card, Joker or consumable is dragged over them, like `align_cards` sorting the row by position every frame; the move is still committed on release.
 - Tarot and Spectral cards that take hand cards say "Select at most N cards"; those that take none say nothing about selection.
 - Banner and Mystic Summit show a "(Currently ...)" line from the discards left (an Ante addition; the original has none for them).
 - Playing card popups write their name at the description scale on one line, the rank in grey and the suit in its colour, like the original `playing_card` text.
@@ -114,6 +115,10 @@
 
 ### Fixed
 
+- Pack choices stay on one row: the area is `n × CARD_W` wide for Arcana and Spectral packs, `× 1.1` for Standard and Buffoon, `× 1.1 + 0.5` for Celestial, and the cards close up instead of wrapping (`create_UIBox_*_pack`). After a pick in a Mega pack the area follows the remaining cards rather than the original's initial width.
+- Played cards keep the play area's step of 1.075 cards (`play_W = 5.3 × CARD_W`, 5 slots) instead of the hand's, so they no longer touch.
+- A hand card released after a drag that did not move it no longer comes to the front: hand cards have one layer per position, and the drag only writes a layer that changes.
+- The deck view no longer draws a cream box behind cards that have their atlas art.
 - After the enhancement and suit Tarots, Strength, Death and the seal Spectrals, the hand selection is cleared like the original `G.hand:unhighlight_all()`; a second Tarot picked from the same pack no longer starts with the previous targets selected. The engine's action space now follows the same consumable and pack rules as its action list, which fixes the occasional failure or hang of the upstream random-game test.
 - Small text was snapped to the font's glyph grid, which shrank tooltip descriptions to about 16 px at 1080p; sizes now only round to whole physical pixels.
 - The blind target number kept Bevy's default font after each update; text sizes now change through `TextSize` and the game font stays.
