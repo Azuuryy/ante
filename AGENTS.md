@@ -9,6 +9,7 @@
 - Update the changelog and relevant documentation when behavior changes. Do not claim untested features work.
 - Never commit, push, publish, or deploy without explicit authorization.
 
+- `engine/AGENTS.md`, `crates/ante-core/AGENTS.md` and `crates/ante-app/AGENTS.md` add the rules of each part; read the one for the files you change.
 - For Balatro behavior conversion, read [.skills/ante-legacy-to-bevy/SKILL.md](.skills/ante-legacy-to-bevy/SKILL.md). For matching reference screenshots, read [.skills/ante-ui-parity/SKILL.md](.skills/ante-ui-parity/SKILL.md).
 
 ## Architecture and builds
