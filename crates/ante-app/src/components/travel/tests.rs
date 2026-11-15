@@ -82,3 +82,20 @@ fn discard_targets_the_pile_once() {
     travel.discard(0.3);
     assert!((travel.delay - 0.2).abs() < 1e-6);
 }
+
+#[test]
+fn a_travelling_card_leans_with_its_speed_then_straightens() {
+    // `Moveable:move_r`: the target angle is 0.015 × x velocity (units per second).
+    let mut travel = ready(Vec2::new(-400.0, 0.0));
+    let dt = 1.0 / 60.0;
+    let mut most = 0.0_f32;
+    for _ in 0..12 {
+        travel.step(dt);
+        most = most.max(travel.lean());
+    }
+    assert!(most > 0.05, "a card moving right leans clockwise: {most}");
+    for _ in 0..240 {
+        travel.step(dt);
+    }
+    assert_eq!(travel.lean(), 0.0);
+}

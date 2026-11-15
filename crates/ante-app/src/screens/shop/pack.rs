@@ -35,13 +35,11 @@ pub(super) fn pack_area_width(
 /// Left edge of pack card `index`: the `consumeable` alignment spreads the cards over the
 /// area by the unscaled card width and centres a single card.
 pub(super) fn pack_card_left(index: usize, count: usize, area: f32) -> f32 {
+    use crate::components::card_area::{AreaKind, CardArea};
     let card = menu_ui::CARD_W * menu_ui::TILE;
-    let slot = if count > 1 {
-        (area - card) * index as f32 / (count - 1) as f32
-    } else {
-        (area - card) / 2.0
-    };
-    slot + 0.5 * (card - menu_ui::CARD_WIDTH)
+    CardArea::new(AreaKind::Consumeable, area, card, count)
+        .slot(index, count, menu_ui::CARD_WIDTH)
+        .x
 }
 
 /// Localization key parts of a booster: `p_<family>_<size>`.

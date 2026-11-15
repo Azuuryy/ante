@@ -202,6 +202,7 @@ pub(super) fn main_panel(panel: &mut ChildSpawnerCommands, tip: &Tip) {
                             PixelBox::new(badge_color(badge)).emboss(0.05),
                             Pickable::IGNORE,
                         ))
+                        .insert_if(DarkEditionBadge, || is_dark_edition_badge(badge))
                         .with_children(|pill| {
                             styled_text(pill, badge, text_px(0.33 * scaling), Color::WHITE, true);
                         });
@@ -214,6 +215,10 @@ pub(super) fn main_panel(panel: &mut ChildSpawnerCommands, tip: &Tip) {
 }
 
 /// Card type badges (rarity, consumable set, voucher, booster, enhancement).
+pub(super) fn is_dark_edition_badge(badge: &str) -> bool {
+    matches!(badge, "Foil" | "Holographic" | "Polychrome" | "Negative")
+}
+
 pub(super) fn is_type_badge(badge: &str) -> bool {
     is_rarity_badge(badge)
         || matches!(
@@ -239,7 +244,7 @@ pub(super) fn badge_color(badge: &str) -> Color {
         "Voucher" => VOUCHER,
         "Booster" => BOOSTER,
         "Edition" => EDITION,
-        "Foil" | "Holographic" | "Polychrome" | "Negative" => DARK_EDITION,
+        "Foil" | "Holographic" | "Polychrome" | "Negative" => dark_edition(0.0),
         "Locked" => LOCKED,
         "Gold Seal" => crate::components::tiles::GOLD,
         "Red Seal" | "Debuffed" => crate::components::tiles::RED,

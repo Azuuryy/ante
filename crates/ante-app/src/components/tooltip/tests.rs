@@ -132,3 +132,39 @@ fn currently_lines_match_the_original_format() {
     let line = currently_text(CurrentValue::Mult(4));
     assert_eq!(inks(&line), vec![Ink::Base, Ink::Mult, Ink::Base]);
 }
+
+#[test]
+fn edition_badges_cycle_like_dark_edition() {
+    // `game.lua`: R = 0.6 + 0.2 sin(1.3 t), B = 0.6 + 0.2 (1 - sin(1.3 t)), G = min(R, B).
+    let start = dark_edition(0.0).to_srgba();
+    assert!((start.red - 0.6).abs() < 1e-5 && (start.blue - 0.8).abs() < 1e-5);
+    assert!((start.green - 0.6).abs() < 1e-5);
+    let peak = dark_edition(std::f32::consts::FRAC_PI_2 / 1.3).to_srgba();
+    assert!((peak.red - 0.8).abs() < 1e-5 && (peak.blue - 0.6).abs() < 1e-5);
+    assert_ne!(badge_color("Foil"), Color::BLACK);
+}
+
+#[test]
+fn card_sets_use_their_secondary_set_colours() {
+    // `loc_colour`: tarot, planet and spectral are `G.C.SECONDARY_SET` colours.
+    assert_eq!(named_color("tarot"), Some(TAROT));
+    assert_eq!(named_color("planet"), Some(PLANET));
+    assert_eq!(named_color("spectral"), Some(SPECTRAL));
+    assert_eq!(named_color("chips"), None);
+}
+
+#[test]
+fn the_shimmer_sweeps_each_letter_in_turn() {
+    // The light enters from the left of a five-letter word and leaves on the right.
+    let lit = |real: f32| (0..5).map(|i| shimmer_glow(i, 5, real)).collect::<Vec<_>>();
+    let start = lit(0.0);
+    assert!(start.iter().all(|&glow| glow == 0.0));
+    let early = lit(0.6);
+    let late = lit(1.6);
+    let brightest = |glows: &[f32]| {
+        (0..glows.len())
+            .max_by(|&a, &b| glows[a].total_cmp(&glows[b]))
+            .unwrap()
+    };
+    assert!(brightest(&early) < brightest(&late));
+}

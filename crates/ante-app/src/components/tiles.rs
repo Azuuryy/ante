@@ -47,12 +47,10 @@ pub const CARD_HEIGHT: f32 = CARD_H * CARD_SCALE * TILE;
 /// Left edge of card `k` of `n` in an area `area` px wide that holds `limit` cards, as the
 /// Joker, consumable and shop areas of `CardArea:align_cards` spread them.
 pub fn spread_x(k: usize, n: usize, limit: usize, area: f32, card: f32) -> f32 {
-    let m = n.max(limit);
-    if m <= 1 {
-        return (area - card) / 2.0;
-    }
-    let span = (m - 1) as f32;
-    (area - card) * (k as f32 / span + 0.5 * (m - n) as f32 / span)
+    use super::card_area::{AreaKind, CardArea};
+    CardArea::new(AreaKind::Play, area, card, limit)
+        .slot(k, n, card)
+        .x
 }
 /// Em size of text at scale 1: the original renders fonts at `render_scale` x `FONTSCALE`
 /// = 20 x 0.1 steps per scale, one room unit.

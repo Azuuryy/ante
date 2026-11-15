@@ -20,9 +20,11 @@ pub(super) const PLAY_SLOTS: usize = 5;
 /// like the original, so drawn cards keep a small gap.
 pub(crate) fn row_gap(count: usize, played: bool) -> f32 {
     if played {
-        let slots = count.max(PLAY_SLOTS);
+        use crate::components::card_area::{AreaKind, CardArea};
         let card = menu_ui::CARD_W * menu_ui::TILE;
-        (PLAY_AREA - card) / (slots - 1) as f32 - CARD_WIDTH
+        let play = CardArea::new(AreaKind::Play, PLAY_AREA, card, PLAY_SLOTS);
+        let count = count.max(2);
+        play.slot(1, count, CARD_WIDTH).x - play.slot(0, count, CARD_WIDTH).x - CARD_WIDTH
     } else {
         let slots = count.max(HAND_SLOTS);
         (HAND_AREA - CARD_WIDTH) / (slots - 1) as f32 - CARD_WIDTH
@@ -87,14 +89,26 @@ pub(crate) struct Fan {
 impl Fan {
     /// Fan of card `position` (0-based) in a hand of `count` cards.
     pub(crate) fn hand(count: usize, position: usize) -> Self {
+        use crate::components::card_area::{AreaKind, CardArea};
         let n = count.max(1) as f32;
         let k = position as f32 + 1.0;
         let width = 6.0 * HAND_CARD_W - HAND_CARD_W;
+        let slot = CardArea::new(AreaKind::Hand, 6.0, 1.0, HAND_SLOTS).slot(position, count, 1.0);
         Self {
-            rotation: 0.2 * (-n / 2.0 - 0.5 + k) / n,
-            drop: (0.5 * (-n / 2.0 + k - 0.5) / n).abs() * menu_ui::TILE,
+            rotation: slot.rotation,
+            drop: slot.drop * menu_ui::TILE,
             phase: HAND_X + width * (k - 1.0) / (n - 1.0).max(1.0),
         }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn rotation(self) -> f32 {
+        self.rotation
+    }
+
+    #[cfg(test)]
+    pub(crate) fn drop(self) -> f32 {
+        self.drop
     }
 
     /// Rotation (radians) and downward offset (px) at real time `t`.
@@ -160,6 +174,10 @@ pub(super) struct Juice {
 }
 
 impl HoverMotion {
+    pub(crate) fn hovered(&self) -> bool {
+        self.hovered
+    }
+
     /// A card resting lifted, like a highlighted pack card.
     pub(crate) fn raised(lift: f32) -> Self {
         Self {
@@ -279,7 +297,7 @@ pub(crate) fn ease_hover(
         if drag.as_ref().is_some_and(|drag| drag.holds(entity)) {
             continue;
         }
-        let (offset, pinch) = travel.map_or((Vec2::ZERO, 1.0), |mut travel| {
+        let (offset, pinch, lean) = travel.map_or((Vec2::ZERO, 1.0, 0.0), |mut travel| {
             let travel = travel.bypass_change_detection();
             if travel.step(dt) {
                 // `draw_card` plays card1 at 0.85 + 50% × 0.2 pitch and 0.6 volume.
@@ -289,7 +307,7 @@ pub(crate) fn ease_hover(
                 *visibility = Visibility::Inherited;
                 travel.unfold(&mut node);
             }
-            (travel.offset, travel.flip_width())
+            (travel.offset, travel.flip_width(), travel.lean())
         });
         let motion = motion.bypass_change_detection();
         let (scale, lift, rotation) = motion.step(dt, now);
@@ -300,7 +318,7 @@ pub(crate) fn ease_hover(
                 Val::Px(offset.y + drop - lift),
             ),
             scale: Vec2::new(scale * pinch, scale),
-            rotation: Rot2::radians(rotation + tilt),
+            rotation: Rot2::radians(rotation + tilt + lean),
         };
         if *transform != next {
             *transform = next;

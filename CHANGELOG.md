@@ -4,6 +4,10 @@
 
 ### Added
 
+- Hovered cards lean toward the pointer like the original: a vertex stage written for Ante (`components/tilt.wgsl`) ports the `position()` stage of the card shaders, and card sprites inside a card switch to it automatically, with their edition overlays.
+- Cards lean with their sideways speed while they travel (`Moveable:move_r`: 0.015 × the x velocity, eased by `exp(-190·dt)`), then straighten.
+- "Tarot" and "Spectral" in descriptions catch a light sweeping across them every 2.4 seconds. This is an Ante addition; the original draws them in their plain set colour.
+- `components/card_area.rs` holds the positions of `CardArea:align_cards` for the hand, play, title, Joker, consumable and voucher areas; the hand fan, the shop and inventory spread, the play area and pack rows use it.
 - Run logs: every run writes its configuration and each command, with the confirmed state after it, to `%LOCALAPPDATA%\Ante\runs` (the 20 most recent are kept). `cargo run -p ante-core --example replay -- <log>` reruns a log and reports the first step that diverges (`ante_core::run_log`).
 - Playing cards draw their enhancement centre (Gold, Steel, Glass, Bonus, Mult, Wild, Lucky, Stone) instead of the plain base; Stone cards hide their face, like `Card:draw`.
 - The Gold seal shines with the original voucher shader and Spectral cards with the booster shader. Edition shines follow the original `tilt_var.amt`: the cursor offset on a hovered card, an ambient tilt otherwise.
@@ -74,6 +78,8 @@
 
 ### Changed
 
+- Edition badges (Foil, Holographic, Polychrome, Negative) cycle through the original `G.C.DARK_EDITION` colours instead of staying black.
+- "Tarot", "Planet" and "Spectral" are capitalised in descriptions and drawn in their `G.C.SECONDARY_SET` colours.
 - The round reward is kept as the original evaluation rows (Blind, hands left, Joker bonuses, tags, interest) and exposed to the client as `RunView.reward_rows`. Golden Joker's $4 is now paid at cash out on its own row, like the original, rather than at the end of the round.
 - The balatro-rs engine is vendored in `engine/` with Ante's twelve patches applied, its Python bindings and colored output removed; `engine/NOTICE.md` records its origin and unverified provenance. It no longer needs a local checkout or a manual patch sequence.
 - `ante-core` holds the contract and the engine adapter (`ante-core::engine`, `EngineRun`, `ExternalBackend`); `ante-app` builds the `ante` binary on it. `extra-jokers` is an `ante-core` feature relayed by `ante-app`. Release builds keep integer overflow checks.

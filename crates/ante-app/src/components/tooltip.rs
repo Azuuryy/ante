@@ -18,6 +18,7 @@ mod panel;
 mod tip;
 
 use ink::*;
+pub(crate) use ink::{animate_edition_badges, animate_shimmer};
 use panel::*;
 pub use tip::*;
 

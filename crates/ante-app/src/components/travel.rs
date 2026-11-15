@@ -67,6 +67,9 @@ pub(crate) struct Travel {
     flip: Option<f32>,
     /// Plays `card1` when the card leaves, like each `draw_card` event.
     announce: bool,
+    /// Rotation (radians) from moving sideways and its eased velocity, `Moveable:move_r`.
+    lean: f32,
+    lean_velocity: f32,
 }
 
 /// The original `Moveable:move_wh` pinches the width at 8 card widths per real second,
@@ -104,6 +107,8 @@ impl Travel {
             folded: None,
             flip: None,
             announce: false,
+            lean: 0.0,
+            lean_velocity: 0.0,
         }
     }
 
@@ -162,6 +167,24 @@ impl Travel {
     /// One frame of the original velocity model: the velocity eases toward
     /// 35 × distance × dt with `exp(-50·dt)` and is capped at 70 units per second.
     /// Returns true on the frame the card leaves, for its `card1` sound.
+    /// Rotation from sideways motion, added to the card's own rotation.
+    pub(crate) fn lean(&self) -> f32 {
+        self.lean
+    }
+
+    /// `Moveable:move_r`: the card turns toward 0.015 × its x velocity in room units per
+    /// second, its turn eased by `G.exp_times.r = exp(-190 dt)`, and settles back upright.
+    fn lean_step(&mut self, dt: f32) {
+        let target = 0.015 * self.velocity.x / TILE / dt.max(1e-4);
+        let keep = (-190.0 * dt).exp();
+        self.lean_velocity = keep * self.lean_velocity + (1.0 - keep) * (target - self.lean);
+        self.lean += self.lean_velocity;
+        if (self.lean - target).abs() < 0.001 && self.lean_velocity.abs() < 0.001 {
+            self.lean = target;
+            self.lean_velocity = 0.0;
+        }
+    }
+
     pub(crate) fn step(&mut self, dt: f32) -> bool {
         if !self.ready {
             return false;
@@ -184,6 +207,7 @@ impl Travel {
         if distance.length() < 0.01 * TILE && self.velocity.length() < 0.01 * TILE {
             self.offset = self.target;
             self.velocity = Vec2::ZERO;
+            self.lean_step(dt);
             return departed;
         }
         let keep = (-50.0 * dt).exp();
@@ -193,6 +217,7 @@ impl Travel {
             self.velocity = self.velocity.normalize() * cap;
         }
         self.offset += self.velocity;
+        self.lean_step(dt);
         departed
     }
 }

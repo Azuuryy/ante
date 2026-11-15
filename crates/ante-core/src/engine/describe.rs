@@ -24,8 +24,8 @@ pub(super) fn card_effect_summary(card: balatro_rs::card::Card) -> String {
     match card.seal {
         Some(Seal::Gold) => parts.push("Gold seal: earns $3 when scored"),
         Some(Seal::Red) => parts.push("Red seal: repeats activation"),
-        Some(Seal::Blue) => parts.push("Blue seal: may create a planet at round end"),
-        Some(Seal::Purple) => parts.push("Purple seal: creates a tarot on discard if space allows"),
+        Some(Seal::Blue) => parts.push("Blue seal: may create a Planet at round end"),
+        Some(Seal::Purple) => parts.push("Purple seal: creates a Tarot on discard if space allows"),
         None => {}
     }
     parts.join("; ")
@@ -56,10 +56,10 @@ pub(super) fn consumable_description(c: balatro_rs::consumable::Consumable) -> S
                 Tarot::Hermit => "Doubles current money, adding at most $20.",
                 Tarot::Temperance => "Pays the total sell value of jokers, up to $50.",
                 Tarot::WheelOfFortune => "May add a random edition to an owned joker.",
-                Tarot::HighPriestess => "Creates up to two random planet cards if there is room.",
-                Tarot::Emperor => "Creates up to two random tarot cards if there is room.",
+                Tarot::HighPriestess => "Creates up to two random Planet cards if there is room.",
+                Tarot::Emperor => "Creates up to two random Tarot cards if there is room.",
                 Tarot::Judgement => "Creates a random joker if a slot is free.",
-                Tarot::Fool => "Copies the last tarot or planet used, if there is room.",
+                Tarot::Fool => "Copies the last Tarot or Planet used, if there is room.",
             };
             with_selection(effect, t.requires_hand(), t.max_targets())
         }

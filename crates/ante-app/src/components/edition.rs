@@ -42,12 +42,19 @@ pub struct LoveMaterial {
     #[texture(1)]
     #[sampler(2)]
     image: Handle<Image>,
+    /// Hover tilt of the card under the overlay, shared with its face (`tilt.wgsl`).
+    #[uniform(3)]
+    tilt: super::tilt::TiltParams,
     shader: Handle<Shader>,
     uniforms: Vec<Uniform>,
     effect: String,
 }
 
 impl UiMaterial for LoveMaterial {
+    fn vertex_shader() -> ShaderRef {
+        super::tilt::TILT_SHADER.into()
+    }
+
     fn fragment_shader() -> ShaderRef {
         ShaderRef::Default
     }
@@ -70,10 +77,19 @@ impl LoveMaterial {
         Self {
             slots: [Vec4::ZERO; SLOTS],
             image,
+            tilt: Default::default(),
             shader,
             uniforms,
             effect: effect.to_owned(),
         }
+    }
+
+    pub(crate) fn tilt(&self) -> super::tilt::TiltParams {
+        self.tilt
+    }
+
+    pub(crate) fn set_tilt(&mut self, tilt: super::tilt::TiltParams) {
+        self.tilt = tilt;
     }
 
     pub(crate) fn set(&mut self, name: &str, value: Vec4) {
@@ -186,6 +202,7 @@ fn attach_materials(
         let mut material = LoveMaterial {
             slots: [Vec4::ZERO; SLOTS],
             image: overlay.image.image.clone(),
+            tilt: Default::default(),
             shader: shader.clone(),
             uniforms: uniforms.clone(),
             effect: overlay.shader.to_owned(),
@@ -295,6 +312,7 @@ mod tests {
         let mut material = LoveMaterial {
             slots: [Vec4::ZERO; SLOTS],
             image: Handle::default(),
+            tilt: Default::default(),
             shader: Handle::default(),
             uniforms: vec![Uniform {
                 name: "foil".into(),

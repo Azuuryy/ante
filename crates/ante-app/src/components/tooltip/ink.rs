@@ -90,7 +90,28 @@ pub(super) const EDITION: Color = Color::srgb(
     0x93 as f32 / 255.0,
 );
 
-pub(super) const DARK_EDITION: Color = Color::BLACK;
+/// `G.C.DARK_EDITION`, recomputed every frame by `Game:update` from real time: the badge
+/// colour of Foil, Holographic, Polychrome and Negative cards.
+pub(crate) fn dark_edition(real: f32) -> Color {
+    let wave = (real * 1.3).sin();
+    let red = 0.6 + 0.2 * wave;
+    let blue = 0.6 + 0.2 * (1.0 - wave);
+    Color::srgb(red, red.min(blue), blue)
+}
+
+/// An edition badge whose colour follows `dark_edition`.
+#[derive(Component)]
+pub(crate) struct DarkEditionBadge;
+
+pub(crate) fn animate_edition_badges(
+    time: Res<Time<Real>>,
+    mut badges: Query<&mut PixelBox, With<DarkEditionBadge>>,
+) {
+    let colour = dark_edition(time.elapsed_secs());
+    for mut badge in &mut badges {
+        badge.fill = colour;
+    }
+}
 
 pub(super) const LOCKED: Color = Color::srgb(
     0x4F as f32 / 255.0,
@@ -166,6 +187,21 @@ pub(super) enum Ink {
     Attention,
 }
 
+/// Suits and card sets keep their own colour in descriptions, like `{C:hearts}`,
+/// `{C:tarot}`, `{C:planet}` and `{C:spectral}` in the original text (`loc_colour`).
+pub(super) fn named_color(word: &str) -> Option<Color> {
+    Some(match word {
+        "heart" | "hearts" => Color::srgb(0.92, 0.06, 0.19),
+        "diamond" | "diamonds" => Color::srgb(0.74, 0.32, 0.04),
+        "club" | "clubs" => Color::srgb(0.00, 0.40, 0.27),
+        "spade" | "spades" => Color::srgb(0.35, 0.20, 0.54),
+        "tarot" | "tarots" => TAROT,
+        "planet" | "planets" => PLANET,
+        "spectral" | "spectrals" => SPECTRAL,
+        _ => return None,
+    })
+}
+
 pub(super) fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color, size: f32) {
     let line = chance_fractions(line);
     let words: Vec<_> = line.split_whitespace().collect();
@@ -191,14 +227,8 @@ pub(super) fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color
         for (index, word) in words.into_iter().enumerate() {
             let word_key = &normalized[index];
             let multiplier = is_multiplier(&normalized, index, word);
-            let color = match word_key.as_str() {
-                "heart" | "hearts" => Color::srgb(0.92, 0.06, 0.19),
-                "diamond" | "diamonds" => Color::srgb(0.74, 0.32, 0.04),
-                "club" | "clubs" => Color::srgb(0.00, 0.40, 0.27),
-                "spade" | "spades" => Color::srgb(0.35, 0.20, 0.54),
-                "planet" | "planets" => Color::srgb(0.00, 0.37, 0.55),
-                _ => ink_color(word_ink(word, word_key, &normalized, index), base),
-            };
+            let color = named_color(word_key)
+                .unwrap_or_else(|| ink_color(word_ink(word, word_key, &normalized, index), base));
             if multiplier {
                 let explicit_times =
                     word_key.starts_with('x') || word_key.ends_with('x') || word.contains('×');
@@ -235,11 +265,90 @@ pub(super) fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color
                         label(group, trailing, size, base);
                     }
                 });
+            } else if matches!(
+                word_key.as_str(),
+                "tarot" | "tarots" | "spectral" | "spectrals"
+            ) {
+                shimmer_word(row, word, size, color);
             } else {
                 label(row, word, size, color);
             }
         }
     });
+}
+
+/// Seconds between two sweeps of the shimmer, and its half-width in letters.
+const SHIMMER_PERIOD: f32 = 2.4;
+const SHIMMER_WIDTH: f32 = 2.0;
+
+/// A word whose letters catch a light sweeping from left to right. An Ante addition for
+/// "Tarot" and "Spectral"; the original draws them in their plain set colour.
+#[derive(Component)]
+pub(crate) struct Shimmer {
+    base: Color,
+    len: usize,
+}
+
+#[derive(Component)]
+pub(crate) struct ShimmerGlyph(usize);
+
+/// Light on letter `index` of a `len`-letter word at real time `real`, from 0 to 1.
+pub(super) fn shimmer_glow(index: usize, len: usize, real: f32) -> f32 {
+    let travel = len as f32 + 2.0 * SHIMMER_WIDTH;
+    let head = (real / SHIMMER_PERIOD).fract() * travel - SHIMMER_WIDTH;
+    (1.0 - (index as f32 - head).abs() / SHIMMER_WIDTH).clamp(0.0, 1.0)
+}
+
+fn shimmer_word(ui: &mut ChildSpawnerCommands, word: &str, size: f32, color: Color) {
+    let font = || TextFont {
+        font_size: FontSize::Px(size),
+        ..default()
+    };
+    ui.spawn((
+        Text::new(""),
+        font(),
+        TextColor(color),
+        Shimmer {
+            base: color,
+            len: word.chars().count(),
+        },
+        Pickable::IGNORE,
+    ))
+    .with_children(|text| {
+        for (index, letter) in word.chars().enumerate() {
+            text.spawn((
+                TextSpan::new(letter.to_string()),
+                font(),
+                TextColor(color),
+                ShimmerGlyph(index),
+            ));
+        }
+    });
+}
+
+pub(crate) fn animate_shimmer(
+    time: Res<Time<Real>>,
+    words: Query<(&Shimmer, &Children)>,
+    mut glyphs: Query<(&ShimmerGlyph, &mut TextColor)>,
+) {
+    let real = time.elapsed_secs();
+    for (shimmer, children) in &words {
+        let base = shimmer.base.to_srgba();
+        for child in children {
+            if let Ok((glyph, mut colour)) = glyphs.get_mut(*child) {
+                let light = 0.6 * shimmer_glow(glyph.0, shimmer.len, real);
+                let lit = Color::srgba(
+                    base.red + (1.0 - base.red) * light,
+                    base.green + (1.0 - base.green) * light,
+                    base.blue + (1.0 - base.blue) * light,
+                    base.alpha,
+                );
+                if colour.0 != lit {
+                    colour.0 = lit;
+                }
+            }
+        }
+    }
 }
 
 pub(super) fn word_ink(word: &str, key: &str, normalized: &[String], index: usize) -> Ink {

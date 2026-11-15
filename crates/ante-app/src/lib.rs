@@ -121,6 +121,7 @@ pub fn run(backend: impl GameBackend) {
             PerformancePlugin,
             components::edition::EditionPlugin,
             components::pixel_rect::PixelRectPlugin,
+            components::tilt::TiltPlugin,
             components::background::BackgroundPlugin,
         ))
         .add_systems(
@@ -171,6 +172,8 @@ pub fn run(backend: impl GameBackend) {
                 render,
                 fit_room,
                 tooltip::update,
+                tooltip::animate_edition_badges,
+                tooltip::animate_shimmer,
                 apply_local_font,
                 resnap_fonts,
             )
