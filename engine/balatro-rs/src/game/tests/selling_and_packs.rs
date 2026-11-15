@@ -234,35 +234,35 @@ fn test_sell_consumable_invalid_stage() {
 }
 
 #[test]
-fn test_sell_joker_during_tarot_hand() {
+fn test_sell_joker_during_an_open_pack() {
     use crate::joker::Jokers;
     use balatro_types::joker::TheJoker;
     let mut g = Game::default();
     g.start();
-    g.stage = Stage::TarotHand(Tarot::Magician);
+    g.stage = Stage::PackOpen();
     g.money = 0;
     let joker = Jokers::TheJoker(TheJoker::default());
     let sell_value = joker.sell_value();
     g.jokers.push(joker);
 
-    g.sell_joker(0).expect("sell joker during tarot hand");
+    g.sell_joker(0).expect("sell joker during an open pack");
     assert_eq!(g.jokers.len(), 0);
     assert_eq!(g.money, sell_value);
 }
 
 #[test]
-fn test_sell_consumable_during_tarot_hand() {
+fn test_sell_consumable_during_an_open_pack() {
     use crate::planet::Planets;
     let mut g = Game::default();
     g.start();
-    g.stage = Stage::TarotHand(Tarot::Magician);
+    g.stage = Stage::PackOpen();
     g.money = 0;
     let c = Consumable::Planet(Planets::Mercury);
     let sell_value = c.sell_value();
     g.consumables.push(c);
 
     g.sell_consumable(0)
-        .expect("sell consumable during tarot hand");
+        .expect("sell consumable during an open pack");
     assert_eq!(g.consumables.len(), 0);
     assert_eq!(g.money, sell_value);
 }

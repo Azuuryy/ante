@@ -39,9 +39,9 @@ Cette roadmap suit les comportements détaillés, surface par surface. La roadma
 | Achat et relance de boutique | En cours | Panneau ancré comme l'original (−5,3 sous la main, jusqu'en bas), boîtes pixelisées, couleurs dynamiques ; « DEFEAT / BOSS BLIND / TO RESTOCK » dans la zone de vouchers vide ; Buy orange, Buy & Use rouge (`Command::BuyAndUseConsumable`). Vérifier en jeu les proportions, les offres supplémentaires et les transitions. |
 | Packs Standard / Buffoon / Arcana / Celestial / Spectral | En cours | Vérifier contenus, quantité de choix, limites et retour à la phase appelante. |
 | Description des cartes d'un pack | À vérifier | Le code attache déjà `item.description`; vérifier qu'aucun état de sélection ne la remplace par une consigne générique. |
-| Ciblage depuis un pack | En cours | Cibles légales, application unique, annulation et Skip. |
+| Ciblage depuis un pack | Fait, à valider en jeu | Sélection libre dans la main du pack, carte mise en avant puis USE ou SELECT, Skip inchangé. |
 | Vouchers et prérequis | En cours | Éligibilité, remise, effets immédiats et avantages persistants. |
-| Récompense, cash out et intérêts | En cours | Valider calcul détaillé, absence de double paiement et limites. |
+| Récompense, cash out et intérêts | En cours | Le moteur garde les lignes d'`evaluate_round` (Blind, mains restantes, bonus de Jokers, tags, intérêts) jusqu'au cash out; `RunView.reward_rows` les expose. L'écran d'origine reste à faire (lot C). |
 
 ## Cartes à jouer : état et effets
 
@@ -83,11 +83,11 @@ Cette roadmap suit les comportements détaillés, surface par surface. La roadma
 | Fonctionnalité | État actuel | Travail / critère de sortie |
 | --- | --- | --- |
 | Règle de disponibilité unique | Fait | Une seule fonction (`consumable_usable`) décide du Use, pour le générateur comme pour l'application. La vérification a lieu avant le retrait de la carte. En Shop, les Spectrales qui touchent la main restent bloquées (main vide). |
-| Planètes et Tarots sans cible | En cours | Utilisables en PreBlind, Blind, PostBlind et Shop; bloque pendant un pack ouvert. Couvert par `consumable_use_availability_follows_targets_and_stage`. |
-| Tarots à cible (1 à 3 cartes) | En cours | Utilisables seulement pendant un Blind et quand le nombre de cartes sélectionnées est dans `min_targets..=max_targets`. Le bouton « Use » n'apparaît qu'une fois la sélection valide; la référence ouvre d'abord un mode de ciblage. |
-| Spectres sans cible | En cours | Même fenêtre que les Planètes (hors pack). |
+| Planètes et Tarots sans cible | En cours | Utilisables en PreBlind, Blind, PostBlind, Shop et pendant un pack ouvert, comme `can_use_consumeable`. Couvert par `consumable_use_availability_follows_targets_and_stage`. |
+| Tarots à cible (1 à 3 cartes) | En cours | Utilisables pendant un Blind ou un pack Arcana/Spectral ouvert, quand le nombre de cartes sélectionnées est dans `min_targets..=max_targets`. Le bouton « Use » n'apparaît qu'une fois la sélection valide; la référence ouvre d'abord un mode de ciblage. |
+| Spectres sans cible | En cours | Même fenêtre que les Planètes, pack ouvert compris. |
 | Spectres qui touchent la main | Fait, à valider en jeu | Familiar, Grim, Incantation, Sigil, Ouija et Immolate sont utilisables en Blind dès que la main a plus d'une carte, sans sélection, comme dans la référence. Ils restent refusés hors Blind, où la main est vide. |
-| Ciblage depuis un pack | En cours | `PickPack` entre dans `TarotHand`/`SpectralHand`, puis `ApplyTarot`/`ApplySpectral`; vérifier annulation, Skip et retour au pack. |
+| Ciblage depuis un pack | Fait, à valider en jeu | La main d'un pack Arcana ou Spectral se sélectionne d'abord; un clic met la carte du pack en avant, son bouton USE (rouge si la sélection convient) l'utilise aussitôt avec ces cibles. Les étapes `TarotHand`/`SpectralHand` n'existent plus. |
 | « Use » manquant et cartes perdues | Corrigé, à valider en jeu | Cause : règles de disponibilité dupliquées et vérifiées après retrait de la carte. Familiar, Grim, Incantation, Immolate, Sigil et Ouija deviennent utilisables en Blind dès que la main a plus d'une carte, sans tenir compte de la sélection. Judgement, Wraith et Soul exigent une place de joker ; Ankh, Hex, Ectoplasm et Wheel of Fortune exigent un joker ; The Fool exige un dernier consommable utilisé différent de lui-même ; Aura exige une carte sans édition. Hex et Ectoplasm ne ciblent que les jokers sans édition. Patch `balatro-rs-consumable-use.patch`, 16 tests dédiés (`consumable_use_tests.rs`). |
 | Description et état des consommables | En cours | Description, catégorie et champs techniques dev-tools présents; vérifier les textes de chaque Tarot/Spectre. |
 

@@ -37,13 +37,11 @@ fn test_action_space_size() {
     let a = ActionSpace::from(c.clone());
     // 24 select + 23 move_left + 23 move_right + 1 play + 1 discard
     // + 1 cashout + 4 buy_joker + 1 next_round + 1 select_blind + 1 skip_blind
-    // + 2 buy_consumable + 1 buy_voucher + 4 buy_playing_card
-    // + 2 use_consumable + 1 apply_tarot
+    // + 2 buy_consumable + 1 buy_voucher + 4 buy_playing_card + 2 use_consumable
     // + 5 sell_joker + 2 sell_consumable
-    // + 2 buy_pack + 5 pick_pack_card + 1 skip_pack + 2 sort_hand + 1 reroll
-    // + 1 apply_spectral = 109
-    assert_eq!(a.size(), 109);
-    assert_eq!(a.to_vec().len(), 109);
+    // + 2 buy_pack + 5 pick_pack_card + 1 skip_pack + 2 sort_hand + 1 reroll = 107
+    assert_eq!(a.size(), 107);
+    assert_eq!(a.to_vec().len(), 107);
 }
 
 #[test]
@@ -56,16 +54,12 @@ fn test_action_space_zero_joker_slots_no_panic() {
     let a = ActionSpace::from(c);
     // size() and to_vec() must not panic with empty sell vecs
     assert_eq!(a.to_vec().len(), a.size());
-    // to_action on the apply_tarot index must still resolve and not panic
-    assert!(a.to_action(a.apply_tarot_min(), &Game::default()).is_err()); // masked, not a panic
-                                                                          // Same for the apply_spectral index, appended at the end of the vector.
-    assert!(a
-        .to_action(a.apply_spectral_min(), &Game::default())
-        .is_err()); // masked, not a panic
+    // The last index resolves without panicking (masked, not a panic).
+    assert!(a.to_action(a.size() - 1, &Game::default()).is_err());
 }
 
 #[test]
-fn test_apply_spectral_index_round_trip() {
+fn test_pack_card_index_round_trip_after_selecting_a_target() {
     use crate::pack::{Pack, PackCategory, PackContent, PackSize};
     use crate::spectral::Spectral;
     let mut g = Game::default();
@@ -79,18 +73,18 @@ fn test_apply_spectral_index_round_trip() {
     };
     g.shop.packs = vec![pack.clone()];
     g.handle_action(Action::BuyPack(pack)).unwrap();
-    g.handle_action(Action::PickPackCard(PackContent::Spectral(
-        Spectral::Talisman,
-    )))
-    .unwrap();
+    let idx = g.gen_action_space().pick_pack_card_min();
+    assert_eq!(g.gen_action_space().to_vec()[idx], 0);
     let card = g.available.cards()[0];
     g.handle_action(Action::SelectCard(card)).unwrap();
 
     let space = g.gen_action_space();
-    let idx = space.apply_spectral_min();
     assert_eq!(space.to_vec()[idx], 1);
     let action = space.to_action(idx, &g).expect("to action");
-    assert_eq!(action, Action::ApplySpectral());
+    assert_eq!(
+        action,
+        Action::PickPackCard(PackContent::Spectral(Spectral::Talisman))
+    );
 }
 
 #[test]

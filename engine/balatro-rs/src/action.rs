@@ -52,8 +52,6 @@ pub enum Action {
     NextRound(),
     SelectBlind(Blind),
     SkipBlind(Blind),
-    ApplyTarot(),
-    ApplySpectral(),
     SellJoker(usize),
     SellConsumable(usize),
     BuyPack(Pack),
@@ -109,8 +107,6 @@ impl fmt::Display for Action {
             Self::SkipBlind(blind) => {
                 write!(f, "SkipBlind: {}", blind_display(blind))
             }
-            Self::ApplyTarot() => write!(f, "ApplyTarot"),
-            Self::ApplySpectral() => write!(f, "ApplySpectral"),
             Self::SellJoker(idx) => write!(f, "SellJoker: {}", idx),
             Self::SellConsumable(idx) => write!(f, "SellConsumable: {}", idx),
             Self::BuyPack(pack) => write!(f, "BuyPack: {}", pack.name()),

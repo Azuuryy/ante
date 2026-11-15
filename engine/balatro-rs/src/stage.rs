@@ -1,5 +1,3 @@
-use crate::spectral::Spectral;
-use crate::tarot::Tarot;
 pub use balatro_types::Blind;
 
 /// Engine behavior for `Blind`
@@ -60,10 +58,6 @@ pub enum Stage {
     Shop(),
     // Game ending
     End(End),
-    // (Temp stage) Target a tarot, hand drawn for card selection, pending tarot applied on ApplyTarot
-    TarotHand(Tarot),
-    // (Temp stage) Target a spectral, hand drawn for card selection, pending spectral applied on ApplySpectral
-    SpectralHand(Spectral),
     // (Temp stage) A booster pack has been purchased and is open; player chooses contents
     PackOpen(),
 }
@@ -71,10 +65,6 @@ pub enum Stage {
 impl Stage {
     pub(crate) fn is_blind(&self) -> bool {
         matches!(self, Stage::Blind(_))
-    }
-
-    pub(crate) fn is_pack_open(&self) -> bool {
-        matches!(self, Stage::PackOpen())
     }
 }
 
@@ -104,10 +94,9 @@ mod tests {
     }
 
     #[test]
-    fn test_stage_is_blind_and_is_pack_open() {
+    fn test_stage_is_blind() {
         assert!(Stage::Blind(Blind::Small).is_blind());
         assert!(!Stage::Shop().is_blind());
-        assert!(Stage::PackOpen().is_pack_open());
-        assert!(!Stage::Shop().is_pack_open());
+        assert!(!Stage::PackOpen().is_blind());
     }
 }

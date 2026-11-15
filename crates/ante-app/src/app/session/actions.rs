@@ -44,6 +44,7 @@ pub(super) fn start_run(session: &mut Session, backend: &dyn GameBackend, click:
         session.deck_hovered = false;
         session.confirmed = Some(view);
         session.run = Some(run);
+        session.run_log = Some(crate::services::run_log::RunLogFile::start(config));
         session.run_id = session.run_id.wrapping_add(1);
         session.last_config = Some(config);
         session.navigation.screen = Page::Run;
@@ -99,6 +100,12 @@ pub(super) fn play(
         )
     });
     let elapsed = start.elapsed();
+    if let Some(log) = session.run_log.as_mut() {
+        match &result {
+            Ok(update) => log.record(&before, action, Ok(update), &update.view),
+            Err(error) => log.record(&before, action, Err(error), &before),
+        }
+    }
     match result {
         Ok(update) => {
             session.confirmed = Some(update.view);

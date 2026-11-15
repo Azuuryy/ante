@@ -141,10 +141,7 @@ impl Game {
 
     pub(super) fn unmask_action_space_use_consumable(&self, space: &mut ActionSpace) {
         // Same rules as gen_actions_use_consumable.
-        if matches!(
-            self.stage,
-            Stage::End(_) | Stage::TarotHand(_) | Stage::SpectralHand(_) | Stage::PackOpen()
-        ) {
+        if matches!(self.stage, Stage::End(_)) {
             return;
         }
         self.consumables.iter().enumerate().for_each(|(i, c)| {
@@ -234,7 +231,7 @@ impl Game {
             .contents
             .iter()
             .enumerate()
-            .filter(|(_, c)| self.pack_card_pickable(c))
+            .filter(|(_, c)| self.pack_card_usable(c))
             .for_each(|(i, _)| {
                 space
                     .unmask_pick_pack_card(i)
@@ -271,98 +268,6 @@ impl Game {
         space.unmask_reroll();
     }
 
-    pub(super) fn unmask_action_space_tarot_hand(&self, space: &mut ActionSpace) {
-        let Stage::TarotHand(t) = self.stage else {
-            return;
-        };
-        // select cards
-        let selected_count = self.available.selected().len();
-        if selected_count < t.max_targets() {
-            self.available
-                .cards_and_selected()
-                .iter()
-                .enumerate()
-                .filter(|(_, (_, a))| !*a)
-                .for_each(|(i, _)| {
-                    space
-                        .unmask_select_card(i)
-                        .expect("valid index for selecting");
-                });
-        }
-        // move cards
-        self.available
-            .cards()
-            .iter()
-            .skip(1)
-            .enumerate()
-            .for_each(|(i, _)| {
-                space
-                    .unmask_move_card_left(i)
-                    .expect("valid index for move left");
-            });
-        self.available
-            .cards()
-            .iter()
-            .rev()
-            .skip(1)
-            .rev()
-            .enumerate()
-            .for_each(|(i, _)| {
-                space
-                    .unmask_move_card_right(i)
-                    .expect("valid index for move right");
-            });
-        if selected_count >= t.min_targets() && selected_count <= t.max_targets() {
-            space.unmask_apply_tarot();
-        }
-    }
-
-    pub(super) fn unmask_action_space_spectral_hand(&self, space: &mut ActionSpace) {
-        let Stage::SpectralHand(s) = self.stage else {
-            return;
-        };
-        // select cards
-        let selected_count = self.available.selected().len();
-        if selected_count < s.max_targets() {
-            self.available
-                .cards_and_selected()
-                .iter()
-                .enumerate()
-                .filter(|(_, (_, a))| !*a)
-                .for_each(|(i, _)| {
-                    space
-                        .unmask_select_card(i)
-                        .expect("valid index for selecting");
-                });
-        }
-        // move cards
-        self.available
-            .cards()
-            .iter()
-            .skip(1)
-            .enumerate()
-            .for_each(|(i, _)| {
-                space
-                    .unmask_move_card_left(i)
-                    .expect("valid index for move left");
-            });
-        self.available
-            .cards()
-            .iter()
-            .rev()
-            .skip(1)
-            .rev()
-            .enumerate()
-            .for_each(|(i, _)| {
-                space
-                    .unmask_move_card_right(i)
-                    .expect("valid index for move right");
-            });
-        if selected_count >= s.min_targets() && selected_count <= s.max_targets() {
-            space.unmask_apply_spectral();
-        }
-    }
-
     // Get an action space, masked for legal actions only
     pub fn gen_action_space(&self) -> ActionSpace {
         let mut space = ActionSpace::from(self.config.clone());
@@ -378,8 +283,6 @@ impl Game {
         self.unmask_action_space_buy_voucher(&mut space);
         self.unmask_action_space_buy_playing_card(&mut space);
         self.unmask_action_space_use_consumable(&mut space);
-        self.unmask_action_space_tarot_hand(&mut space);
-        self.unmask_action_space_spectral_hand(&mut space);
         self.unmask_action_space_sell_joker(&mut space);
         self.unmask_action_space_sell_consumable(&mut space);
         self.unmask_action_space_buy_pack(&mut space);

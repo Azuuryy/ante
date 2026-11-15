@@ -8,7 +8,6 @@ pub enum Phase {
     Reward,
     Shop,
     Pack,
-    Target,
     Won,
     Lost,
 }
@@ -182,7 +181,6 @@ pub struct RunView {
     pub pack_picks: usize,
     /// Family of the open booster pack.
     pub open_pack: Option<PackFamily>,
-    pub can_apply_target: bool,
     pub deck_total: usize,
     pub phase: Phase,
     pub blind: String,
@@ -193,6 +191,9 @@ pub struct RunView {
     pub discards: usize,
     pub money: usize,
     pub reward: usize,
+    /// The rows that make up `reward`, in the order of `G.FUNCS.evaluate_round`; empty
+    /// outside the Reward phase.
+    pub reward_rows: Vec<RewardRow>,
     pub deck_cards: usize,
     pub discarded_cards: usize,
     pub cards: Vec<CardView>,
@@ -209,4 +210,29 @@ pub struct RunView {
     pub can_discard: bool,
     /// True once a debug command changed this run.
     pub debug: bool,
+}
+
+/// One row of the round evaluation screen and the dollars it adds.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RewardRow {
+    pub kind: RewardKind,
+    pub dollars: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RewardKind {
+    /// The cleared Blind's own reward.
+    Blind,
+    /// $1 per hand left.
+    Hands { count: usize },
+    /// A Joker's end-of-round dollar bonus.
+    Joker {
+        id: JokerKey,
+        kind: ContentId,
+        name: &'static str,
+    },
+    /// A tag paying out, such as Investment.
+    Tag(ContentId),
+    /// $1 per $5 held, up to the cap.
+    Interest,
 }

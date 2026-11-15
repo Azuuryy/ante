@@ -299,8 +299,6 @@ impl EngineRun {
                 .open_pack
                 .as_ref()
                 .map(|open| open_pack_family(&open.contents)),
-            can_apply_target: legal.contains(&Action::ApplyTarot())
-                || legal.contains(&Action::ApplySpectral()),
             can_sort: legal.contains(&Action::SortHand(SortBy::Rank)),
             blind_chip: blind.map(|blind| match blind {
                 Blind::Small => "bl_small",
@@ -360,6 +358,7 @@ impl EngineRun {
             discards: game.discards(),
             money: game.money,
             reward: game.reward,
+            reward_rows: reward_rows(&game.round_reward),
             deck_cards,
             discarded_cards: game.discarded.len(),
             cards,

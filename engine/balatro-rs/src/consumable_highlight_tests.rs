@@ -86,26 +86,27 @@ fn a_second_tarot_from_the_same_pack_starts_with_no_selection() {
         ],
         2,
     );
+    select(&mut g, 3);
     g.handle_action(Action::PickPackCard(PackContent::Tarot(Tarot::World)))
         .unwrap();
-    select(&mut g, 3);
-    g.handle_action(Action::ApplyTarot()).unwrap();
     assert!(g.available.selected().is_empty());
-    g.handle_action(Action::PickPackCard(PackContent::Tarot(Tarot::Lovers)))
-        .unwrap();
-    assert_eq!(g.stage, Stage::TarotHand(Tarot::Lovers));
     select(&mut g, 1);
-    assert!(space_actions(&g).contains(&Action::ApplyTarot()));
+    let lovers = Action::PickPackCard(PackContent::Tarot(Tarot::Lovers));
+    assert!(space_actions(&g).contains(&lovers));
+    g.handle_action(lovers).unwrap();
 }
 
 #[test]
-fn the_action_space_offers_no_consumable_use_in_an_open_pack() {
+fn slot_consumables_stay_usable_while_a_pack_is_open() {
+    // `can_use_consumeable` only blocks while a hand is played or drawn, not in packs.
     let mut g = blind_game();
     g.consumables = vec![Consumable::Planet(Planets::Neptune)];
     open_pack(&mut g, vec![PackContent::Tarot(Tarot::Hermit)], 1);
-    assert!(!space_actions(&g)
-        .iter()
-        .any(|a| matches!(a, Action::UseConsumable(_))));
+    let neptune = Action::UseConsumable(Consumable::Planet(Planets::Neptune));
+    assert!(g.gen_actions().any(|a| a == neptune));
+    assert!(space_actions(&g).contains(&neptune));
+    g.handle_action(neptune).unwrap();
+    assert_eq!(g.stage, Stage::PackOpen());
 }
 
 #[test]

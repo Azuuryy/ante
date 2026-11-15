@@ -9,7 +9,6 @@ pub(super) fn phase_from(stage: Stage) -> Phase {
         Stage::End(End::Win) => Phase::Won,
         Stage::End(End::Lose) => Phase::Lost,
         Stage::PackOpen() => Phase::Pack,
-        Stage::TarotHand(_) | Stage::SpectralHand(_) => Phase::Target,
     }
 }
 

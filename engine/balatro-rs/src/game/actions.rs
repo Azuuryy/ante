@@ -28,13 +28,9 @@ impl Game {
             Action::SelectCard(card) => {
                 if self.stage.is_blind() {
                     self.select_card(card)
-                } else if let Stage::TarotHand(t) = self.stage {
-                    if self.available.selected().len() >= t.max_targets() {
-                        return Err(GameError::InvalidAction);
-                    }
-                    self.select_card(card)
-                } else if let Stage::SpectralHand(s) = self.stage {
-                    if self.available.selected().len() >= s.max_targets() {
+                } else if self.hand_selectable() {
+                    // A pack's hand keeps the hand's highlight limit.
+                    if self.available.selected().len() >= self.config.selected_max {
                         return Err(GameError::InvalidAction);
                     }
                     self.select_card(card)
@@ -43,9 +39,7 @@ impl Game {
                 }
             }
             Action::DeselectCard(card) => {
-                if self.stage.is_blind()
-                    || matches!(self.stage, Stage::TarotHand(_) | Stage::SpectralHand(_))
-                {
+                if self.hand_selectable() {
                     self.available.deselect_card(card)
                 } else {
                     Err(GameError::InvalidAction)
@@ -60,9 +54,7 @@ impl Game {
                 false => Err(GameError::InvalidAction),
             },
             Action::MoveCard(dir, card) => {
-                if self.stage.is_blind()
-                    || matches!(self.stage, Stage::TarotHand(_) | Stage::SpectralHand(_))
-                {
+                if self.hand_selectable() {
                     self.move_card(dir, card)
                 } else {
                     Err(GameError::InvalidAction)
@@ -101,8 +93,6 @@ impl Game {
                 Stage::PreBlind() => self.skip_blind(blind),
                 _ => Err(GameError::InvalidAction),
             },
-            Action::ApplyTarot() => self.apply_tarot(),
-            Action::ApplySpectral() => self.apply_spectral(),
             Action::SellJoker(idx) => self.sell_joker(idx),
             Action::SellConsumable(idx) => self.sell_consumable(idx),
             Action::BuyPack(pack) => match self.stage {

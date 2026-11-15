@@ -79,7 +79,7 @@ fn surface(screen: Screen, phase: Option<Phase>) -> &'static str {
         Some(Phase::Pack) => "shop_pack-open",
         Some(Phase::Won) => "end_win",
         Some(Phase::Lost) => "end_lose",
-        Some(Phase::Playing | Phase::Target) | None => "run",
+        Some(Phase::Playing) | None => "run",
     }
 }
 

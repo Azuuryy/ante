@@ -9,6 +9,7 @@ type GameHandFn = Arc<Mutex<dyn Fn(&mut Game, MadeHand) + Send + 'static>>;
 type GameFn = Arc<Mutex<dyn Fn(&mut Game) + Send + 'static>>;
 type GameModifyFn = Arc<Mutex<dyn Fn(&mut Game, &mut MadeHand) + Send + 'static>>;
 type CardTriggerFn = Arc<Mutex<dyn Fn(&mut Game, Card, bool) -> usize + Send + 'static>>;
+type CardEffectFn = Arc<Mutex<dyn Fn(&mut Game, Card, &MadeHand) + Send + 'static>>;
 
 // A joker's mere presence flips a named rule used elsewhere in scoring/hand
 // evaluation, rather than contributing a chip/mult delta at a specific hook.
@@ -66,6 +67,7 @@ impl EffectRegistry {
                     Effects::OnPlay(_) => self.on_play.push(e),
                     Effects::OnDiscard(_) => self.on_discard.push(e),
                     Effects::OnScore(_) => {} // not cached, recomputed in score loop on purpose
+                    Effects::OnCardScored(_) | Effects::OnCardHeld(_) => {} // same, per card
                     Effects::OnSell(_) => {} // not cached, computed on the sold joker directly in sell_joker
                     Effects::OnHandRank(_) => self.on_handrank.push(e),
                     Effects::OnModifyHand(_) => self.on_modify_hand.push(e),
@@ -86,6 +88,11 @@ pub enum Effects {
     OnPlay(GameHandFn),
     OnDiscard(GameHandFn),
     OnScore(GameHandFn),
+    /// A scored card, once per repetition, after its own effects
+    /// (`calculate_joker{individual = true, cardarea = G.play}`).
+    OnCardScored(CardEffectFn),
+    /// A card held in hand, once per repetition (`individual = true, cardarea = G.hand`).
+    OnCardHeld(CardEffectFn),
     OnSell(GameFn),
     OnHandRank(GameFn),
     OnModifyHand(GameModifyFn),
@@ -101,6 +108,8 @@ impl std::fmt::Debug for Effects {
             Self::OnPlay(_) => write!(f, "OnPlay"),
             Self::OnDiscard(_) => write!(f, "OnDiscard"),
             Self::OnScore(_) => write!(f, "OnScore"),
+            Self::OnCardScored(_) => write!(f, "OnCardScored"),
+            Self::OnCardHeld(_) => write!(f, "OnCardHeld"),
             Self::OnSell(_) => write!(f, "OnSell"),
             Self::OnHandRank(_) => write!(f, "OnHandRank"),
             Self::OnModifyHand(_) => write!(f, "OnModifyHand"),

@@ -4,29 +4,23 @@ use super::*;
 pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
     Some(match joker {
         Jokers::Fibonacci(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in _hand.hand.cards() {
-                    if card.value == Value::Ace
-                        || card.value == Value::Two
-                        || card.value == Value::Three
-                        || card.value == Value::Five
-                        || card.value == Value::Eight
-                    {
-                        g.mult += 8.0;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if matches!(
+                    card.value,
+                    Value::Ace | Value::Two | Value::Three | Value::Five | Value::Eight
+                ) {
+                    g.mult += 8.0;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::ScaryFace(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in g.non_debuffed(_hand.hand.cards().iter()) {
-                    if g.is_face_card(&card) {
-                        g.chips += 30;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if g.is_face_card(&card) {
+                    g.chips += 30;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::AbstractJoker(_) => {
             fn apply(g: &mut Game, _hand: MadeHand) {
@@ -36,45 +30,37 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::Pareidolia(_) => vec![Effects::RuleFlag(RuleFlag::AllCardsAreFace)],
         Jokers::EvenSteven(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in _hand.hand.cards() {
-                    if g.is_even(&card) {
-                        g.mult += 4.0;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if g.is_even(&card) {
+                    g.mult += 4.0;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::OddTodd(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in _hand.hand.cards() {
-                    if g.is_odd(&card) {
-                        g.chips += 31;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if g.is_odd(&card) {
+                    g.chips += 31;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::Scholar(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in _hand.hand.cards() {
-                    if card.value == Value::Ace {
-                        g.chips += 20;
-                        g.mult += 4.0;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.value == Value::Ace {
+                    g.chips += 20;
+                    g.mult += 4.0;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::BusinessCard(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in g.non_debuffed(_hand.hand.cards().iter()) {
-                    if g.is_face_card(&card) && g.prob_roll(1, 2) {
-                        g.money += 2;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if g.is_face_card(&card) && g.prob_roll(1, 2) {
+                    g.money += 2;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::FacelessJoker(_) => {
             fn apply(g: &mut Game, _hand: MadeHand) {
@@ -85,18 +71,13 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
             vec![Effects::OnDiscard(Arc::new(Mutex::new(apply)))]
         }
         Jokers::Baron(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                let kings = g
-                    .non_debuffed(g.available.not_selected().iter())
-                    .iter()
-                    .filter(|c| c.value == Value::King)
-                    .count();
-                for _ in 0..kings {
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.value == Value::King {
                     g.mult *= 1.5;
                     g.note_xmult(1.5);
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardHeld(Arc::new(Mutex::new(apply)))]
         }
         Jokers::MidasMask(_) => {
             fn apply(g: &mut Game, hand: &mut MadeHand) {
@@ -119,26 +100,26 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
             vec![Effects::OnModifyHand(Arc::new(Mutex::new(apply)))]
         }
         Jokers::Photograph(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in g.non_debuffed(_hand.hand.cards().iter()) {
-                    if g.is_face_card(&card) {
-                        g.mult *= 2.0;
-                        g.note_xmult(2.0);
-                        break;
-                    }
+            fn apply(g: &mut Game, card: Card, hand: &MadeHand) {
+                // Only the first face card of the scoring hand, on each of its repetitions.
+                let first = g
+                    .non_debuffed(hand.hand.cards().iter())
+                    .into_iter()
+                    .find(|c| g.is_face_card(c));
+                if first.is_some_and(|first| first.id == card.id) {
+                    g.mult *= 2.0;
+                    g.note_xmult(2.0);
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::ReservedParking(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in g.non_debuffed(g.available.not_selected().iter()) {
-                    if g.is_face_card(&card) && g.prob_roll(1, 2) {
-                        g.money += 1;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if g.is_face_card(&card) && g.prob_roll(1, 2) {
+                    g.money += 1;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardHeld(Arc::new(Mutex::new(apply)))]
         }
         Jokers::BaseballCard(_) => {
             fn apply(g: &mut Game, _hand: MadeHand) {
@@ -161,35 +142,29 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
             vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
         }
         Jokers::WalkieTalkie(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in _hand.hand.cards() {
-                    if card.value == Value::Ten || card.value == Value::Four {
-                        g.chips += 10;
-                        g.mult += 4.0;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.value == Value::Ten || card.value == Value::Four {
+                    g.chips += 10;
+                    g.mult += 4.0;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::SmileyFace(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in g.non_debuffed(_hand.hand.cards().iter()) {
-                    if g.is_face_card(&card) {
-                        g.mult += 5.0;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if g.is_face_card(&card) {
+                    g.mult += 5.0;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::GoldenTicket(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in _hand.hand.cards() {
-                    if card.enhancement == Some(Enhancement::Gold) {
-                        g.money += 4;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.enhancement == Some(Enhancement::Gold) {
+                    g.money += 4;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::Acrobat(_) => {
             fn apply(g: &mut Game, _hand: MadeHand) {
@@ -201,67 +176,63 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
             vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
         }
         Jokers::RoughGem(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in g.non_debuffed(_hand.hand.cards().iter()) {
-                    if card.matches_suit(Suit::Diamond) {
-                        g.money += 1;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.matches_suit(Suit::Diamond) {
+                    g.money += 1;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::Bloodstone(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in g.non_debuffed(_hand.hand.cards().iter()) {
-                    if card.matches_suit(Suit::Heart) && g.prob_roll(1, 2) {
-                        g.mult *= 1.5;
-                        g.note_xmult(1.5);
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.matches_suit(Suit::Heart) && g.prob_roll(1, 2) {
+                    g.mult *= 1.5;
+                    g.note_xmult(1.5);
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::Arrowhead(_) => {
-            fn apply(g: &mut Game, hand: MadeHand) {
-                for card in g.non_debuffed(hand.hand.cards().iter()) {
-                    if card.matches_suit(Suit::Spade) {
-                        g.chips += 50;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.matches_suit(Suit::Spade) {
+                    g.chips += 50;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::OnyxAgate(_) => {
-            fn apply(g: &mut Game, hand: MadeHand) {
-                for card in g.non_debuffed(hand.hand.cards().iter()) {
-                    if card.matches_suit(Suit::Club) {
-                        g.mult += 7.0;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.matches_suit(Suit::Club) {
+                    g.mult += 7.0;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::ShootTheMoon(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                for card in g.available.not_selected() {
-                    if card.value == Value::Queen {
-                        g.mult += 13.0;
-                    }
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.value == Value::Queen {
+                    g.mult += 13.0;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardHeld(Arc::new(Mutex::new(apply)))]
         }
         Jokers::RaisedFist(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                // no dedicated numeric "rank" accessor exists; chips() is the
-                // closest analog to the card's face rank
-                // TODO: need to do this with rank ord?
-                let lowest = g.available.not_selected().iter().map(|c| c.chips()).min();
-                if let Some(lowest) = lowest {
-                    g.mult += (lowest * 2) as f64;
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                // The last held card with the lowest rank, Stone cards aside, like the
+                // original `temp_ID >= id` scan; double its rank chips.
+                let mut lowest: Option<Card> = None;
+                for held in g.available.not_selected() {
+                    if held.enhancement != Some(Enhancement::Stone)
+                        && lowest.is_none_or(|low| held.value <= low.value)
+                    {
+                        lowest = Some(held);
+                    }
+                }
+                if lowest.is_some_and(|low| low.id == card.id) {
+                    g.mult += (card.chips() * 2) as f64;
                 }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardHeld(Arc::new(Mutex::new(apply)))]
         }
         Jokers::TheDuo(_) => {
             fn apply(g: &mut Game, hand: MadeHand) {

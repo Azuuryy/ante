@@ -317,10 +317,11 @@ fn test_gen_actions_use_consumable_spectral_in_shop() {
 }
 
 #[test]
-fn test_tarot_hand_selection_capped_at_max_targets() {
+fn test_pack_tarot_is_offered_only_for_a_target_count_it_accepts() {
+    // The hand keeps its own highlight limit in a pack; The Magician (one or two
+    // targets) is offered only while the selection fits, like can_use_consumeable.
     use crate::pack::{Pack, PackCategory, PackContent, PackSize};
     use crate::tarot::Tarot;
-
     let mut g = Game::default();
     g.start();
     g.stage = Stage::Shop();
@@ -333,16 +334,19 @@ fn test_tarot_hand_selection_capped_at_max_targets() {
     g.shop.packs = vec![pack.clone()];
     g.handle_action(Action::BuyPack(pack)).unwrap();
     assert_eq!(g.stage, Stage::PackOpen());
-    g.handle_action(Action::PickPackCard(PackContent::Tarot(Tarot::Magician)))
-        .unwrap();
-    assert!(matches!(g.stage, Stage::TarotHand(Tarot::Magician)));
+    let magician = Action::PickPackCard(PackContent::Tarot(Tarot::Magician));
+    assert!(!g.gen_actions().any(|a| a == magician));
     let cards = g.available.cards();
     g.handle_action(Action::SelectCard(cards[0])).unwrap();
     g.handle_action(Action::SelectCard(cards[1])).unwrap();
-    assert_eq!(g.available.selected().len(), 2);
-    let res = g.handle_action(Action::SelectCard(cards[2]));
-    assert!(matches!(res, Err(GameError::InvalidAction)));
-    let actions: Vec<Action> = g.gen_actions().collect();
-    assert!(!actions.iter().any(|a| matches!(a, Action::SelectCard(_))));
-    assert!(actions.contains(&Action::ApplyTarot()));
+    assert!(g.gen_actions().any(|a| a == magician));
+    g.handle_action(Action::SelectCard(cards[2])).unwrap();
+    assert!(!g.gen_actions().any(|a| a == magician));
+    assert!(matches!(
+        g.handle_action(magician.clone()),
+        Err(GameError::InvalidAction)
+    ));
+    g.handle_action(Action::DeselectCard(cards[2])).unwrap();
+    g.handle_action(magician).unwrap();
+    assert_eq!(g.stage, Stage::Shop());
 }

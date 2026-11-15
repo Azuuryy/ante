@@ -130,7 +130,7 @@ pub(crate) fn update(
     let open = session
         .confirmed
         .as_ref()
-        .filter(|view| matches!(view.phase, Phase::Pack | Phase::Target))
+        .filter(|view| view.phase == Phase::Pack)
         .and_then(|view| view.open_pack);
     // The pack box rise.
     match open {

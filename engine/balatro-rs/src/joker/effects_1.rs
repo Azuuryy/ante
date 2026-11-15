@@ -10,48 +10,36 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
             vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
         }
         Jokers::GreedyJoker(_) => {
-            fn apply(g: &mut Game, hand: MadeHand) {
-                let diamonds = g
-                    .non_debuffed(hand.hand.cards().iter())
-                    .iter()
-                    .filter(|c| c.matches_suit(Suit::Diamond))
-                    .count();
-                g.mult += (diamonds * 3) as f64
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.matches_suit(Suit::Diamond) {
+                    g.mult += 3.0;
+                }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::LustyJoker(_) => {
-            fn apply(g: &mut Game, hand: MadeHand) {
-                let hearts = g
-                    .non_debuffed(hand.hand.cards().iter())
-                    .iter()
-                    .filter(|c| c.matches_suit(Suit::Heart))
-                    .count();
-                g.mult += (hearts * 3) as f64
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.matches_suit(Suit::Heart) {
+                    g.mult += 3.0;
+                }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::WrathfulJoker(_) => {
-            fn apply(g: &mut Game, hand: MadeHand) {
-                let spades = g
-                    .non_debuffed(hand.hand.cards().iter())
-                    .iter()
-                    .filter(|c| c.matches_suit(Suit::Spade))
-                    .count();
-                g.mult += (spades * 3) as f64
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.matches_suit(Suit::Spade) {
+                    g.mult += 3.0;
+                }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::GluttonousJoker(_) => {
-            fn apply(g: &mut Game, hand: MadeHand) {
-                let clubs = g
-                    .non_debuffed(hand.hand.cards().iter())
-                    .iter()
-                    .filter(|c| c.matches_suit(Suit::Club))
-                    .count();
-                g.mult += (clubs * 3) as f64
+            fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
+                if card.matches_suit(Suit::Club) {
+                    g.mult += 3.0;
+                }
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::JollyJoker(_) => {
             fn apply(g: &mut Game, hand: MadeHand) {

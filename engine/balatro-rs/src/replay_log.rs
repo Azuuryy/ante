@@ -13,7 +13,7 @@ use serde_json::Value;
 use std::io::{self, Write};
 use thiserror::Error;
 
-pub const FORMAT_VERSION: u32 = 3;
+pub const FORMAT_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReplayHeader {

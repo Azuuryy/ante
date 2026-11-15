@@ -237,7 +237,7 @@ impl RunBoard {
                         Click::Play(Command::CashOut),
                     );
                 }
-                Phase::Pack | Phase::Target => pack_board(center, view, atlases),
+                Phase::Pack => pack_board(center, view, atlases, session.shop_selection),
                 Phase::Won | Phase::Lost => {}
             });
     }

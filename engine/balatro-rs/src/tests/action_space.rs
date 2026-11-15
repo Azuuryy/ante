@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn test_spectral_hand_select_and_apply_round_trip() {
+fn test_pack_spectral_select_then_use_round_trip() {
     use crate::card::Seal;
     use crate::pack::{Pack, PackCategory, PackContent, PackSize};
     use crate::spectral::Spectral;
@@ -17,24 +17,16 @@ fn test_spectral_hand_select_and_apply_round_trip() {
     };
     g.shop.packs = vec![pack.clone()];
     g.handle_action(Action::BuyPack(pack)).unwrap();
-    g.handle_action(Action::PickPackCard(PackContent::Spectral(
-        Spectral::Talisman,
-    )))
-    .unwrap();
-    assert!(matches!(g.stage, Stage::SpectralHand(Spectral::Talisman)));
-
-    let actions: Vec<Action> = g.gen_actions().collect();
-    assert!(!actions.contains(&Action::ApplySpectral()));
+    let talisman = Action::PickPackCard(PackContent::Spectral(Spectral::Talisman));
+    assert!(!g.gen_actions().any(|a| a == talisman));
 
     let card = g.available.cards()[0];
     g.handle_action(Action::SelectCard(card)).unwrap();
+    assert!(g.gen_actions().any(|a| a == talisman));
 
-    let actions: Vec<Action> = g.gen_actions().collect();
-    assert!(actions.contains(&Action::ApplySpectral()));
-
-    g.handle_action(Action::ApplySpectral()).unwrap();
-    // The Normal pack's single pick is now used, so finish_pack ran and
-    // returned to Shop, sending any leftover drawn-hand cards to the deck.
+    g.handle_action(talisman).unwrap();
+    // The Normal pack's single pick is used, so finish_pack returned to the Shop and
+    // sent the drawn hand back to the deck.
     assert_eq!(g.stage, Stage::Shop());
     assert_eq!(g.available.cards().len(), 0);
     let updated = g

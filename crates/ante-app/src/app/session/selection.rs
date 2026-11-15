@@ -31,6 +31,13 @@ pub(super) fn apply_card_selection(
         run.apply(Command::ToggleCard(id), TraceMode::Off)
     });
     metrics.record_simulation(start.elapsed(), default());
+    if let Some(log) = session.run_log.as_mut() {
+        let command = Command::ToggleCard(id);
+        match &result {
+            Ok(update) => log.record(&before, command, Ok(update), &update.view),
+            Err(error) => log.record(&before, command, Err(error), &before),
+        }
+    }
     match result {
         Ok(update) => session.confirmed = Some(update.view),
         Err(error) => {

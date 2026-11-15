@@ -10,5 +10,6 @@ extra-jokers = ["balatro-rs/ante-extra-jokers"]
 [dependencies]
 balatro-rs = { path = "../../engine/balatro-rs" }
 balatro-types = { path = "../../engine/balatro-types" }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 strum = "0.26"

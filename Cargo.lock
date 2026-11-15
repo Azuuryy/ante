@@ -270,6 +270,7 @@ version = "0.1.0"
 dependencies = [
  "balatro-rs",
  "balatro-types",
+ "serde",
  "serde_json",
  "strum",
 ]

@@ -21,6 +21,36 @@ impl Game {
         self.trace_xmult = Some(self.trace_xmult.unwrap_or(1.0) * factor);
     }
 
+    /// Each Joker's per-card effect on `card`, in Joker order, like the
+    /// `calculate_joker{individual = true}` loop of `evaluate_play`.
+    fn joker_card_effects(
+        &mut self,
+        trace: &mut Option<&mut TraceRecorder>,
+        card: Card,
+        hand: &MadeHand,
+        held: bool,
+        retrigger: bool,
+    ) {
+        for joker in self.jokers.clone() {
+            for effect in joker.effects(self) {
+                let apply = match (effect, held) {
+                    (Effects::OnCardScored(f), false) | (Effects::OnCardHeld(f), true) => f,
+                    _ => continue,
+                };
+                let chips_before = self.chips;
+                let mult_before = self.mult;
+                apply.lock().unwrap()(self, card, hand);
+                self.record_step(
+                    trace,
+                    ScoreSource::JokerOnCard(joker.clone(), card),
+                    chips_before,
+                    mult_before,
+                    retrigger,
+                );
+            }
+        }
+    }
+
     pub(super) fn record_step(
         &mut self,
         trace: &mut Option<&mut TraceRecorder>,
@@ -198,6 +228,7 @@ impl Game {
                     mult_before,
                     trig > 0,
                 );
+                self.joker_card_effects(&mut trace, card, &hand, false, trig > 0);
             }
         }
 
@@ -256,6 +287,7 @@ impl Game {
                     mult_before,
                     trig > 0,
                 );
+                self.joker_card_effects(&mut trace, card, &hand, true, trig > 0);
             }
         }
 
@@ -364,15 +396,27 @@ impl Game {
         }
     }
 
-    pub(super) fn calc_reward(&mut self, blind: Blind) -> Result<usize, GameError> {
+    /// The rows of `G.FUNCS.evaluate_round` for a cleared `blind`; tags are added by the caller.
+    pub(super) fn calc_reward(
+        &mut self,
+        blind: Blind,
+    ) -> Result<crate::reward::RoundReward, GameError> {
         let mut interest = (self.money as f32 * self.config.interest_rate).floor() as usize;
         let interest_max = self.interest_max();
         if interest > interest_max {
             interest = interest_max
         }
-        let base = blind.reward();
-        let hand_bonus = self.plays * self.config.money_per_hand;
-        let reward = base + interest + hand_bonus;
-        Ok(reward)
+        Ok(crate::reward::RoundReward {
+            blind: blind.reward(),
+            hands_left: self.plays,
+            hand_dollars: self.plays * self.config.money_per_hand,
+            jokers: self
+                .jokers
+                .iter()
+                .filter_map(|joker| crate::reward::dollar_bonus(joker).map(|d| (joker.clone(), d)))
+                .collect(),
+            tags: Vec::new(),
+            interest,
+        })
     }
 }

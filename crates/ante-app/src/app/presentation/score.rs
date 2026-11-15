@@ -113,7 +113,10 @@ pub(crate) fn animate(
                     motion.raise = raise;
                 }
             }
-            if let Some((ScoreSource::Card { id, .. }, popup)) = &popup
+            if let Some((
+                ScoreSource::Card { id, .. } | ScoreSource::JokerOnCard { card: id, .. },
+                popup,
+            )) = &popup
                 && *id == card.id
             {
                 motion.juice_up(0.6, 0.1, rand::random());
@@ -121,6 +124,16 @@ pub(crate) fn animate(
                 commands
                     .entity(entity)
                     .with_child(score_popup(label, color, PopupSide::Above));
+            }
+        }
+        // A per-card Joker effect juices the Joker; its popup is on the card.
+        if let Some((ScoreSource::JokerOnCard { joker: id, .. }, _)) = &popup {
+            for (_, joker, motion) in &mut jokers {
+                if joker.id == *id
+                    && let Some(mut motion) = motion
+                {
+                    motion.juice_up(0.6, 0.1, rand::random());
+                }
             }
         }
         if let Some((ScoreSource::Joker { id, .. }, popup)) = &popup {

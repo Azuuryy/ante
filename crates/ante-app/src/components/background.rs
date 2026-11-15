@@ -107,7 +107,7 @@ fn ease_args(
 pub(crate) fn palette(phase: Phase, blind: Option<&str>, pack: Option<ShopArt>) -> Palette {
     let small = Srgba::hex("50846e").map(Color::from).unwrap_or(BLACK);
     match phase {
-        Phase::Pack | Phase::Target => match pack {
+        Phase::Pack => match pack {
             Some(ShopArt::Card { .. }) => ease_args(darken(BLACK, 0.2), Some(RED), None, 3.0),
             Some(ShopArt::Joker(_)) => ease_args(IMPORTANT, Some(BLACK), None, 2.0),
             _ => ease_args(

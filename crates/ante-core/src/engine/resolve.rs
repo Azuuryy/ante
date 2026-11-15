@@ -97,7 +97,7 @@ impl EngineRun {
         }
         match action {
             Command::MoveCard { id, direction }
-                if matches!(phase_from(game.stage), Phase::Playing | Phase::Target) =>
+                if matches!(phase_from(game.stage), Phase::Playing | Phase::Pack) =>
             {
                 let card = game
                     .available
@@ -219,8 +219,7 @@ impl EngineRun {
                         .and_then(|pack| pack.contents.get(index))
                         == Some(content)
                 }
-                (Command::ApplyTarget, Action::ApplyTarot() | Action::ApplySpectral())
-                | (Command::SkipPack, Action::SkipPack()) => true,
+                (Command::SkipPack, Action::SkipPack()) => true,
                 (Command::BuyJoker(id), Action::BuyJoker(joker)) => id.0 == joker.instance_id(),
                 (Command::BuyConsumable { index, .. }, Action::BuyConsumable(c)) => {
                     game.shop.consumables.get(index) == Some(c)

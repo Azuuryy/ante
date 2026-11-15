@@ -89,9 +89,6 @@ impl ActionSpace {
                     .map(Action::UseConsumable)
                     .ok_or(ActionSpaceError::InvalidActionConversion)
             }
-            n if (self.apply_tarot_min()..=self.apply_tarot_max()).contains(&n) => {
-                Ok(Action::ApplyTarot())
-            }
             n if !self.sell_joker.is_empty()
                 && (self.sell_joker_min()..=self.sell_joker_max()).contains(&n) =>
             {
@@ -140,11 +137,6 @@ impl ActionSpace {
             {
                 Ok(Action::Reroll())
             }
-            n if !self.apply_spectral.is_empty()
-                && (self.apply_spectral_min()..=self.apply_spectral_max()).contains(&n) =>
-            {
-                Ok(Action::ApplySpectral())
-            }
             _ => Err(ActionSpaceError::InvalidActionConversion),
         }
     }
@@ -176,7 +168,6 @@ impl ActionSpace {
             self.buy_voucher.clone(),
             self.buy_playing_card.clone(),
             self.use_consumable.clone(),
-            self.apply_tarot.clone(),
             self.sell_joker.clone(),
             self.sell_consumable.clone(),
             self.buy_pack.clone(),
@@ -184,7 +175,6 @@ impl ActionSpace {
             self.skip_pack.clone(),
             self.sort_hand.clone(),
             self.reroll.clone(),
-            self.apply_spectral.clone(),
         ]
         .concat()
     }

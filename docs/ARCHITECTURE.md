@@ -3,7 +3,7 @@
 | Crate | Role | Depends on |
 | --- | --- | --- |
 | `engine/balatro-rs`, `balatro-types`, `balatro-seed` | Vendored rules engine: game state, legal actions, RNG, scoring and its trace. See [ENGINE.md](ENGINE.md). | — |
-| `crates/ante-core` | Headless simulation boundary. `contract` defines commands, events, the `RunView` projection and the score trace; `engine` adapts balatro-rs to it (`EngineRun`, `ExternalBackend`). No Bevy dependency. | engine |
+| `crates/ante-core` | Headless simulation boundary. `contract` defines commands, events, the `RunView` projection and the score trace; `engine` adapts balatro-rs to it (`EngineRun`, `ExternalBackend`); `run_log` turns a run into JSON lines and replays them. No Bevy dependency. | engine |
 | `crates/ante-app` | Bevy client and the `ante` binary: session, navigation, presentation, screens, shared UI and services. | ante-core |
 
 The simulation owns gameplay state. The client sends a `Command` through the session command system, the only writer to the run driver, and reads back a confirmed `RunView` and its ordered trace. Score playback consumes the committed trace and never draws randomness. Presentation must not control simulation outcomes.

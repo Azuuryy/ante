@@ -2,22 +2,31 @@ use super::*;
 
 #[test]
 fn test_pick_pack_card_targeting_spectral() {
+    use crate::card::{Card, Seal, Suit, Value};
     use crate::spectral::Spectral;
     let mut g = Game::default();
     g.start();
     assert!(Spectral::Talisman.requires_targets());
+    g.available.extend(vec![Card::new(Value::Two, Suit::Heart)]);
     g.open_pack = Some(OpenPackState {
         picks_remaining: 1,
         description: String::new(),
         contents: vec![PackContent::Spectral(Spectral::Talisman)],
     });
     g.stage = Stage::PackOpen();
-    g.pick_pack_card(PackContent::Spectral(Spectral::Talisman))
-        .expect("pick targeting spectral");
-    assert!(matches!(g.stage, Stage::SpectralHand(Spectral::Talisman)));
-    assert_eq!(g.spectral_prev_stage, Some(Stage::PackOpen()));
-    // picks_remaining decremented later in apply_spectral, not here
-    assert_eq!(g.open_pack.as_ref().unwrap().picks_remaining, 1);
+    let talisman = PackContent::Spectral(Spectral::Talisman);
+    assert!(!g.pack_card_usable(&talisman));
+    let target = g.available.cards()[0];
+    g.handle_action(Action::SelectCard(target)).unwrap();
+    assert!(g.pack_card_usable(&talisman));
+    g.pick_pack_card(talisman).expect("use targeting spectral");
+    let sealed = g
+        .deck
+        .cards()
+        .into_iter()
+        .find(|c| c.id == target.id)
+        .unwrap();
+    assert_eq!(sealed.seal, Some(Seal::Gold));
 }
 
 #[test]
@@ -26,10 +35,11 @@ fn test_pick_pack_card_spectral_immediate_apply() {
     let mut g = Game::default();
     g.start();
     assert!(!Spectral::Sigil.requires_targets());
-    g.available.extend(vec![crate::card::Card::new(
-        crate::card::Value::Two,
-        crate::card::Suit::Heart,
-    )]);
+    // Sigil needs more than one card in hand (`#G.hand.cards > 1`).
+    g.available.extend(vec![
+        crate::card::Card::new(crate::card::Value::Two, crate::card::Suit::Heart),
+        crate::card::Card::new(crate::card::Value::Three, crate::card::Suit::Club),
+    ]);
     g.open_pack = Some(OpenPackState {
         picks_remaining: 1,
         description: String::new(),

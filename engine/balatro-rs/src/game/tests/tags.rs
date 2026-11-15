@@ -128,9 +128,10 @@ fn blind_tags_pay_on_boss_and_raise_hand_size_for_one_round() {
     g.stage = Stage::Blind(Blind::Boss);
     g.blind = Some(Blind::Boss);
     g.acquire_tag(Tag::Investment, None);
-    let base_reward = g.calc_reward(Blind::Boss).unwrap();
+    let base_reward = g.calc_reward(Blind::Boss).unwrap().total();
     g.handle_score(g.required_score()).unwrap();
     assert_eq!(g.reward, base_reward + 25);
+    assert_eq!(g.round_reward.tags, vec![(Tag::Investment, 25)]);
     assert!(g.tags.is_empty());
 }
 
@@ -335,19 +336,37 @@ fn test_negative_joker_from_pack_expands_slots() {
 
 #[test]
 fn test_pick_pack_card_targeting_tarot() {
+    use crate::card::{Card, Enhancement, Suit, Value};
     let mut g = Game::default();
     g.start();
     assert!(Tarot::Lovers.requires_targets());
+    g.available.extend(vec![
+        Card::new(Value::Two, Suit::Heart),
+        Card::new(Value::Three, Suit::Heart),
+    ]);
     g.open_pack = Some(OpenPackState {
         picks_remaining: 1,
         description: String::new(),
         contents: vec![PackContent::Tarot(Tarot::Lovers)],
     });
     g.stage = Stage::PackOpen();
-    g.pick_pack_card(PackContent::Tarot(Tarot::Lovers))
-        .expect("pick targeting tarot");
-    assert!(matches!(g.stage, Stage::TarotHand(Tarot::Lovers)));
-    assert_eq!(g.tarot_prev_stage, Some(Stage::PackOpen()));
-    // picks_remaining decremented later in apply_tarot, not here
-    assert_eq!(g.open_pack.as_ref().unwrap().picks_remaining, 1);
+    // No target selected: refused, and the pack keeps its card.
+    let lovers = PackContent::Tarot(Tarot::Lovers);
+    assert!(matches!(
+        g.pick_pack_card(lovers.clone()),
+        Err(GameError::InvalidAction)
+    ));
+    assert_eq!(g.open_pack.as_ref().unwrap().contents.len(), 1);
+    // One hand card selected first, then the Tarot is used on it at once.
+    let target = g.available.cards()[0];
+    g.handle_action(Action::SelectCard(target)).unwrap();
+    g.pick_pack_card(lovers).expect("use targeting tarot");
+    assert_eq!(g.stage, Stage::Shop());
+    let wild = g
+        .deck
+        .cards()
+        .into_iter()
+        .find(|c| c.id == target.id)
+        .unwrap();
+    assert_eq!(wild.enhancement, Some(Enhancement::Wild));
 }

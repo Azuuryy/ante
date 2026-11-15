@@ -181,3 +181,20 @@ fn a_retrigger_shows_its_own_popup_once() {
     twice.chips_after = 30;
     assert_eq!(step_duration(&twice, Some(&again)), CHIPS_POPUP);
 }
+
+#[test]
+fn a_joker_effect_on_a_card_pops_on_the_card() {
+    let mut step = card(0, (10, 40));
+    step.source = ScoreSource::JokerOnCard {
+        joker: JokerKey(3),
+        kind: ContentId("j_scary_face"),
+        name: "Scary Face",
+        card: CardKey(0),
+    };
+    step.retrigger = true;
+    // Card delays, and no second "Again!" after the card's own repetition step.
+    assert_eq!(
+        popups(&step, Some(&card(0, (0, 10)))),
+        vec![(Popup::Chips(30), CHIPS_POPUP)]
+    );
+}

@@ -7,16 +7,14 @@ impl Game {
     pub(crate) fn consumable_usable(&self, c: &Consumable) -> bool {
         use crate::spectral::Spectral;
         use crate::tarot::Tarot;
-        if matches!(
-            self.stage,
-            Stage::End(_) | Stage::TarotHand(_) | Stage::SpectralHand(_) | Stage::PackOpen()
-        ) {
+        if matches!(self.stage, Stage::End(_)) {
             return false;
         }
         let selected = self.available.selected();
         let n = selected.len();
         let hand = self.available.cards().len();
-        let blind = self.stage.is_blind();
+        // SELECTING_HAND, TAROT_PACK and SPECTRAL_PACK of the original: the hand is there.
+        let blind = self.hand_selectable();
         let joker_room = self.jokers.len() < self.joker_slots();
         let has_editionless_joker = self.jokers.iter().any(|j| j.edition() == Edition::Base);
         match c {
@@ -62,11 +60,27 @@ impl Game {
         }
     }
 
+    /// Whether hand cards can be selected: during a Blind, and while an Arcana or Spectral
+    /// pack has drawn the hand to pick targets in.
+    pub(crate) fn hand_selectable(&self) -> bool {
+        self.stage.is_blind()
+            || (self.stage == Stage::PackOpen() && !self.available.cards().is_empty())
+    }
+
+    /// Whether a pack card can be taken now: room for what it creates, and for a Tarot or
+    /// Spectral the same `can_use_consumeable` rule as from a slot, with the current
+    /// hand selection as targets.
+    pub fn pack_card_usable(&self, content: &PackContent) -> bool {
+        self.pack_card_pickable(content)
+            && match content {
+                PackContent::Tarot(t) => self.consumable_usable(&Consumable::Tarot(*t)),
+                PackContent::Spectral(s) => self.consumable_usable(&Consumable::Spectral(*s)),
+                _ => true,
+            }
+    }
+
     pub(crate) fn use_consumable(&mut self, consumable: Consumable) -> Result<(), GameError> {
-        if matches!(
-            self.stage,
-            Stage::End(_) | Stage::TarotHand(_) | Stage::SpectralHand(_) | Stage::PackOpen()
-        ) {
+        if matches!(self.stage, Stage::End(_)) {
             return Err(GameError::InvalidAction);
         }
         // Refus avant tout retrait : la carte ne doit jamais être perdue.
@@ -196,74 +210,6 @@ impl Game {
         self.apply_consumable(c)
     }
 
-    pub(crate) fn apply_tarot(&mut self) -> Result<(), GameError> {
-        let Stage::TarotHand(t) = self.stage else {
-            return Err(GameError::InvalidStage);
-        };
-        let prev = self
-            .tarot_prev_stage
-            .take()
-            .ok_or(GameError::InvalidStage)?;
-        let selected_count = self.available.selected().len();
-        if selected_count < t.min_targets() || selected_count > t.max_targets() {
-            self.tarot_prev_stage = Some(prev);
-            return Err(GameError::InvalidAction);
-        }
-        t.apply(self)?;
-        if t != Tarot::Fool {
-            self.last_consumable_used = Some(Consumable::Tarot(t));
-        }
-        self.unhighlight_after(Consumable::Tarot(t));
-        self.stage = prev;
-        // Only reachable via a pack pick now, finish_pack handles hand cleanup
-        if prev.is_pack_open() {
-            if let Some(ref mut state) = self.open_pack {
-                state.picks_remaining = state.picks_remaining.saturating_sub(1);
-            }
-            let done = self
-                .open_pack
-                .as_ref()
-                .is_some_and(|s| s.picks_remaining == 0);
-            if done {
-                self.finish_pack();
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn apply_spectral(&mut self) -> Result<(), GameError> {
-        let Stage::SpectralHand(s) = self.stage else {
-            return Err(GameError::InvalidStage);
-        };
-        let prev = self
-            .spectral_prev_stage
-            .take()
-            .ok_or(GameError::InvalidStage)?;
-        let selected_count = self.available.selected().len();
-        if selected_count < s.min_targets() || selected_count > s.max_targets() {
-            self.spectral_prev_stage = Some(prev);
-            return Err(GameError::InvalidAction);
-        }
-        // Fool only ever copies the last Tarot or Planet used, never a Spectral.
-        s.apply(self)?;
-        self.unhighlight_after(Consumable::Spectral(s));
-        self.stage = prev;
-        // Only reachable via a pack pick now; finish_pack handles hand cleanup
-        if prev.is_pack_open() {
-            if let Some(ref mut state) = self.open_pack {
-                state.picks_remaining = state.picks_remaining.saturating_sub(1);
-            }
-            let done = self
-                .open_pack
-                .as_ref()
-                .is_some_and(|s| s.picks_remaining == 0);
-            if done {
-                self.finish_pack();
-            }
-        }
-        Ok(())
-    }
-
     pub(crate) fn buy_pack(&mut self, pack: Pack) -> Result<(), GameError> {
         if self.stage != Stage::Shop() {
             return Err(GameError::InvalidStage);
@@ -305,6 +251,9 @@ impl Game {
         if !self.pack_card_pickable(&content) {
             return Err(GameError::NoAvailableSlot);
         }
+        if !self.pack_card_usable(&content) {
+            return Err(GameError::InvalidAction);
+        }
         // Remove the chosen content from the pack
         {
             let state = self.open_pack.as_mut().ok_or(GameError::InvalidAction)?;
@@ -316,37 +265,16 @@ impl Game {
             state.contents.remove(pos);
         }
 
-        // Targeting tarots enter TarotHand; picks_remaining decremented later in apply_tarot
-        if let PackContent::Tarot(t) = &content {
-            if t.requires_targets() {
-                self.tarot_prev_stage = Some(Stage::PackOpen());
-                self.stage = Stage::TarotHand(*t);
-                return Ok(());
-            }
-        }
-        // Targeting spectrals enter SpectralHand; picks_remaining decremented later in apply_spectral
-        if let PackContent::Spectral(s) = &content {
-            if s.requires_targets() {
-                self.spectral_prev_stage = Some(Stage::PackOpen());
-                self.stage = Stage::SpectralHand(*s);
-                return Ok(());
-            }
-        }
-
+        // A consumable taken from a pack is used at once, with the hand's selection as
+        // targets, and counts as the last one used, like `use_card` on a pack card.
         match content {
-            PackContent::Tarot(t) => {
-                t.apply(self)?;
-            }
-            PackContent::Planet(p) => {
-                self.planetarium.level_up(p.hand_rank());
-            }
+            PackContent::Tarot(t) => self.apply_consumable(Consumable::Tarot(t))?,
+            PackContent::Planet(p) => self.apply_consumable(Consumable::Planet(p))?,
             PackContent::Joker(j) => self.add_acquired_joker(j),
             PackContent::PlayingCard(c) => {
                 self.deck.push(c);
             }
-            PackContent::Spectral(s) => {
-                s.apply(self)?;
-            }
+            PackContent::Spectral(s) => self.apply_consumable(Consumable::Spectral(s))?,
         }
 
         if let Some(ref mut state) = self.open_pack {
@@ -363,20 +291,10 @@ impl Game {
         Ok(())
     }
 
-    pub(crate) fn targeting_pack(&self) -> bool {
-        match self.stage {
-            Stage::TarotHand(_) => self.tarot_prev_stage == Some(Stage::PackOpen()),
-            Stage::SpectralHand(_) => self.spectral_prev_stage == Some(Stage::PackOpen()),
-            _ => false,
-        }
-    }
-
     pub(crate) fn skip_pack(&mut self) -> Result<(), GameError> {
-        if self.stage != Stage::PackOpen() && !self.targeting_pack() {
+        if self.stage != Stage::PackOpen() {
             return Err(GameError::InvalidStage);
         }
-        self.tarot_prev_stage = None;
-        self.spectral_prev_stage = None;
         self.finish_pack();
         Ok(())
     }

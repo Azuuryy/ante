@@ -230,11 +230,30 @@ fn golden_joker_rewards_the_cleared_blind_once() {
     let money = run.view().money;
     run.game.score = run.game.required_score() - 1;
     run.apply_traced(Command::Play, false).unwrap();
-    assert_eq!(run.view().phase, Phase::Reward);
-    assert_eq!(run.view().money, money + 4);
-    let reward = run.view().reward;
+    let view = run.view();
+    assert_eq!(view.phase, Phase::Reward);
+    // Paid at cash out on its own row, like `calculate_dollar_bonus` in evaluate_round.
+    assert_eq!(view.money, money);
+    let golden = view.reward_rows.iter().find(|row| {
+        matches!(
+            row.kind,
+            RewardKind::Joker {
+                name: "Golden Joker",
+                ..
+            }
+        )
+    });
+    assert_eq!(golden.map(|row| row.dollars), Some(4));
+    assert_eq!(
+        view.reward,
+        view.reward_rows
+            .iter()
+            .map(|row| row.dollars)
+            .sum::<usize>()
+    );
     run.apply(Command::CashOut).unwrap();
-    assert_eq!(run.view().money, money + 4 + reward);
+    assert_eq!(run.view().money, money + view.reward);
+    assert!(run.view().reward_rows.is_empty());
 }
 
 #[cfg(feature = "extra-jokers")]
@@ -288,4 +307,57 @@ fn misprint_rolls_vary_and_stay_in_range() {
         .collect();
     assert!(results.len() > 1);
     assert!(results.iter().all(|&mult| mult <= 23));
+}
+
+#[test]
+fn per_card_joker_effects_reach_the_trace_on_their_card() {
+    let mut run = start();
+    run.game.jokers = vec![
+        Jokers::ScaryFace(Default::default()),
+        Jokers::Pareidolia(Default::default()),
+    ];
+    let before = run.game.clone();
+    run.game
+        .effect_registry
+        .register_jokers(before.jokers.clone(), &before);
+    select_first(&mut run);
+    let played = run
+        .view()
+        .cards
+        .iter()
+        .find(|card| card.selected)
+        .unwrap()
+        .id;
+    let outcome = run.apply_traced(Command::Play, false).unwrap();
+    let trace = outcome.trace.unwrap();
+    assert!(trace.0.iter().any(|step| matches!(
+        step.source,
+        ScoreSource::JokerOnCard { name: "Scary Face", card, .. } if card == played
+    )));
+}
+
+#[test]
+fn a_cleared_blind_lists_its_reward_rows_in_the_original_order() {
+    let mut run = start();
+    run.game.money = 12;
+    select_first(&mut run);
+    run.game.score = run.game.required_score() - 1;
+    run.apply(Command::Play).unwrap();
+    let view = run.view();
+    assert_eq!(view.phase, Phase::Reward);
+    // `evaluate_round`: the Blind, $1 per hand left, then $1 per $5 held.
+    let rows: Vec<_> = view
+        .reward_rows
+        .iter()
+        .map(|row| (row.kind.clone(), row.dollars))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            (RewardKind::Blind, 3),
+            (RewardKind::Hands { count: 3 }, 3),
+            (RewardKind::Interest, 2),
+        ]
+    );
+    assert_eq!(view.reward, 8);
 }

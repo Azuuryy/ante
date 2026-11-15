@@ -265,12 +265,9 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         Jokers::Misprint(_) => vec![Effects::OnScore(Arc::new(Mutex::new(
             |g: &mut Game, _: MadeHand| g.mult += g.roll_misprint_mult() as f64,
         )))],
+        // Paid at cash out on its own row: `reward::dollar_bonus`.
         #[cfg(feature = "ante-extra-jokers")]
-        Jokers::GoldenJoker(_) => {
-            vec![Effects::OnRoundEnd(Arc::new(Mutex::new(|g: &mut Game| {
-                g.money += 4
-            })))]
-        }
+        Jokers::GoldenJoker(_) => vec![],
         #[cfg(feature = "ante-extra-jokers")]
         Jokers::IceCream(_) => {
             let remaining = 100_usize.saturating_sub(5 * joker.state().counter as usize);

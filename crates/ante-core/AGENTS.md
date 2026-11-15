@@ -7,4 +7,5 @@ The headless simulation boundary. The root `AGENTS.md` still applies.
 - No Bevy, rendering, timing or file system code. `cargo tree -p ante-core` must not list Bevy (CI checks it).
 - A `RunView` is a projection: building it never draws randomness or mutates the run. Commands that index into a list carry the view `revision` and are refused when stale.
 - Score traces come from the actual play action, never from a replay, so playback shows the committed result.
+- `run_log/` turns commands into position-based JSON lines and replays them; bump `run_log::FORMAT_VERSION` when a line changes shape or meaning. The client writes the files (`services/run_log.rs`).
 - Adapter tests live in `engine/tests/` (scoring, inventory, campaign); run them with and without `extra-jokers`.

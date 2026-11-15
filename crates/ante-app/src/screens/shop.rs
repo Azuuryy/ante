@@ -10,7 +10,7 @@ use crate::{
     },
     services::assets::{catalog::Atlases, ui_text::UiText},
 };
-use ante_core::contract::{Command, Phase, RunView};
+use ante_core::contract::{Command, RunView};
 use bevy::picking::prelude::Pickable;
 use bevy::prelude::*;
 

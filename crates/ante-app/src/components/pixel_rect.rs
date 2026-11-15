@@ -189,7 +189,7 @@ pub(crate) fn dyn_targets(
     let [mut main, mut dark, mut boss_main, mut boss_dark] = previous;
     match phase {
         Phase::Shop => main = mix(RED, BLACK, 0.9),
-        Phase::Pack | Phase::Target => {
+        Phase::Pack => {
             main = match pack {
                 Some(ShopArt::Card { .. }) => RED,
                 Some(ShopArt::Joker(_)) => super::tiles::IMPORTANT,

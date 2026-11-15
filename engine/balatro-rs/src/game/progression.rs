@@ -120,14 +120,15 @@ impl Game {
 
         // score exceeds blind (blind passed).
         // handle reward then progress to next stage.
-        let reward = self.calc_reward(blind)?;
+        let mut reward = self.calc_reward(blind)?;
         self.unused_discards += self.discards_remaining;
-        self.reward = reward;
         if blind == Blind::Boss {
             while self.take_tag(Tag::Investment) {
-                self.reward += 25;
+                reward.tags.push((Tag::Investment, 25));
             }
         }
+        self.reward = reward.total();
+        self.round_reward = reward;
 
         if blind == Blind::Boss {
             let next = if self.endless_mode {

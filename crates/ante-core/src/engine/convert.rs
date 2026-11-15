@@ -156,6 +156,12 @@ pub(super) fn map_trace(trace: NativeTrace) -> ScoreTrace {
                         kind: ContentId(joker.id()),
                         name: joker.name(),
                     },
+                    NativeSource::JokerOnCard(joker, card) => ScoreSource::JokerOnCard {
+                        joker: JokerKey(joker.instance_id()),
+                        kind: ContentId(joker.id()),
+                        name: joker.name(),
+                        card: CardKey(card.id),
+                    },
                     NativeSource::Voucher(voucher) => {
                         ScoreSource::Voucher(ContentId(voucher.id()), voucher_name(voucher))
                     }
@@ -180,4 +186,46 @@ pub(super) fn tag_view(tag: balatro_rs::tag::Tag, name: String) -> TagView {
             .expect("known tag"),
         name,
     }
+}
+
+/// The evaluation rows of a cleared Blind, skipping the empty ones like `evaluate_round`.
+pub(super) fn reward_rows(reward: &balatro_rs::reward::RoundReward) -> Vec<RewardRow> {
+    let mut rows = Vec::new();
+    if reward.blind > 0 {
+        rows.push(RewardRow {
+            kind: RewardKind::Blind,
+            dollars: reward.blind,
+        });
+    }
+    if reward.hands_left > 0 {
+        rows.push(RewardRow {
+            kind: RewardKind::Hands {
+                count: reward.hands_left,
+            },
+            dollars: reward.hand_dollars,
+        });
+    }
+    for (joker, dollars) in &reward.jokers {
+        rows.push(RewardRow {
+            kind: RewardKind::Joker {
+                id: JokerKey(joker.instance_id()),
+                kind: ContentId(joker.id()),
+                name: joker.name(),
+            },
+            dollars: *dollars,
+        });
+    }
+    for (tag, dollars) in &reward.tags {
+        rows.push(RewardRow {
+            kind: RewardKind::Tag(ContentId(tag.id())),
+            dollars: *dollars,
+        });
+    }
+    if reward.interest > 0 {
+        rows.push(RewardRow {
+            kind: RewardKind::Interest,
+            dollars: reward.interest,
+        });
+    }
+    rows
 }

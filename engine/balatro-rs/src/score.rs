@@ -14,6 +14,8 @@ pub enum ScoreSource {
     StoneKicker(Card),
     HeldCard(Card),
     Joker(Jokers),
+    /// A Joker's per-card effect on a scored or held card.
+    JokerOnCard(Jokers, Card),
     // Observatory is the only voucher that touches a scoring pass
     Voucher(Voucher),
 }
@@ -51,6 +53,7 @@ impl ScoreStep {
             ScoreSource::StoneKicker(c) => format!("{c} (stone kicker)"),
             ScoreSource::HeldCard(c) => format!("{c} (held)"),
             ScoreSource::Joker(j) => j.name().to_string(),
+            ScoreSource::JokerOnCard(j, c) => format!("{} on {c}", j.name()),
             ScoreSource::Voucher(v) => v.name().to_string(),
         };
 

@@ -103,7 +103,6 @@ pub enum Command {
         index: usize,
         revision: u64,
     },
-    ApplyTarget,
     SkipPack,
     BuyConsumable {
         index: usize,

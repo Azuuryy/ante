@@ -4,6 +4,7 @@
 
 ### Added
 
+- Run logs: every run writes its configuration and each command, with the confirmed state after it, to `%LOCALAPPDATA%\Ante\runs` (the 20 most recent are kept). `cargo run -p ante-core --example replay -- <log>` reruns a log and reports the first step that diverges (`ante_core::run_log`).
 - Playing cards draw their enhancement centre (Gold, Steel, Glass, Bonus, Mult, Wild, Lucky, Stone) instead of the plain base; Stone cards hide their face, like `Card:draw`.
 - The Gold seal shines with the original voucher shader and Spectral cards with the booster shader. Edition shines follow the original `tilt_var.amt`: the cursor offset on a hovered card, an ambient tilt otherwise.
 - Pack and shop playing cards keep their enhancement, edition and seal (`ShopArt::Card` now carries a `CardLook`), and the run view names the open pack family (`RunView.open_pack`, inferred from the pack contents).
@@ -73,6 +74,7 @@
 
 ### Changed
 
+- The round reward is kept as the original evaluation rows (Blind, hands left, Joker bonuses, tags, interest) and exposed to the client as `RunView.reward_rows`. Golden Joker's $4 is now paid at cash out on its own row, like the original, rather than at the end of the round.
 - The balatro-rs engine is vendored in `engine/` with Ante's twelve patches applied, its Python bindings and colored output removed; `engine/NOTICE.md` records its origin and unverified provenance. It no longer needs a local checkout or a manual patch sequence.
 - `ante-core` holds the contract and the engine adapter (`ante-core::engine`, `EngineRun`, `ExternalBackend`); `ante-app` builds the `ante` binary on it. `extra-jokers` is an `ante-core` feature relayed by `ante-app`. Release builds keep integer overflow checks.
 - Large client, contract and engine files are split into modules by responsibility, and long test modules move to sibling `tests.rs` files. Behavior is unchanged.
@@ -115,6 +117,8 @@
 
 ### Fixed
 
+- Arcana and Spectral packs work like the original: select target cards in the hand first, then click a pack card to highlight it and use it with its USE button (SELECT for Jokers and playing cards), which is red only when the selection fits. Consumables already in your slots can be used while a pack is open. A Planet or Tarot taken from a pack now counts as the last one used for The Fool.
+- Jokers that act on each card (Scary Face, Smiley Face, Fibonacci, the suit Jokers, Baron and 17 others) now trigger on every repetition of every scored or held card, as in the original: with Scary Face, Smiley Face, Sock and Buskin and Pareidolia, a five-card hand scores both Jokers ten times. Their popup appears on the card as it scores, and the Joker juices.
 - Pack choices stay on one row: the area is `n × CARD_W` wide for Arcana and Spectral packs, `× 1.1` for Standard and Buffoon, `× 1.1 + 0.5` for Celestial, and the cards close up instead of wrapping (`create_UIBox_*_pack`). After a pick in a Mega pack the area follows the remaining cards rather than the original's initial width.
 - Played cards keep the play area's step of 1.075 cards (`play_W = 5.3 × CARD_W`, 5 slots) instead of the hand's, so they no longer touch.
 - A hand card released after a drag that did not move it no longer comes to the front: hand cards have one layer per position, and the drag only writes a layer that changes.

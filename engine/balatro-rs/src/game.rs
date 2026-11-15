@@ -109,6 +109,9 @@ pub struct Game {
     #[cfg_attr(feature = "serde", serde(rename = "discards"))] // shouldn't access directly
     pub discards_remaining: usize,
     pub reward: usize,
+    /// Rows of `reward`, kept from the cleared Blind until cash out.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub round_reward: crate::reward::RoundReward,
     pub money: usize,
 
     // for scoring
@@ -153,10 +156,6 @@ pub struct Game {
     // discard-selector rolls, etc.
     #[cfg_attr(feature = "serde", serde(default = "default_backend"))]
     pub(crate) backend: Backend,
-    // track stage so we can come back to it after temp tarot stage
-    pub(crate) tarot_prev_stage: Option<Stage>,
-    // track stage so we can come back to it after temp spectral stage
-    pub(crate) spectral_prev_stage: Option<Stage>,
 
     // open pack state (set when a pack is purchased and being opened)
     #[cfg_attr(feature = "serde", serde(default))]
@@ -232,6 +231,7 @@ impl Game {
             plays: config.plays,
             discards_remaining: config.discards,
             reward: config.reward_base,
+            round_reward: crate::reward::RoundReward::default(),
             money: config.money_start,
             chips: config.base_chips,
             mult: config.base_mult as f64,
@@ -247,8 +247,6 @@ impl Game {
             last_consumable_used: None,
             last_score: 0,
             reroll_cost: default_reroll_cost(),
-            tarot_prev_stage: None,
-            spectral_prev_stage: None,
             open_pack: None,
             seed,
             seed_str,

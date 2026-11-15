@@ -77,6 +77,55 @@ pub(crate) fn pack_description(
     text.pack(family, size, choose, extra)
 }
 
+/// The button under a highlighted pack card (`use_and_sell_buttons`, aligned `bmi` with a
+/// 0.65 offset): USE in red for a consumable it can use now, SELECT in green for a Joker or
+/// playing card, the inactive grey otherwise. It is 0.8 card heights tall and drawn behind
+/// the card, so only its lower part shows.
+fn pack_card_button(
+    ui: &mut ChildSpawnerCommands,
+    item: &ante_core::contract::ShopItem,
+    action: Command,
+    card: Vec2,
+) {
+    let consumable = matches!(item.art, ante_core::contract::ShopArt::Consumable(_));
+    let (text, scale, color) = if consumable {
+        ("USE", 0.55, menu_ui::RED)
+    } else {
+        ("SELECT", 0.45, menu_ui::GREEN)
+    };
+    let height = 0.8 * card.y;
+    ui.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(0),
+            right: px(0),
+            top: px(card.y + menu_ui::tile_px(0.65) - height),
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        ZIndex(-1),
+    ))
+    .observe(|mut event: On<PointerPress>| event.propagate(false))
+    .with_children(|anchor| {
+        anchor
+            .spawn(Node {
+                height: px(height),
+                align_items: AlignItems::FlexEnd,
+                ..default()
+            })
+            .with_children(|column| {
+                menu_ui::card_button(
+                    column,
+                    &[&[(text, scale)]],
+                    color,
+                    (0.5 * card.x / menu_ui::TILE - 0.15, 0.6),
+                    UiRect::all(menu_ui::tiles(0.1)),
+                    item.enabled.then_some(Click::Play(action)),
+                );
+            });
+    });
+}
+
 /// Header of the open pack box.
 pub(super) fn pack_title(family: Option<ante_core::contract::PackFamily>) -> &'static str {
     use ante_core::contract::PackFamily::*;
@@ -93,7 +142,12 @@ pub(super) fn pack_title(family: Option<ante_core::contract::PackFamily>) -> &'s
 /// `create_UIBox_arcana_pack` and its siblings: the pack box rises from below the hand; for
 /// Arcana and Spectral packs the drawn hand stays under it, as `draw_from_deck_to_hand` deals
 /// it, and target cards are picked in that hand.
-pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases: &Atlases) {
+pub(crate) fn pack_board(
+    ui: &mut ChildSpawnerCommands,
+    view: &RunView,
+    atlases: &Atlases,
+    selection: Option<Command>,
+) {
     ui.spawn((
         Node {
             width: percent(100),
@@ -129,22 +183,35 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
             })
             .with_children(|choices| {
                 for (index, item) in view.pack_choices.iter().enumerate() {
-                    let mut card = choices.spawn(Node {
-                        position_type: PositionType::Absolute,
-                        left: px(pack_card_left(index, count, area)),
-                        top: px(0),
-                        ..default()
-                    });
+                    // A click highlights the card; its USE or SELECT button takes it, like
+                    // `Card:highlight` and `use_and_sell_buttons` on a pack card.
+                    let action = Command::PickPack {
+                        index,
+                        revision: view.revision,
+                    };
+                    let chosen = selection == Some(action);
+                    let mut card = choices.spawn((
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: px(pack_card_left(index, count, area)),
+                            top: px(0),
+                            ..default()
+                        },
+                        ZIndex(if chosen { 1 } else { 0 }),
+                    ));
                     card_hover(&mut card);
-                    if item.enabled {
-                        click_target(
-                            &mut card,
-                            Click::Play(Command::PickPack {
-                                index,
-                                revision: view.revision,
-                            }),
-                        );
+                    if chosen {
+                        card.insert(crate::components::widgets::HoverMotion::raised(
+                            crate::components::widgets::HIGHLIGHT_LIFT,
+                        ));
                     }
+                    click_target(
+                        &mut card,
+                        Click::SelectOffer {
+                            action,
+                            revision: view.revision,
+                        },
+                    );
                     tooltip::attach(
                         &mut card,
                         tooltip::art(
@@ -172,6 +239,11 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
                             fallback_art(art, &item.name, size.x);
                         }
                     });
+                    if chosen {
+                        card.with_children(|anchor| {
+                            pack_card_button(anchor, item, action, size);
+                        });
+                    }
                 }
             });
             pack.spawn(Node {
@@ -193,24 +265,13 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
                             menu_ui::text_px(0.6),
                             INK,
                         );
-                        let hint = if view.phase == Phase::Target {
-                            "Select target cards".to_owned()
-                        } else {
-                            format!("Choose {}", view.pack_picks)
-                        };
-                        shadowed_label(title, hint, menu_ui::text_px(0.4), INK);
+                        shadowed_label(
+                            title,
+                            format!("Choose {}", view.pack_picks),
+                            menu_ui::text_px(0.4),
+                            INK,
+                        );
                     });
-                if view.phase == Phase::Target {
-                    menu_ui::card_button(
-                        footer,
-                        &[&[("Use", 0.45)]],
-                        menu_ui::RED,
-                        (1.6, 0.7),
-                        UiRect::all(menu_ui::tiles(0.1)),
-                        view.can_apply_target
-                            .then_some(Click::Play(Command::ApplyTarget)),
-                    );
-                }
                 if view.can_skip_pack {
                     menu_ui::card_button(
                         footer,

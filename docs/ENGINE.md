@@ -19,6 +19,16 @@ The default campaign goes to ante 8; `--one-ante` replays the historical single-
 
 Snapshots go through `Game::from_json`, which rebuilds the effect registry and advances card IDs. A loaded snapshot deals the same cards after a discard (`engine/balatro-rs/tests/snapshot.rs`). Matching effects and random outcomes after longer continued play remain unverified.
 
+## Run logs and replay
+
+Every run writes one JSON-lines file to `%LOCALAPPDATA%\Ante\runs\` (`<timestamp>-<seed>.jsonl`, the 20 most recent kept), in Prod and Dev. The first line is the run configuration (seed, deck, goal, starting money, Ante version, whether the optional Jokers were built in); each following line is one command, its refusal if any, the number of score steps it produced and the confirmed state after it (phase, ante, round, money, score, hands, discards, reward, hand, Jokers, consumables, deck size). Commands name cards and offers by their position in the confirmed view, not by the engine's runtime ids, so a log replays in any process.
+
+```powershell
+cargo run -p ante-core --example replay -- "$env:LOCALAPPDATA\Ante\runs\<file>.jsonl"
+```
+
+The replay reruns the commands on a fresh run and prints the first step whose refusal or state differs from the log, with both states. Add `--features extra-jokers` for logs of runs with the optional Jokers; a log refuses to replay with a different Joker set or line format (`run_log::FORMAT_VERSION`).
+
 ## Seed 0 route
 
 Launch from the Ante root in native Windows, select Play, enable Seeded Run, and type 0.

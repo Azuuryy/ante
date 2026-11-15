@@ -210,7 +210,7 @@ impl Playback {
             return None;
         }
         match self.current()?.source {
-            ScoreSource::Card { id, .. } => Some(id),
+            ScoreSource::Card { id, .. } | ScoreSource::JokerOnCard { card: id, .. } => Some(id),
             _ => None,
         }
     }
@@ -258,6 +258,7 @@ impl Playback {
         let source = match &step.source {
             ScoreSource::Card { rank, suit, .. } => format!("{rank} {suit}"),
             ScoreSource::Joker { name, .. } | ScoreSource::Voucher(_, name) => (*name).to_owned(),
+            ScoreSource::JokerOnCard { name, .. } => format!("{name} on card"),
             ScoreSource::HandLevel(rank) => format!("{rank:?}"),
         };
         let effect = if step.retrigger {
@@ -293,11 +294,14 @@ pub fn popups(step: &ScoreStep, previous: Option<&ScoreStep>) -> Vec<(Popup, f32
     let joker = match step.source {
         ScoreSource::HandLevel(_) => return Vec::new(),
         ScoreSource::Joker { .. } | ScoreSource::Voucher(..) => true,
-        ScoreSource::Card { .. } => false,
+        ScoreSource::Card { .. } | ScoreSource::JokerOnCard { .. } => false,
     };
+    // The card's own step already said "Again!" for this repetition.
+    let on_card = matches!(step.source, ScoreSource::JokerOnCard { .. });
     let delay = |card: f32| if joker { JOKER_POPUP } else { card };
     let mut popups = Vec::new();
     if step.retrigger
+        && !on_card
         && !previous.is_some_and(|previous| previous.retrigger && previous.source == step.source)
     {
         popups.push((Popup::Again, JOKER_POPUP));

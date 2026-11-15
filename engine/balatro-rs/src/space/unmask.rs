@@ -87,10 +87,6 @@ impl ActionSpace {
         Ok(())
     }
 
-    pub(crate) fn unmask_apply_tarot(&mut self) {
-        self.apply_tarot[0] = 1;
-    }
-
     pub(crate) fn unmask_sell_joker(&mut self, i: usize) -> Result<(), ActionSpaceError> {
         if i >= self.sell_joker.len() {
             return Err(ActionSpaceError::InvalidIndex);
@@ -137,9 +133,5 @@ impl ActionSpace {
 
     pub(crate) fn unmask_reroll(&mut self) {
         self.reroll[0] = 1;
-    }
-
-    pub(crate) fn unmask_apply_spectral(&mut self) {
-        self.apply_spectral[0] = 1;
     }
 }

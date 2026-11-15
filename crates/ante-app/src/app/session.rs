@@ -62,6 +62,8 @@ pub(crate) struct Session {
     pub(crate) deck_hovered: bool,
     pub(crate) inventory_selection: Option<(crate::components::card_drag::Lane, usize, u64)>,
     pub(crate) shop_selection: Option<Command>,
+    /// The current run's command log (`services::run_log`).
+    pub(crate) run_log: Option<crate::services::run_log::RunLogFile>,
     pub(crate) error: Option<String>,
     pub(crate) faulted: bool,
     pub(crate) navigation: Navigation,
@@ -93,6 +95,7 @@ impl Session {
             deck_hovered: false,
             inventory_selection: None,
             shop_selection: None,
+            run_log: None,
             error: None,
             faulted: false,
             navigation: Navigation::default(),
@@ -220,10 +223,9 @@ pub(crate) fn process_clicks(
             }
             Click::SelectOffer { action, revision } => {
                 if session.navigation.screen == Page::Run
-                    && session
-                        .confirmed
-                        .as_ref()
-                        .is_some_and(|view| view.phase == Phase::Shop && view.revision == revision)
+                    && session.confirmed.as_ref().is_some_and(|view| {
+                        matches!(view.phase, Phase::Shop | Phase::Pack) && view.revision == revision
+                    })
                 {
                     session.shop_selection = Some(action);
                 }

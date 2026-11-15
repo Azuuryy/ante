@@ -61,7 +61,6 @@ pub struct ActionSpace {
     pub buy_voucher: Vec<usize>,
     pub buy_playing_card: Vec<usize>,
     pub use_consumable: Vec<usize>,
-    pub apply_tarot: Vec<usize>,
     pub sell_joker: Vec<usize>,
     pub sell_consumable: Vec<usize>,
     pub buy_pack: Vec<usize>,
@@ -69,7 +68,6 @@ pub struct ActionSpace {
     pub skip_pack: Vec<usize>,
     pub sort_hand: Vec<usize>,
     pub reroll: Vec<usize>,
-    pub apply_spectral: Vec<usize>,
 }
 
 impl ActionSpace {
@@ -88,7 +86,6 @@ impl ActionSpace {
             + self.buy_voucher.len()
             + self.buy_playing_card.len()
             + self.use_consumable.len()
-            + self.apply_tarot.len()
             + self.sell_joker.len()
             + self.sell_consumable.len()
             + self.buy_pack.len()
@@ -96,7 +93,6 @@ impl ActionSpace {
             + self.skip_pack.len()
             + self.sort_hand.len()
             + self.reroll.len()
-            + self.apply_spectral.len()
     }
 
     fn select_card_min(&self) -> usize {
@@ -211,16 +207,8 @@ impl ActionSpace {
         self.use_consumable_min() + self.use_consumable.len() - 1
     }
 
-    fn apply_tarot_min(&self) -> usize {
-        self.use_consumable_max() + 1
-    }
-
-    fn apply_tarot_max(&self) -> usize {
-        self.apply_tarot_min()
-    }
-
     fn sell_joker_min(&self) -> usize {
-        self.apply_tarot_max() + 1
+        self.use_consumable_max() + 1
     }
 
     fn sell_joker_max(&self) -> usize {
@@ -274,14 +262,6 @@ impl ActionSpace {
     fn reroll_max(&self) -> usize {
         self.reroll_min()
     }
-
-    fn apply_spectral_min(&self) -> usize {
-        self.reroll_min() + self.reroll.len()
-    }
-
-    fn apply_spectral_max(&self) -> usize {
-        self.apply_spectral_min()
-    }
 }
 
 impl From<Config> for ActionSpace {
@@ -303,7 +283,6 @@ impl From<Config> for ActionSpace {
             // Magic Trick can turn every shop card slot into a playing card.
             buy_playing_card: vec![0; c.store_consumable_slots_max],
             use_consumable: vec![0; c.consumable_slots],
-            apply_tarot: vec![0; 1],
             sell_joker: vec![0; c.joker_slots],
             sell_consumable: vec![0; c.consumable_slots],
             buy_pack: vec![0; PACK_SLOTS],
@@ -311,7 +290,6 @@ impl From<Config> for ActionSpace {
             skip_pack: vec![0; 1],
             sort_hand: vec![0; 2],
             reroll: vec![0; 1],
-            apply_spectral: vec![0; 1],
         }
     }
 }
@@ -334,7 +312,6 @@ impl From<ActionSpace> for Vec<usize> {
             a.buy_voucher,
             a.buy_playing_card,
             a.use_consumable,
-            a.apply_tarot,
             a.sell_joker,
             a.sell_consumable,
             a.buy_pack,
@@ -342,7 +319,6 @@ impl From<ActionSpace> for Vec<usize> {
             a.skip_pack,
             a.sort_hand,
             a.reroll,
-            a.apply_spectral,
         ]
         .concat()
     }

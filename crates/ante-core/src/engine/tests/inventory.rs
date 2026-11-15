@@ -229,3 +229,44 @@ fn full_slots_insufficient_money_and_stale_indexes_are_refused() {
     );
     assert_eq!(run.view(), after);
 }
+
+#[test]
+fn pack_targets_are_selected_in_the_hand_before_the_card_is_used() {
+    use balatro_rs::pack::{Pack, PackCategory, PackContent, PackSize};
+    let mut run = shop();
+    run.game.money = 100;
+    run.game.consumables = vec![Consumable::Planet(Planets::Mercury)];
+    run.game.shop.packs = vec![Pack {
+        category: PackCategory::Arcana,
+        size: PackSize::Normal,
+        contents: vec![PackContent::Tarot(Tarot::Lovers)],
+    }];
+    let revision = run.view().revision;
+    run.apply(Command::BuyPack { index: 0, revision }).unwrap();
+    let view = run.view();
+    assert_eq!(view.phase, Phase::Pack);
+    // No target yet: Lovers waits; the slot Planet stays usable in the pack.
+    assert!(!view.pack_choices[0].enabled);
+    assert!(view.consumables[0].can_use);
+    let target = view.cards[0].id;
+    assert!(view.cards[0].enabled);
+    run.apply(Command::ToggleCard(target)).unwrap();
+    let view = run.view();
+    assert!(view.pack_choices[0].enabled);
+    run.apply(Command::PickPack {
+        index: 0,
+        revision: view.revision,
+    })
+    .unwrap();
+    assert_eq!(run.view().phase, Phase::Shop);
+    let wild = run
+        .game
+        .deck
+        .cards()
+        .into_iter()
+        .find(|card| card.id == target.0);
+    assert_eq!(
+        wild.and_then(|card| card.enhancement),
+        Some(balatro_rs::card::Enhancement::Wild)
+    );
+}

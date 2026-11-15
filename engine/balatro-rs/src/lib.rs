@@ -25,6 +25,7 @@ pub mod planet;
 pub mod rank;
 #[cfg(feature = "serde")]
 pub mod replay_log;
+pub mod reward;
 mod rng;
 pub mod score;
 pub mod shop;
@@ -47,5 +48,7 @@ mod consumable_highlight_tests;
 mod consumable_room_tests;
 #[cfg(test)]
 mod debug_tests;
+#[cfg(test)]
+mod per_card_joker_tests;
 #[cfg(test)]
 mod trace_effect_tests;

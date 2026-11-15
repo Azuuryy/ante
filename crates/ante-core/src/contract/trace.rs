@@ -47,6 +47,14 @@ pub enum ScoreSource {
         name: &'static str,
     },
     Voucher(ContentId, &'static str),
+    /// A Joker's effect on one scored or held card: the popup shows on the card and the
+    /// Joker juices, like `card_eval_status_text` on the card in `evaluate_play`.
+    JokerOnCard {
+        joker: JokerKey,
+        kind: ContentId,
+        name: &'static str,
+        card: CardKey,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]

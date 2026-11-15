@@ -4,6 +4,7 @@ impl Game {
     pub(super) fn cashout(&mut self) -> Result<(), GameError> {
         self.money += self.reward;
         self.reward = 0;
+        self.round_reward = Default::default();
         self.reroll_cost = self.base_reroll_cost();
         self.stage = Stage::Shop();
         self.refresh_voucher_offer();

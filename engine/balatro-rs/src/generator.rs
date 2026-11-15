@@ -9,8 +9,7 @@ mod pack_actions;
 impl Game {
     // Get all legal SelectCard actions that can be executed given current state
     fn gen_actions_select_card(&self) -> Option<impl Iterator<Item = Action>> {
-        // Can only select card during blinds
-        if !self.stage.is_blind() {
+        if !self.hand_selectable() {
             return None;
         }
         // Cannot select more than max
@@ -28,7 +27,7 @@ impl Game {
 
     // Get all legal DeselectCard actions that can be executed given current state
     fn gen_actions_deselect_card(&self) -> Option<impl Iterator<Item = Action>> {
-        if !self.stage.is_blind() {
+        if !self.hand_selectable() {
             return None;
         }
         let selected = self.available.selected();
@@ -187,10 +186,7 @@ impl Game {
 
     // Get use consumable actions
     fn gen_actions_use_consumable(&self) -> Option<impl Iterator<Item = Action>> {
-        if matches!(
-            self.stage,
-            Stage::End(_) | Stage::TarotHand(_) | Stage::SpectralHand(_) | Stage::PackOpen()
-        ) {
+        if matches!(self.stage, Stage::End(_)) {
             return None;
         }
         if self.consumables.is_empty() {
