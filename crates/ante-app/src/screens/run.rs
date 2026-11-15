@@ -14,7 +14,7 @@ use crate::{
         cards::{inventory_cards, voucher_card},
         theme::{INK, MUTED},
         tiles::{BLUE, ORANGE, RED, text_px, tile_button, tile_optional},
-        widgets::{atlas_image, card_hover, label, row, wrap_row},
+        widgets::{atlas_image, label, row, wrap_row},
     },
     screens::{
         hand::playing_board,
@@ -29,9 +29,11 @@ mod blind;
 mod board;
 mod deck;
 mod deck_select;
+mod deck_view;
 mod hud;
 mod pause;
 mod result;
+mod round_eval;
 mod shop_sign;
 mod text;
 
@@ -39,9 +41,12 @@ use blind::*;
 pub use board::*;
 pub use deck::*;
 pub use deck_select::*;
+pub use deck_view::inspect_deck;
 pub use hud::*;
 pub use pause::*;
 pub use result::*;
+use round_eval::round_eval_panel;
+pub(crate) use round_eval::{RoundEvalClock, reveal_round_eval};
 pub(crate) use shop_sign::*;
 pub(crate) use text::*;
 

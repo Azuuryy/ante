@@ -270,3 +270,21 @@ fn pack_targets_are_selected_in_the_hand_before_the_card_is_used() {
         Some(balatro_rs::card::Enhancement::Wild)
     );
 }
+
+#[test]
+fn collection_lists_follow_the_original_order() {
+    use crate::contract::{ContentGroup, GameBackend};
+    let planets = crate::engine::ExternalBackend
+        .catalog(ContentGroup::Planets)
+        .iter()
+        .map(|planet| planet.id.0)
+        .collect::<Vec<_>>();
+    assert_eq!(planets.first(), Some(&"c_mercury"));
+    assert_eq!(planets[8], "c_pluto");
+    assert_eq!(planets.last(), Some(&"c_eris"));
+    let blinds = crate::engine::ExternalBackend.catalog(ContentGroup::Blinds);
+    assert_eq!(blinds[2].id.0, "bl_hook");
+    assert_eq!(blinds.last().map(|blind| blind.id.0), Some("bl_final_bell"));
+    let tags = crate::engine::ExternalBackend.catalog(ContentGroup::Tags);
+    assert_eq!(tags[0].id.0, "tag_uncommon");
+}

@@ -19,6 +19,10 @@ const KEYS: &[(&str, &str)] = &[
     ("ante_x_voucher", "Ante #1# vouchers"),
     ("ph_blind_score_at_least", "Score at least"),
     ("ph_blind_reward", "Reward: "),
+    ("b_cash_out", "Cash Out"),
+    ("ph_score_at_least", "Score at least"),
+    ("remaining_hand_money", "Remaining Hands ($#1# each)"),
+    ("interest", "#1# interest per $#2# (#3# max)"),
 ];
 
 /// Booster families and sizes whose `p_<family>_<size>` description is read.
@@ -49,6 +53,16 @@ impl UiText {
     /// `get` with `#1#` replaced, like `localize{type = 'variable'}`.
     pub fn with_var(&self, key: &str, value: impl ToString) -> String {
         self.get(key).replace("#1#", &value.to_string())
+    }
+
+    /// `get` with `#1#`, `#2#`, … replaced in order.
+    pub fn with_vars(&self, key: &str, values: &[usize]) -> String {
+        values
+            .iter()
+            .enumerate()
+            .fold(self.get(key), |text, (i, value)| {
+                text.replace(&format!("#{}#", i + 1), &value.to_string())
+            })
     }
 
     /// A booster description: `p_<family>_<size>` with `#1#` (choices) and `#2#` (cards).

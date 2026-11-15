@@ -112,6 +112,8 @@ pub(crate) struct PlayingFace<'a> {
     pub(crate) edition: &'a str,
     pub(crate) seal: &'a str,
     pub(crate) debuffed: bool,
+    /// Drawn with the `played` shader, like a card the deck view greys out.
+    pub(crate) greyed: bool,
     pub(crate) seed: usize,
 }
 
@@ -130,7 +132,7 @@ pub(crate) fn playing_card_face(
         ui,
         atlases.card_base_for(card.enhancement),
         (!stone).then_some(face),
-        card.debuffed,
+        (card.debuffed, card.greyed),
         width,
         Some((card.seal, atlases.seal(card.seal))),
         (card.edition, card.seed),
@@ -142,7 +144,7 @@ pub(crate) fn card_face_with_seal(
     ui: &mut ChildSpawnerCommands,
     base: Option<ImageNode>,
     face: Option<ImageNode>,
-    debuffed: bool,
+    (debuffed, greyed): (bool, bool),
     width: f32,
     seal: Option<(&str, Option<ImageNode>)>,
     (edition, seed): (&str, usize),
@@ -208,6 +210,26 @@ pub(crate) fn card_face_with_seal(
                     Pickable::IGNORE,
                 ));
             }
+        }
+        if greyed {
+            // `Card:draw` covers a greyed card with the `played` shader; a dark tint stands
+            // in without local shaders.
+            for image in &sprites {
+                crate::components::edition::overlay(layers, "Played", image, seed);
+            }
+            layers.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: px(0),
+                    top: px(0),
+                    width: percent(100),
+                    height: percent(100),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.45)),
+                Pickable::IGNORE,
+                DebuffFallback,
+            ));
         }
         if debuffed {
             // `Card:draw` covers a debuffed card's base and face with the debuff shader;

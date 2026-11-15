@@ -27,19 +27,19 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | Options vidéo | MVP | Vérifier VSync, résolution et modes d'affichage. |
 | Options graphiques / ressources | In progress | Recetter import, remplacement et secours. |
 | Options audio | Not implemented | Cartographier les contrôles et la persistance. |
-| Collection / accueil | In progress | Comparer navigation et catégories. |
-| Collection / jokers | In progress | Comparer pages, découverte et sprite de base. |
-| Collection / vouchers | In progress | Comparer pages, découverte et prérequis. |
-| Collection / tags | In progress | Comparer pages et infobulles. |
-| Collection / decks | MVP | Étendre la couverture et vérifier la sélection. |
-| Collection / tarots | Not implemented | Brancher le catalogue. |
-| Collection / planètes | Not implemented | Brancher le catalogue. |
-| Collection / spectraux | Not implemented | Brancher le catalogue. |
-| Collection / boosters | Not implemented | Brancher le catalogue. |
-| Collection / améliorations | Not implemented | Brancher le catalogue. |
-| Collection / éditions | Not implemented | Brancher le catalogue. |
-| Collection / sceaux | Not implemented | Brancher le catalogue. |
-| Collection / blinds | Not implemented | Brancher le catalogue. |
+| Collection / accueil | In progress | Disposition de `create_UIBox_your_collection` (groupe Consumables, compteurs). À comparer à taille égale. |
+| Collection / jokers | In progress | 3 zones `title` de 5, cycle « Page n/N », centre non découvert et « ? ». Le « ? » ne se balance pas encore. |
+| Collection / vouchers | In progress | 2 zones `voucher` de 4 (paires superposées). Comparer prérequis. |
+| Collection / tags | In progress | Grille de 6 par rangée, tag « ? » pour les non découverts. |
+| Collection / decks | In progress | Carrousel avec pastilles, nom et description sur blanc. La pile reste l'aperçu d'Ante. |
+| Collection / tarots | In progress | Zones de 5 et 6, 2 pages. À comparer. |
+| Collection / planètes | In progress | 6 + 6 de Mercure à Éris, sans cycle. À comparer. |
+| Collection / spectraux | In progress | Zones de 4 et 5, 2 pages. À comparer. |
+| Collection / boosters | In progress | 2 × 4 à 1,27 carte dans des zones de 1,3 carte. À comparer. |
+| Collection / améliorations | In progress | 2 × 4. Le texte d'information est une formulation d'Ante. |
+| Collection / éditions | In progress | Base puis 4 éditions sur le Joker, avec leur shader. |
+| Collection / sceaux | In progress | 1 × 4 sur une carte vierge. |
+| Collection / blinds | In progress | Grille de 5 dans l'ordre d'origine et table ANTE / BASE (antes 1 à 16). L'ante la plus haute n'est pas enregistrée : tous les montants restent gris. |
 | Challenges | Not implemented | Inventorier conditions, sélection et sortie. |
 | HUD et compteurs | In progress | Reconstruit d'après `create_UIBox_HUD` : boîtes intérieures, jeton de mise, Chips × Mult côte à côte, enseigne animée, couleurs dynamiques et coins pixelisés. À comparer à 1920 × 1056 ; l'ombre portée ne suit pas encore la parallaxe horizontale. |
 | Choix des blinds | In progress | Vérifier les trois états et l’objectif du boss. |
@@ -47,7 +47,7 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | Main et actions | In progress | Comparer taille, sélection et recouvrement. Vérifier le glisser-déposer et le tri Rank/Suit. |
 | Aperçu Chips × Mult | In progress | Vérifier niveau, sélection vide et lecture du score. |
 | Résolution du score | In progress | Vérifier la trace et les interactions. Les effets animés viendront au jalon VFX. |
-| Encaissement | MVP | Ajouter les lignes de détail de la récompense. |
+| Encaissement | In progress | Lignes et dollars d'`add_round_eval_row` au rythme d'origine, puis Cash Out. Le panneau ne monte pas encore depuis le bas. |
 | Boutique / cartes | In progress | Haut à 3,587 unités, cadre `UIBox_dyn_container` jusqu'en bas, Buy & Use atomique. Comparer offres variables et contrôles. |
 | Boutique / vouchers | In progress | Recetter achats multiples, prix et prérequis. |
 | Boutique / boosters | In progress | Comparer atlas, tailles, prix et ouverture. |
@@ -58,8 +58,8 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | Packs / Spectral | In progress | Vérifier la sélection des cibles et le retour. |
 | Inventaire / jokers | In progress | Comparer disposition, panneau de vente et capacités. Vérifier l'ordre d'activation après dépôt. |
 | Inventaire / consommables | In progress | Comparer le glisser-déposer, le panneau d'actions et les capacités. |
-| Deck / Full Deck | In progress | Comparer groupes et compteurs. |
-| Deck / Remaining | In progress | Vérifier la pioche restante et le retour à la sélection. |
+| Deck / Full Deck | In progress | Disposition de `G.UIDEF.view_deck` : boîte du deck, décomptes, colonne des rangs, une zone `title` par couleur. Le DynaText qui alterne base et effectif est remplacé par les deux nombres côte à côte. |
+| Deck / Remaining | In progress | Les cartes déjà piochées restent affichées, grisées par le shader `played`. |
 | Deck / grille au survol | In progress | Vérifier comptes, cartes masquées et valeurs effectives. |
 | Infobulle / carte à jouer | In progress | Nom centré sur boîte blanche, chips et règle d'amélioration, badges et boîtes latérales d'édition et de sceau (`card_h_popup`). À comparer à taille égale : largeur fixe de 4,2 tuiles contre la largeur au contenu de l'original. |
 | Infobulle / joker | In progress | Comparer rareté, état et valeurs dynamiques. Le « Currently » n'est calculé que pour les jokers observables; vérifier chaque valeur suivie et ne pas exposer l'état brut hors build Dev. |

@@ -356,7 +356,7 @@ fn a_cleared_blind_lists_its_reward_rows_in_the_original_order() {
         vec![
             (RewardKind::Blind, 3),
             (RewardKind::Hands { count: 3 }, 3),
-            (RewardKind::Interest, 2),
+            (RewardKind::Interest { max: 5 }, 2),
         ]
     );
     assert_eq!(view.reward, 8);

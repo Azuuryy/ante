@@ -189,7 +189,10 @@ pub(super) fn tag_view(tag: balatro_rs::tag::Tag, name: String) -> TagView {
 }
 
 /// The evaluation rows of a cleared Blind, skipping the empty ones like `evaluate_round`.
-pub(super) fn reward_rows(reward: &balatro_rs::reward::RoundReward) -> Vec<RewardRow> {
+pub(super) fn reward_rows(
+    reward: &balatro_rs::reward::RoundReward,
+    interest_max: usize,
+) -> Vec<RewardRow> {
     let mut rows = Vec::new();
     if reward.blind > 0 {
         rows.push(RewardRow {
@@ -223,7 +226,7 @@ pub(super) fn reward_rows(reward: &balatro_rs::reward::RoundReward) -> Vec<Rewar
     }
     if reward.interest > 0 {
         rows.push(RewardRow {
-            kind: RewardKind::Interest,
+            kind: RewardKind::Interest { max: interest_max },
             dollars: reward.interest,
         });
     }

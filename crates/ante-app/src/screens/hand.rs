@@ -198,6 +198,7 @@ pub(crate) fn hand_rows(
                             edition: &card.edition,
                             seal: &card.seal,
                             debuffed: card.debuffed,
+                            greyed: false,
                             seed: card.id.0,
                         };
                         if !crate::components::widgets::playing_card_face(

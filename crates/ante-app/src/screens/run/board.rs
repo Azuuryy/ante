@@ -11,6 +11,8 @@ pub struct RunBoard {
     pub(super) deck_count: Entity,
     /// The deck area holding the stacked backs.
     pub(super) deck_pile: Entity,
+    /// The "View Deck" label, centred on the top card of the pile.
+    pub(super) deck_label: Entity,
     pub(super) deck_back: Option<ImageNode>,
     /// Cards in the deck when its backs were last drawn.
     pub(super) deck_shown: Option<usize>,
@@ -123,6 +125,7 @@ impl RunBoard {
             .id();
         let deck_back = atlases.deck_back(deck);
         let mut deck_pile = Entity::PLACEHOLDER;
+        let mut deck_label = Entity::PLACEHOLDER;
         let mut ante_end = Entity::PLACEHOLDER;
         let mut blind_box = Entity::PLACEHOLDER;
         let mut blind_texts = [Entity::PLACEHOLDER; 4];
@@ -304,7 +307,7 @@ impl RunBoard {
                             });
                     });
                 }
-                deck_hover_label(region);
+                deck_label = deck_hover_label(region);
                 deck_count = value(region, text_px(0.3), INK);
                 // Held tags stand left of the deck without moving it.
                 tags = region
@@ -369,6 +372,7 @@ impl RunBoard {
             tags,
             deck_count,
             deck_pile,
+            deck_label,
             deck_back,
             deck_shown: None,
             ante_end,

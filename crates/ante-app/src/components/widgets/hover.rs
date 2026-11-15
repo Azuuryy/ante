@@ -101,6 +101,16 @@ impl Fan {
         }
     }
 
+    /// Resting tilt and drop of a card area slot (`card_area::Slot`, room units), swaying
+    /// with the phase `x` like the original's `card.T.x`.
+    pub(crate) fn area(slot: crate::components::card_area::Slot, x: f32) -> Self {
+        Self {
+            rotation: slot.rotation,
+            drop: slot.drop * menu_ui::TILE,
+            phase: x,
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn rotation(self) -> f32 {
         self.rotation
@@ -176,6 +186,11 @@ pub(super) struct Juice {
 impl HoverMotion {
     pub(crate) fn hovered(&self) -> bool {
         self.hovered
+    }
+
+    /// A card resting in a fanned area row.
+    pub(crate) fn fanned(fan: Fan) -> Self {
+        Self { fan, ..default() }
     }
 
     /// A card resting lifted, like a highlighted pack card.

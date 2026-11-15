@@ -77,6 +77,8 @@ impl Atlases {
             "bl_flint" => (0, 24),
             "bl_final_acorn" => (0, 27),
             "bl_final_heart" => (0, 25),
+            // `G.b_undiscovered`.
+            "bl_undiscovered" => (0, 30),
             _ => return None,
         };
         Some(square(self.blind_chips.clone()?, 34.0, x, y))
@@ -109,6 +111,8 @@ impl Atlases {
             "tag_orbital" => (5, 2),
             "tag_economy" => (4, 3),
             "tag_speed" => (0, 3),
+            // `G.tag_undiscovered`.
+            "tag_undiscovered" => (3, 4),
             _ => return None,
         };
         Some(square(self.tags.clone()?, 34.0, x, y))
@@ -200,6 +204,11 @@ impl Atlases {
             Erratic => (2, 3),
         };
         Some(tile(self.card_surfaces.clone()?, x, y))
+    }
+
+    /// Cell `(x, y)` of the 18x18-cell ui_assets sheet, such as the `tally_sprite` icons.
+    pub fn ui_cell(&self, x: u32, y: u32) -> Option<ImageNode> {
+        Some(square(self.ui_assets.clone()?, 18.0, x, y))
     }
 
     /// Swirl background cell {2,0} of the 18x18-cell ui_assets sheet (72x36).

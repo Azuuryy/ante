@@ -112,7 +112,12 @@ pub(super) fn offer_area(
                 tooltip::TipAnchor::Left,
             );
             item.with_children(|art| {
-                price_tag(art, offer.price, card.y);
+                let overlap = if offer.verb == Verb::Open {
+                    BOOSTER_PRICE_TAG_OVERLAP
+                } else {
+                    PRICE_TAG_OVERLAP
+                };
+                price_tag(art, offer.price, card.y, overlap);
                 if chosen {
                     offer_buttons(art, offer, card);
                 }
@@ -138,13 +143,18 @@ pub(super) fn offer_area(
 
 /// `create_shop_card_ui`'s price tag: a dark tab behind the card's top edge, its price in a
 /// lighter box.
-pub(super) fn price_tag(ui: &mut ChildSpawnerCommands, price: usize, card_height: f32) {
+pub(super) fn price_tag(
+    ui: &mut ChildSpawnerCommands,
+    price: usize,
+    card_height: f32,
+    overlap: f32,
+) {
     ui.spawn((
         Node {
             position_type: PositionType::Absolute,
             left: px(0),
             right: px(0),
-            bottom: px(card_height - menu_ui::tile_px(PRICE_TAG_OVERLAP)),
+            bottom: px(card_height - menu_ui::tile_px(overlap)),
             justify_content: JustifyContent::Center,
             ..default()
         },
@@ -287,6 +297,7 @@ pub(super) fn playing_art(
             edition: look.edition,
             seal: look.seal.unwrap_or_default(),
             debuffed: false,
+            greyed: false,
             seed,
         };
         if !crate::components::widgets::playing_card_face(ui, atlases, &face, width) {

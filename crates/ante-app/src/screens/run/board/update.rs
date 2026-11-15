@@ -118,6 +118,10 @@ impl RunBoard {
             self.deck_shown = Some(view.deck_cards);
             let card = crate::components::tiles::card_px();
             let n = view.deck_cards;
+            let top = deck_offset(n, 1) * TILE;
+            commands
+                .entity(self.deck_label)
+                .insert(UiTransform::from_xy(px(top.x), px(top.y)));
             commands
                 .entity(self.deck_pile)
                 .despawn_children()
@@ -221,21 +225,7 @@ impl RunBoard {
                     shop_board(center, view, atlases, session.shop_selection, text);
                 }
                 Phase::Reward => {
-                    label(center, "Blind cleared", 38.0, INK);
-                    label(
-                        center,
-                        format!("Round score {}", score_text(view.score)),
-                        25.0,
-                        INK,
-                    );
-                    tile_button(
-                        center,
-                        &format!("Cash Out +${}", view.reward),
-                        ORANGE,
-                        (3.4, 1.0),
-                        0.52,
-                        Click::Play(Command::CashOut),
-                    );
+                    round_eval_panel(center, view, atlases, session.stake, text);
                 }
                 Phase::Pack => pack_board(center, view, atlases, session.shop_selection),
                 Phase::Won | Phase::Lost => {}

@@ -118,6 +118,7 @@ pub(crate) fn edition_shaders(edition: &str) -> &'static [&'static str] {
         "Booster" => &["booster"],
         "Voucher" => &["voucher"],
         "Debuff" => &["debuff"],
+        "Played" => &["played"],
         "Dissolve" => &["dissolve"],
         _ => &[],
     }

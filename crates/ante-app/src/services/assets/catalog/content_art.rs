@@ -125,6 +125,38 @@ impl Atlases {
         Some(tile(self.boosters.clone()?, x, y))
     }
 
+    /// The centre `Card:set_sprites` draws for an undiscovered (`j_`, `t_`, `p_`, `s_`,
+    /// `v_` and `booster_undiscovered`) or locked (`j_locked`, `v_locked`) collection card.
+    pub fn hidden_center(
+        &self,
+        group: ante_core::contract::ContentGroup,
+        locked: bool,
+    ) -> Option<ImageNode> {
+        use ante_core::contract::ContentGroup::*;
+        let (atlas, x, y) = match (group, locked) {
+            (Jokers, true) => (&self.jokers, 8, 9),
+            (Jokers | Editions, _) => (&self.jokers, 9, 9),
+            (Vouchers, true) => (&self.vouchers, 8, 3),
+            (Vouchers, false) => (&self.vouchers, 8, 2),
+            (Tarots, _) => (&self.consumables, 6, 2),
+            (Planets, _) => (&self.consumables, 7, 2),
+            (Spectrals, _) => (&self.consumables, 5, 2),
+            (Boosters, _) => (&self.boosters, 0, 5),
+            _ => return None,
+        };
+        Some(tile(atlas.clone()?, x, y))
+    }
+
+    /// The "?" drawn over an undiscovered card: `undiscovered_joker` for Jokers and
+    /// editions, `undiscovered_tarot` otherwise, from the centres atlas.
+    pub fn undiscovered_mark(&self, joker: bool) -> Option<ImageNode> {
+        Some(tile(
+            self.card_surfaces.clone()?,
+            if joker { 5 } else { 6 },
+            3,
+        ))
+    }
+
     pub fn shop_sign(&self) -> Option<ImageNode> {
         Some(ImageNode {
             rect: Some(Rect::new(0.0, 0.0, 113.0, 57.0)),

@@ -112,42 +112,6 @@ pub(crate) fn button(
     menu_ui::menu_button(ui, &text.into(), BUTTON, action);
 }
 
-pub(crate) fn control(
-    ui: &mut ChildSpawnerCommands,
-    background: Color,
-    action: Option<Click>,
-    (width, height): (f32, f32),
-    description: Option<tooltip::Tip>,
-    content: impl FnOnce(&mut ChildSpawnerCommands),
-) {
-    let mut entity = ui.spawn((
-        Node {
-            min_width: px(width),
-            min_height: px(height),
-            padding: UiRect::axes(px(12), px(5)),
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            flex_direction: FlexDirection::Column,
-            row_gap: px(4),
-            ..default()
-        },
-        BackgroundColor(background),
-    ));
-    if let Some(description) = description {
-        tooltip::attach(&mut entity, description);
-    }
-    if let Some(action) = action {
-        entity.observe(
-            move |event: On<PointerClick>, mut clicks: MessageWriter<Click>| {
-                if event.button == PointerButton::Primary {
-                    clicks.write(action);
-                }
-            },
-        );
-    }
-    entity.with_children(content);
-}
-
 pub(crate) fn speed_button(ui: &mut ChildSpawnerCommands, speed: Speed) {
     button(
         ui,

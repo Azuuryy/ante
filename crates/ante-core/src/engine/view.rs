@@ -358,7 +358,7 @@ impl EngineRun {
             discards: game.discards(),
             money: game.money,
             reward: game.reward,
-            reward_rows: reward_rows(&game.round_reward),
+            reward_rows: reward_rows(&game.round_reward, game.interest_max()),
             deck_cards,
             discarded_cards: game.discarded.len(),
             cards,

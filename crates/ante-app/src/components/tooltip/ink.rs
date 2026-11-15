@@ -54,19 +54,19 @@ pub(super) const RARITY_LEGENDARY: Color = Color::srgb(
     0xBB as f32 / 255.0,
 );
 
-pub(super) const TAROT: Color = Color::srgb(
+pub(crate) const TAROT: Color = Color::srgb(
     0xA7 as f32 / 255.0,
     0x82 as f32 / 255.0,
     0xD1 as f32 / 255.0,
 );
 
-pub(super) const PLANET: Color = Color::srgb(
+pub(crate) const PLANET: Color = Color::srgb(
     0x13 as f32 / 255.0,
     0xAF as f32 / 255.0,
     0xCE as f32 / 255.0,
 );
 
-pub(super) const SPECTRAL: Color = Color::srgb(
+pub(crate) const SPECTRAL: Color = Color::srgb(
     0x45 as f32 / 255.0,
     0x84 as f32 / 255.0,
     0xFA as f32 / 255.0,

@@ -30,7 +30,7 @@ pub fn tile_button(
     node.with_children(|parent| shadowed_label(parent, text, text_px(text_scale), INK));
 }
 
-pub(super) fn attach_button(
+pub(crate) fn attach_button(
     node: &mut bevy::ecs::system::EntityCommands,
     color: Color,
     action: Click,

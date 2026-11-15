@@ -4,6 +4,10 @@
 
 ### Added
 
+- Round evaluation after a beaten blind, after `add_round_eval_row`: the Blind row (chip, target, stake), then the remaining hands, Joker bonuses, tags and interest under a dotted line, each row and dollar sign appearing on the original event timing with the `cancel`, `highlight1` and `coin3` sounds, then the "Cash Out: $N" button. Rows come from `RunView.reward_rows`, now with an `Interest` row.
+- The deck view follows `G.UIDEF.view_deck`: the deck name and description, base and effective tallies (aces, faces, numbers, suits) with the ui_assets icons, the rank column, and one `title` card row per suit at 0.7 card size. The Remaining tab greys the cards already drawn with the original `played` shader instead of hiding them.
+- The Collection follows `create_UIBox_your_collection*`: the hub with its Consumables group, one black box of card areas per page (Jokers 3 × 5, Tarots 5 + 6, Planets 6 + 6, Spectrals 4 + 5, Boosters 2 × 4 at 1.27 size, Vouchers in overlapping pairs, Enhanced 2 × 4, Seals, Editions on the Joker), a red "Page n/N" cycle, the Tags grid, the Blinds grid beside the ante table and the deck carousel with its pips. Undiscovered cards show the original undiscovered centre with the "?" over it; collection cards hover like hand cards.
+- Shared pieces: `tiles::generic_options` (JOKER_GREY frame, L_BLACK body, full-width Back), `tiles::option_cycle` and `components/card_row.rs` (a card area drawn as a row with the slot fan).
 - Hovered cards lean toward the pointer like the original: a vertex stage written for Ante (`components/tilt.wgsl`) ports the `position()` stage of the card shaders, and card sprites inside a card switch to it automatically, with their edition overlays.
 - Cards lean with their sideways speed while they travel (`Moveable:move_r`: 0.015 × the x velocity, eased by `exp(-190·dt)`), then straighten.
 - "Tarot" and "Spectral" in descriptions catch a light sweeping across them every 2.4 seconds. This is an Ante addition; the original draws them in their plain set colour.
@@ -78,6 +82,9 @@
 
 ### Changed
 
+- Shop price tags overlap the top of their card as the original `create_shop_card_ui` aligns them; booster tags sit a little lower.
+- Hovering the deck shows "View Deck" in white on a half-transparent black box centred on the top card, which follows the pile as it shrinks.
+- The engine catalog lists Planets (Mercury to Eris), Blinds and Tags in their original `order`, as the collection shows them.
 - Edition badges (Foil, Holographic, Polychrome, Negative) cycle through the original `G.C.DARK_EDITION` colours instead of staying black.
 - "Tarot", "Planet" and "Spectral" are capitalised in descriptions and drawn in their `G.C.SECONDARY_SET` colours.
 - The round reward is kept as the original evaluation rows (Blind, hands left, Joker bonuses, tags, interest) and exposed to the client as `RunView.reward_rows`. Golden Joker's $4 is now paid at cash out on its own row, like the original, rather than at the end of the round.

@@ -41,7 +41,7 @@ Cette roadmap suit les comportements détaillés, surface par surface. La roadma
 | Description des cartes d'un pack | À vérifier | Le code attache déjà `item.description`; vérifier qu'aucun état de sélection ne la remplace par une consigne générique. |
 | Ciblage depuis un pack | Fait, à valider en jeu | Sélection libre dans la main du pack, carte mise en avant puis USE ou SELECT, Skip inchangé. |
 | Vouchers et prérequis | En cours | Éligibilité, remise, effets immédiats et avantages persistants. |
-| Récompense, cash out et intérêts | En cours | Le moteur garde les lignes d'`evaluate_round` (Blind, mains restantes, bonus de Jokers, tags, intérêts) jusqu'au cash out; `RunView.reward_rows` les expose. L'écran d'origine reste à faire (lot C). |
+| Récompense, cash out et intérêts | En cours, à valider en jeu | Le moteur garde les lignes d'`evaluate_round` (Blind, mains restantes, bonus de Jokers, tags, intérêts) jusqu'au cash out; `RunView.reward_rows` les expose. L'écran d'origine les révèle au rythme d'`add_round_eval_row`, avec ses sons, puis affiche Cash Out. |
 
 ## Cartes à jouer : état et effets
 
@@ -74,7 +74,7 @@ Cette roadmap suit les comportements détaillés, surface par surface. La roadma
 | Fonctionnalité | État actuel | Travail / critère de sortie |
 | --- | --- | --- |
 | Collection jokers, vouchers, tags | En cours | Pagination et découverte présentes; les objets à condition de déblocage affichent un cadenas, un tooltip « Locked » et leur condition. Vérifier chaque condition et le rendu du cadenas à taille réelle. |
-| Collection cartes, boosters, améliorations, éditions, sceaux, blinds | Fait, à comparer | Voir « Autres catégories ». |
+| Collection cartes, boosters, améliorations, éditions, sceaux, blinds | Fait, à comparer | Pages d'après `create_UIBox_your_collection_*` : zones de cartes, cycle de pages, grilles Tags et Blinds, table des antes. |
 | Déblocages et carrière | En cours | Profil JSON v2 : `version`, `discovered`, `all_unlocked`, avec migration v1. Le bouton debug « Unlock all » est dans Settings > GAME (`dev-tools`). La découverte sert encore de substitut au déblocage réel; compter les statistiques de carrière reste à faire. |
 | Decks, stakes et challenges | À cartographier | Les 15 decks ont un identifiant et une condition de déblocage affichée en Collection. Les règles de stake, la sélection verrouillée et les challenges ne sont pas branchés. |
 

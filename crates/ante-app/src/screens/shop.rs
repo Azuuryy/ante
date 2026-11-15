@@ -304,8 +304,10 @@ fn restock_note(ui: &mut ChildSpawnerCommands, (width, height): (f32, f32)) {
 
 /// Space between the Joker row and the voucher and booster row, in tiles.
 const SHOP_ROW_GAP: f32 = 0.5;
-/// How far the price tag's dark tab goes down behind the card, in tiles.
-const PRICE_TAG_OVERLAP: f32 = 0.15;
+/// How far the price tag goes down behind the card, in tiles: the `price` UIBox is aligned
+/// `tm` with a 0.38 offset, 0.5 for boosters (`create_shop_card_ui`).
+const PRICE_TAG_OVERLAP: f32 = 0.38;
+const BOOSTER_PRICE_TAG_OVERLAP: f32 = 0.5;
 /// Shop Jokers per row before vouchers like Overstock add slots.
 const SHOP_JOKER_SLOTS: usize = 2;
 /// Booster cards are created at 1.27 card sizes.
@@ -314,7 +316,7 @@ const BOOSTER_SCALE: f32 = 1.27;
 const SELECTED_OFFER_Z: i32 = 10;
 
 /// What a selected offer's main button does.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Verb {
     Buy,
     Redeem,

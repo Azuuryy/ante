@@ -1,6 +1,7 @@
 pub(crate) mod background;
 pub(crate) mod card_area;
 pub(crate) mod card_drag;
+pub(crate) mod card_row;
 pub(crate) mod cards;
 pub(crate) mod dissolve;
 pub(crate) mod edition;

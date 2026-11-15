@@ -233,6 +233,6 @@ pub enum RewardKind {
     },
     /// A tag paying out, such as Investment.
     Tag(ContentId),
-    /// $1 per $5 held, up to the cap.
-    Interest,
+    /// $1 per $5 held, up to `max` dollars.
+    Interest { max: usize },
 }

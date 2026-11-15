@@ -19,53 +19,98 @@ pub(super) fn collection_sprite(
             .and_then(|&(_, _, family, size)| atlases.booster(family, size)),
         ContentGroup::Blinds => atlases.blind_chip(id),
         ContentGroup::Enhancements => atlases.enhancement(id),
-        ContentGroup::Editions | ContentGroup::Seals => atlases.card_base(),
+        // `e_*` centres use the Joker atlas at {0, 0}: the plain Joker.
+        ContentGroup::Editions => atlases.joker("j_joker"),
+        ContentGroup::Seals => atlases.card_base(),
     }
 }
 
-/// Draws an entry like the original collection: editions on a plain card with their
-/// shader, seals stamped on a plain card, blinds as chips and the rest as their sprite.
-pub(super) fn collection_art(
+/// Fills a card of `size` px: its art like the original collection draws it (editions on
+/// the plain Joker with their shader, seals stamped on a plain card), or the undiscovered
+/// or locked centre with the "?" over it.
+pub(super) fn collection_card_art(
     art: &mut ChildSpawnerCommands,
     atlases: &Atlases,
     group: ContentGroup,
     id: &str,
-    sprite: ImageNode,
+    (discovered, locked): (bool, bool),
+    size: Vec2,
 ) {
-    match group {
-        ContentGroup::Blinds => atlas_image(art, sprite, 66.0, 66.0),
-        ContentGroup::Editions => {
-            let label = match id {
-                "e_foil" => "Foil",
-                "e_holo" => "Holographic",
-                "e_polychrome" => "Polychrome",
-                _ => "Negative",
-            };
-            atlas_image(art, sprite.clone(), 66.0, 88.0);
-            crate::components::edition::overlay(art, label, &sprite, 0);
+    let hidden = locked || (!discovered && hides_undiscovered(group));
+    if hidden {
+        match atlases.hidden_center(group, locked) {
+            Some(center) => layer(art, center, size),
+            None => fallback_art(art, "?", size.x),
         }
-        ContentGroup::Seals => {
-            let seal = match id {
-                "gold_seal" => "Gold",
-                "red_seal" => "Red",
-                "blue_seal" => "Blue",
-                _ => "Purple",
-            };
-            atlas_image(art, sprite, 66.0, 88.0);
-            if let Some(stamp) = atlases.seal(seal) {
-                art.spawn((
-                    stamp,
-                    Node {
-                        position_type: PositionType::Absolute,
-                        width: px(66),
-                        height: px(88),
-                        ..default()
-                    },
-                    Pickable::IGNORE,
-                ));
+        if !locked
+            && let Some(mark) = atlases.undiscovered_mark(matches!(
+                group,
+                ContentGroup::Jokers | ContentGroup::Editions
+            ))
+        {
+            layer(art, mark, size);
+        }
+        return;
+    }
+    let Some(sprite) = collection_sprite(atlases, group, id) else {
+        fallback_art(art, id, size.x);
+        return;
+    };
+    match group {
+        ContentGroup::Editions => {
+            layer(art, sprite.clone(), size);
+            if let Some(edition) = edition_label(id) {
+                crate::components::edition::overlay(art, edition, &sprite, 0);
             }
         }
-        _ => atlas_image(art, sprite, 66.0, 88.0),
+        ContentGroup::Seals => {
+            layer(art, sprite, size);
+            if let Some(stamp) = atlases.seal(seal_name(id)) {
+                layer(art, stamp, size);
+            }
+        }
+        _ => layer(art, sprite, size),
+    }
+}
+
+/// `Card:set_sprites` hides undiscovered Jokers, editions, consumables, vouchers and
+/// boosters; enhancements and seals always show.
+pub(super) fn hides_undiscovered(group: ContentGroup) -> bool {
+    !matches!(group, ContentGroup::Enhancements | ContentGroup::Seals)
+}
+
+fn layer(art: &mut ChildSpawnerCommands, image: ImageNode, size: Vec2) {
+    art.spawn((
+        image,
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(0),
+            top: px(0),
+            width: px(size.x),
+            height: px(size.y),
+            ..default()
+        },
+        Pickable::IGNORE,
+    ));
+}
+
+/// The edition shader of a collection edition; `None` for the plain base.
+pub(super) fn edition_label(id: &str) -> Option<&'static str> {
+    match id {
+        "e_foil" => Some("Foil"),
+        "e_holo" => Some("Holographic"),
+        "e_polychrome" => Some("Polychrome"),
+        "e_negative" => Some("Negative"),
+        _ => None,
+    }
+}
+
+fn seal_name(id: &str) -> &'static str {
+    match id {
+        "gold_seal" => "Gold",
+        "red_seal" => "Red",
+        "blue_seal" => "Blue",
+        _ => "Purple",
     }
 }
 
@@ -91,8 +136,10 @@ pub(super) fn collection_tip(
             })
             .info(crate::components::info::references(item.id.0))
     } else {
-        tooltip::Tip::new(&item.name, "Undiscovered")
-            .detail("Find this item in a run to reveal it.")
+        tooltip::Tip::new(
+            "Not Discovered",
+            "Find this card in an unseeded run to learn what it does.",
+        )
     };
     tip.technical(format!("ID: {}", item.id.0))
         .technical(format!("Group: {group:?}"))

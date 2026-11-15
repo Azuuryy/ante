@@ -51,11 +51,74 @@ pub(super) static TAROTS: LazyLock<Vec<Content>> = LazyLock::new(|| {
         .collect()
 });
 
+/// Planets in their original `order` (Mercury first, Eris last), which the collection
+/// follows; the engine enum keeps its own order for its pools.
+const PLANET_ORDER: [&str; 12] = [
+    "c_mercury",
+    "c_venus",
+    "c_earth",
+    "c_mars",
+    "c_jupiter",
+    "c_saturn",
+    "c_uranus",
+    "c_neptune",
+    "c_pluto",
+    "c_planet_x",
+    "c_ceres",
+    "c_eris",
+];
+
 pub(super) static PLANETS: LazyLock<Vec<Content>> = LazyLock::new(|| {
-    balatro_rs::planet::Planets::iter()
+    let mut planets: Vec<Content> = balatro_rs::planet::Planets::iter()
         .map(|card| consumable_content(balatro_rs::consumable::Consumable::Planet(card)))
-        .collect()
+        .collect();
+    in_original_order(&mut planets, &PLANET_ORDER);
+    planets
 });
+
+/// Sorts a collection list by the original `order` given as ids; unknown ids go last.
+fn in_original_order(items: &mut [Content], order: &[&str]) {
+    items.sort_by_key(|item| {
+        order
+            .iter()
+            .position(|id| *id == item.id.0)
+            .unwrap_or(order.len())
+    });
+}
+
+/// Blinds in their original `order`, as the collection grid shows them.
+const BLIND_ORDER: [&str; 30] = [
+    "bl_small",
+    "bl_big",
+    "bl_hook",
+    "bl_ox",
+    "bl_house",
+    "bl_wall",
+    "bl_wheel",
+    "bl_arm",
+    "bl_club",
+    "bl_fish",
+    "bl_psychic",
+    "bl_goad",
+    "bl_water",
+    "bl_window",
+    "bl_manacle",
+    "bl_eye",
+    "bl_mouth",
+    "bl_plant",
+    "bl_serpent",
+    "bl_pillar",
+    "bl_needle",
+    "bl_head",
+    "bl_tooth",
+    "bl_flint",
+    "bl_mark",
+    "bl_final_acorn",
+    "bl_final_leaf",
+    "bl_final_vessel",
+    "bl_final_heart",
+    "bl_final_bell",
+];
 
 pub(super) static SPECTRALS: LazyLock<Vec<Content>> = LazyLock::new(|| {
     balatro_rs::spectral::Spectral::iter()
@@ -123,6 +186,7 @@ pub(super) static BLINDS: LazyLock<Vec<Content>> = LazyLock::new(|| {
         supported: true,
         unlock: None,
     }));
+    in_original_order(&mut blinds, &BLIND_ORDER);
     blinds
 });
 
@@ -193,8 +257,36 @@ pub(super) static SEALS: LazyLock<Vec<Content>> = LazyLock::new(|| {
     ]
 });
 
+/// Tags in their original `order`.
+const TAG_ORDER: [&str; 24] = [
+    "tag_uncommon",
+    "tag_rare",
+    "tag_negative",
+    "tag_foil",
+    "tag_holo",
+    "tag_polychrome",
+    "tag_investment",
+    "tag_voucher",
+    "tag_boss",
+    "tag_standard",
+    "tag_charm",
+    "tag_meteor",
+    "tag_buffoon",
+    "tag_handy",
+    "tag_garbage",
+    "tag_ethereal",
+    "tag_coupon",
+    "tag_double",
+    "tag_juggle",
+    "tag_d_six",
+    "tag_top_up",
+    "tag_skip",
+    "tag_orbital",
+    "tag_economy",
+];
+
 pub(super) static TAGS: LazyLock<Vec<Content>> = LazyLock::new(|| {
-    Tag::iter()
+    let mut tags: Vec<Content> = Tag::iter()
         .map(|tag| Content {
             id: ContentId(tag.id()),
             name: tag.name().to_owned(),
@@ -203,8 +295,11 @@ pub(super) static TAGS: LazyLock<Vec<Content>> = LazyLock::new(|| {
             supported: true,
             unlock: None,
         })
-        .collect()
+        .collect();
+    in_original_order(&mut tags, &TAG_ORDER);
+    tags
 });
+
 /// Collection unlock text for items that are not available from the start.
 /// Conditions are paraphrased from the reference rules; they are display
 /// metadata only and do not drive unlock progression yet.

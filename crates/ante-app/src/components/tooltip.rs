@@ -13,7 +13,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 
-mod ink;
+pub(crate) mod ink;
 mod panel;
 mod tip;
 
@@ -30,12 +30,7 @@ const PANEL_SIDE_PADDING: f32 = 12.0;
 /// Side boxes (`info_queue`) hang left of the main popup, centred on it, like `align = 'cl'`.
 const SIDE_WIDTH: f32 = 3.0 * TILE;
 const SIDE_GAP: f32 = 4.0;
-/// `G.C.JOKER_GREY`.
-const JOKER_GREY: Color = Color::srgb(
-    0xBF as f32 / 255.0,
-    0xC7 as f32 / 255.0,
-    0xD5 as f32 / 255.0,
-);
+use super::tiles::JOKER_GREY;
 /// `G.C.SECONDARY_SET.Enhanced`.
 const ENHANCED: Color = Color::srgb(
     0x83 as f32 / 255.0,

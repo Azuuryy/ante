@@ -111,6 +111,7 @@ pub fn run(backend: impl GameBackend) {
         .init_resource::<Atlases>()
         .init_resource::<tooltip::TooltipState>()
         .init_resource::<card_drag::CardDrag>()
+        .init_resource::<screens::run::RoundEvalClock>()
         .init_resource::<components::travel::CardTrail>()
         .add_message::<Click>()
         .add_message::<services::assets::sounds::Sfx>()
@@ -153,6 +154,7 @@ pub fn run(backend: impl GameBackend) {
                 screens::run::animate_shop_sign,
                 screens::run::float_text,
                 screens::run::fill_local_text,
+                screens::run::reveal_round_eval,
             ),
         )
         .add_systems(
