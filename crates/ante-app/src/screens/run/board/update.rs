@@ -194,7 +194,15 @@ impl RunBoard {
             .with_children(|center| match view.phase {
                 Phase::BeforeBlind => {
                     for (index, blind) in view.blinds.iter().enumerate() {
-                        blind_panel(center, blind, index, atlases, view.revision);
+                        blind_panel(
+                            center,
+                            blind,
+                            index,
+                            atlases,
+                            BlindPanel::Choice {
+                                revision: view.revision,
+                            },
+                        );
                     }
                     if view.can_reroll_boss
                         || view

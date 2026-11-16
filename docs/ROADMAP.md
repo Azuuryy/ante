@@ -71,7 +71,7 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | Infobulle / tag | In progress | Vérifier effet et cible Orbital. |
 | Infobulle / blind | MVP | Vérifier les données et conditions de focus. |
 | Run Info / Poker Hands | In progress | Comparer niveaux et nombres de mains. |
-| Run Info / Blinds | In progress | Comparer ordre et objectifs. |
+| Run Info / Blinds | In progress | Panneaux du choix des blinds (`G.UIDEF.current_blinds`) avec leur état coloré et « Skip Reward » sans bouton. Comparer taille et états à la référence. |
 | Run Info / Vouchers | In progress | Vérifier l'état détenu et la navigation. |
 | Victoire, défaite et Endless | In progress | Comparer les trois résultats et la limite numérique. |
 | Survol et sélection des cartes | In progress | Le zoom au survol (+5 %) est partagé par la main, la boutique, les packs, les inventaires et les vues Deck. Reste : lissage `exp(-60·dt)`, juice, soulèvement de sélection de 0,2·hauteur de carte et inclinaison selon le curseur. |

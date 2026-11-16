@@ -41,20 +41,32 @@ pub fn run_info(ui: &mut ChildSpawnerCommands, view: &RunView, atlases: &Atlases
         });
         match tab {
             1 => {
-                for blind in &view.blinds {
-                    row(panel, |line| {
-                        if let Some(chip) = atlases.blind_chip(blind.id) {
-                            atlas_image(line, chip, 33.0, 33.0);
+                // `G.UIDEF.current_blinds`: the blind choice panels with their state and no
+                // buttons. The blind in play is Current.
+                let current = (view.phase == Phase::Playing)
+                    .then(|| view.blinds.iter().position(|b| !b.passed && !b.skipped))
+                    .flatten();
+                panel
+                    .spawn(Node {
+                        width: percent(100),
+                        column_gap: px(14),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::FlexStart,
+                        ..default()
+                    })
+                    .with_children(|line| {
+                        for (index, blind) in view.blinds.iter().enumerate() {
+                            blind_panel(
+                                line,
+                                blind,
+                                index,
+                                atlases,
+                                BlindPanel::RunInfo {
+                                    current: current == Some(index),
+                                },
+                            );
                         }
-                        label(
-                            line,
-                            format!("{}   {}", blind.name, score_text(blind.target)),
-                            24.0,
-                            INK,
-                        );
-                        label(line, &blind.description, 21.0, MUTED);
                     });
-                }
             }
             2 => {
                 if view.vouchers.is_empty() {

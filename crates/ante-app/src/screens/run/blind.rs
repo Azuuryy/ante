@@ -192,20 +192,52 @@ pub(super) fn tag_icon(
     });
 }
 
+/// Where a blind panel is drawn: the blind choice, or the Blinds tab of Run Info
+/// (`create_UIBox_blind_choice(type, run_info)`), which shows the blind's state instead of
+/// its buttons.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(super) enum BlindPanel {
+    Choice { revision: u64 },
+    RunInfo { current: bool },
+}
+
+/// The state `run_info` prints on a blind, with its colour: Current in RED, Defeated in
+/// GREY, Skipped in BLUE, Upcoming in ORANGE and anything else (Select) in GOLD.
+pub(super) fn run_info_state(blind: &BlindView, current: bool) -> (&'static str, Color) {
+    use crate::components::tiles::GREY;
+    if current {
+        ("Current", RED)
+    } else if blind.skipped {
+        ("Skipped", BLUE)
+    } else if blind.passed {
+        ("Defeated", GREY)
+    } else if blind.selectable {
+        ("Select", GOLD)
+    } else {
+        ("Upcoming", ORANGE)
+    }
+}
+
 pub(super) fn blind_panel(
     ui: &mut ChildSpawnerCommands,
     blind: &BlindView,
     index: usize,
     atlases: &Atlases,
-    revision: u64,
+    mode: BlindPanel,
 ) {
+    let (revision, run_info) = match mode {
+        BlindPanel::Choice { revision } => (revision, None),
+        BlindPanel::RunInfo { current } => (0, Some(current)),
+    };
+    // In Run Info the panels stand level, and the current or selectable one stays lit.
+    let lit = blind.selectable || run_info == Some(true);
     let color = match index {
         0 => BLUE,
         1 => GOLD,
         _ => Color::srgb(0.63, 0.63, 0.55),
     };
     let muted = crate::components::tiles::emboss(color);
-    let offset = if blind.selectable { 0.0 } else { 38.0 };
+    let offset = if lit || run_info.is_some() { 0.0 } else { 38.0 };
     let mut panel = ui.spawn((
         Node {
             margin: UiRect::top(px(offset)),
@@ -217,16 +249,31 @@ pub(super) fn blind_panel(
             border_radius: BorderRadius::all(px(15)),
             ..column(14.0)
         },
-        BackgroundColor(if blind.selectable {
+        BackgroundColor(if lit {
             PANEL
         } else {
             Color::srgb(0.16, 0.23, 0.23)
         }),
-        BorderColor::all(if blind.selectable { color } else { muted }),
+        BorderColor::all(if lit { color } else { muted }),
     ));
     // `create_UIBox_blind_choice` gives the blind no popup: its rule is printed on it, and
     // a hover would hide the tag popup of the skip button inside it.
     panel.with_children(|card| {
+        if let Some(current) = run_info {
+            let (state, colour) = run_info_state(blind, current);
+            card.spawn((
+                Node {
+                    width: crate::components::tiles::tiles(2.49),
+                    height: crate::components::tiles::tiles(0.64),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                PixelBox::new(colour).emboss(0.08),
+                Pickable::IGNORE,
+            ))
+            .with_children(|state_box| label(state_box, state, text_px(0.42), INK));
+        }
         let selection = if blind.selectable {
             "Select"
         } else if blind.skipped {
@@ -236,23 +283,25 @@ pub(super) fn blind_panel(
         } else {
             "Upcoming"
         };
-        tile_optional(
-            card,
-            selection,
-            ORANGE,
-            (2.49, 0.64),
-            0.42,
-            blind.selectable.then_some(Click::Play(Command::StartBlind)),
-            false,
-        );
+        if run_info.is_none() {
+            tile_optional(
+                card,
+                selection,
+                ORANGE,
+                (2.49, 0.64),
+                0.42,
+                blind.selectable.then_some(Click::Play(Command::StartBlind)),
+                false,
+            );
+        }
         label(
             card,
             &blind.name,
             text_px(0.45),
-            if blind.selectable { INK } else { MUTED },
+            if lit { INK } else { MUTED },
         );
         if let Some(mut chip) = atlases.blind_chip(blind.id) {
-            if !blind.selectable {
+            if !lit {
                 chip.color = Color::srgb(0.65, 0.66, 0.62);
             }
             atlas_image(card, chip, 86.0, 86.0);
@@ -284,20 +333,37 @@ pub(super) fn blind_panel(
             label(card, "or", 23.0, INK);
             row(card, |skip| {
                 tag_icon(skip, atlases, tag);
-                tile_optional(
-                    skip,
-                    "Skip Blind",
-                    RED,
-                    (1.92, 0.68),
-                    0.37,
-                    blind
-                        .can_skip
-                        .then_some(Click::Play(Command::SkipBlind { revision })),
-                    false,
-                );
+                if run_info.is_some() {
+                    // `create_UIBox_blind_tag(type, true)`: "Skip Reward" in place of the
+                    // Skip Blind button.
+                    skip.spawn((
+                        Node {
+                            max_width: crate::components::tiles::tiles(2.0),
+                            padding: UiRect::all(crate::components::tiles::tiles(0.1)),
+                            ..default()
+                        },
+                        PixelBox::new(crate::components::tiles::mix(BLUE, BLACK, 0.4)).emboss(0.05),
+                        Pickable::IGNORE,
+                    ))
+                    .with_children(|reward| {
+                        label(reward, "Skip Reward", text_px(0.35), INK);
+                    });
+                } else {
+                    tile_optional(
+                        skip,
+                        "Skip Blind",
+                        RED,
+                        (1.92, 0.68),
+                        0.37,
+                        blind
+                            .can_skip
+                            .then_some(Click::Play(Command::SkipBlind { revision })),
+                        false,
+                    );
+                }
             });
             label(card, &tag.name, 20.0, MUTED);
-        } else {
+        } else if run_info.is_none() {
             label(card, "Final blind of the ante", 20.0, GOLD);
         }
     });

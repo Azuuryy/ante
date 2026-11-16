@@ -20,3 +20,40 @@ fn mult_text_follows_number_format() {
     assert_eq!(mult_text(123.4), "123");
     assert_eq!(mult_text(1234.0), "1,234");
 }
+
+#[test]
+fn run_info_prints_each_blind_state_in_its_colour() {
+    let blind = |selectable, passed, skipped| ante_core::contract::BlindView {
+        id: "bl_small",
+        name: "Small Blind".into(),
+        target: 300,
+        reward: 3,
+        description: String::new(),
+        selectable,
+        passed,
+        skipped,
+        tag: None,
+        can_skip: false,
+    };
+    use crate::components::tiles::GREY;
+    assert_eq!(
+        run_info_state(&blind(false, false, false), true),
+        ("Current", RED)
+    );
+    assert_eq!(
+        run_info_state(&blind(false, true, false), false),
+        ("Defeated", GREY)
+    );
+    assert_eq!(
+        run_info_state(&blind(false, false, true), false),
+        ("Skipped", BLUE)
+    );
+    assert_eq!(
+        run_info_state(&blind(true, false, false), false),
+        ("Select", GOLD)
+    );
+    assert_eq!(
+        run_info_state(&blind(false, false, false), false),
+        ("Upcoming", ORANGE)
+    );
+}
