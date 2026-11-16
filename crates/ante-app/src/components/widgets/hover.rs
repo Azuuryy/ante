@@ -193,15 +193,6 @@ impl HoverMotion {
         Self { fan, ..default() }
     }
 
-    /// A card resting lifted, like a highlighted pack card.
-    pub(crate) fn raised(lift: f32) -> Self {
-        Self {
-            raise: lift,
-            lift,
-            ..default()
-        }
-    }
-
     /// Original `juice_up(scale, rotation)` on a card: both are scaled by 0.4.
     pub(crate) fn juice_up(&mut self, scale: f32, rotation: f32, clockwise: bool) {
         self.juice = Some(Juice {

@@ -11,7 +11,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Lane {
     Hand,
     Jokers,

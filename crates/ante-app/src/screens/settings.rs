@@ -121,19 +121,14 @@ pub(crate) fn show_options(
                 });
             }
             _ => {
-                for (title, value, game) in [
-                    ("Master volume", profile.volume(), false),
-                    ("Game sounds", profile.game_volume(), true),
+                // `G.UIDEF.settings_tab('Audio')`: master, music and game sound sliders.
+                use crate::services::profile::VolumeChannel::{Game, Master, Music};
+                for (title, channel) in [
+                    ("Master Volume", Master),
+                    ("Music Volume", Music),
+                    ("Game Volume", Game),
                 ] {
-                    label(panel, title, menu_ui::text_px(0.42), INK);
-                    tile(
-                        panel,
-                        &format!("<     {value}     >"),
-                        BLUE,
-                        (4.6, 0.8),
-                        0.43,
-                        Click::StepVolume(game),
-                    );
+                    menu_ui::volume_slider(panel, title, channel, profile.volume_of(channel));
                 }
                 label(
                     panel,

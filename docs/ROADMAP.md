@@ -19,14 +19,14 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 
 | Surface | Statut | Écart ou recette suivante |
 | --- | --- | --- |
-| Menu principal | In progress | Comparer logo, boutons et retours avec et sans atlas. |
+| Menu principal | In progress | Fond `splash` d'origine sur toute la fenêtre (RED et BLUE), musique music1. Comparer logo, boutons et retours avec et sans atlas. Le flash d'ouverture (`mid_flash`) attend l'écran de démarrage. |
 | Profils et records | MVP | Vérifier découvertes persistantes. Ajouter profils multiples et records. |
 | Démarrage / graine | In progress | Comparer carrousel et saisie. Étendre les decks et stakes. |
 | Pause | In progress | Comparer reprise, redémarrage et retour à la run. |
 | Options de jeu | MVP | Vérifier la vitesse et inventorier les autres réglages. |
 | Options vidéo | MVP | Vérifier VSync, résolution et modes d'affichage. |
 | Options graphiques / ressources | In progress | Recetter import, remplacement et secours. |
-| Options audio | Not implemented | Cartographier les contrôles et la persistance. |
+| Options audio | In progress | Trois curseurs `create_slider` (Master, Music, Game) enregistrés au relâchement. Comparer taille et rendu des curseurs. |
 | Collection / accueil | In progress | Disposition de `create_UIBox_your_collection` (groupe Consumables, compteurs). À comparer à taille égale. |
 | Collection / jokers | In progress | 3 zones `title` de 5, cycle « Page n/N », centre non découvert et « ? ». Popups de partie (badge de rareté) dans toutes les catégories. Le « ? » ne se balance pas encore. |
 | Collection / vouchers | In progress | 2 zones `voucher` de 4 (paires superposées). Comparer prérequis. |
@@ -46,11 +46,11 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | HUD et compteurs | In progress | Reconstruit d'après `create_UIBox_HUD` : boîtes intérieures, jeton de mise, Chips × Mult côte à côte, enseigne animée, couleurs dynamiques et coins pixelisés. À comparer à 1920 × 1056 ; l'ombre portée ne suit pas encore la parallaxe horizontale. |
 | Choix des blinds | In progress | Les panneaux n'ont pas de popup, comme l'original ; le tag à côté de Skip Blind a le sien. Vérifier les trois états et l’objectif du boss. Un boss qui voudrait sa propre popup (modding) n'a pas encore de champ pour la fournir. |
 | Tags détenus | In progress | Comparer pile, acquisition et disparition. |
-| Main et actions | In progress | La rangée Play Hand / Sort / Discard reste en place quand la sélection change. Comparer taille, sélection et recouvrement. Vérifier le glisser-déposer et le tri Rank/Suit. |
+| Main et actions | In progress | La rangée Play Hand / Sort / Discard reste en place quand la sélection change, et un bouton désactivé reste gris au survol. Comparer taille, sélection et recouvrement. Vérifier le glisser-déposer et le tri Rank/Suit. |
 | Aperçu Chips × Mult | In progress | Vérifier niveau, sélection vide et lecture du score. |
 | Résolution du score | In progress | Vérifier la trace et les interactions. Les effets animés viendront au jalon VFX. |
 | Encaissement | In progress | Lignes et dollars d'`add_round_eval_row` au rythme d'origine, puis Cash Out. Le panneau ne monte pas encore depuis le bas. |
-| Boutique / cartes | In progress | Haut à 3,587 unités, cadre `UIBox_dyn_container` jusqu'en bas, Buy & Use atomique. Comparer offres variables et contrôles. |
+| Boutique / cartes | In progress | Haut à 3,587 unités, cadre `UIBox_dyn_container` jusqu'en bas, Buy & Use atomique. Choisir une offre ne reconstruit plus la boutique. Comparer offres variables et contrôles. |
 | Boutique / vouchers | In progress | Recetter achats multiples, prix et prérequis. |
 | Boutique / boosters | In progress | Comparer atlas, tailles, prix et ouverture. |
 | Packs / Standard | In progress | Comparer choix de cartes et retour. |

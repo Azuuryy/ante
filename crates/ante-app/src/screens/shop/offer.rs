@@ -64,7 +64,7 @@ pub(super) fn vertical_label(ui: &mut ChildSpawnerCommands, ante: usize, height:
 pub(super) fn offer_area(
     ui: &mut ChildSpawnerCommands,
     offers: &[Offer],
-    (selected, revision, atlases): (Option<Command>, u64, &Atlases),
+    (revision, atlases): (u64, &Atlases),
     (width, height): (f32, f32),
     (limit, scale): (usize, f32),
 ) {
@@ -78,7 +78,6 @@ pub(super) fn offer_area(
     })
     .with_children(|zone| {
         for (index, offer) in offers.iter().enumerate() {
-            let chosen = selected == Some(offer.action);
             let mut item = zone.spawn((
                 Node {
                     position_type: PositionType::Absolute,
@@ -94,7 +93,14 @@ pub(super) fn offer_area(
                     height: px(card.y),
                     ..default()
                 },
-                ZIndex(if chosen { SELECTED_OFFER_Z } else { 0 }),
+                ZIndex(0),
+                Selectable {
+                    key: SelectKey::Offer(offer.action),
+                    layer: Layer::Local,
+                    rest_z: 0,
+                    chosen_z: SELECTED_OFFER_Z,
+                    lift: 0.0,
+                },
             ));
             card_hover(&mut item);
             click_target(
@@ -116,9 +122,7 @@ pub(super) fn offer_area(
                     PRICE_TAG_OVERLAP
                 };
                 price_tag(art, offer.price, card.y, overlap);
-                if chosen {
-                    offer_buttons(art, offer, card);
-                }
+                offer_buttons(art, offer, card);
                 if let Some(image) = &offer.image {
                     if let Some(face) = offer.playing_card {
                         playing_art(art, atlases, face, offer.edition.1, card.x);
@@ -197,7 +201,7 @@ pub(super) fn price_tag(
     });
 }
 
-/// The buttons of a selected offer, drawn behind the card: the main one under it ('bm',
+/// The buttons of an offer, shown while it is selected and drawn behind the card: the main one under it ('bm',
 /// offset -0.3) and the consumable's "Buy & Use" to its right ('cr', offset -0.3).
 pub(super) fn offer_buttons(ui: &mut ChildSpawnerCommands, offer: &Offer, card: Vec2) {
     let overlap = menu_ui::tile_px(0.3);
@@ -216,6 +220,7 @@ pub(super) fn offer_buttons(ui: &mut ChildSpawnerCommands, offer: &Offer, card: 
             ..default()
         },
         ZIndex(-1),
+        SelectionButtons,
     ))
     .observe(|mut event: On<PointerPress>| event.propagate(false))
     .with_children(|anchor| {
@@ -242,6 +247,7 @@ pub(super) fn offer_buttons(ui: &mut ChildSpawnerCommands, offer: &Offer, card: 
                 ..default()
             },
             ZIndex(-1),
+            SelectionButtons,
         ))
         .observe(|mut event: On<PointerPress>| event.propagate(false))
         .with_children(|anchor| {

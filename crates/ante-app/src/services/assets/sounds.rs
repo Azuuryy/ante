@@ -34,6 +34,8 @@ pub const SOUND_FILES: &[&str] = &[
     "crumple3",
     "crumple4",
     "crumple5",
+    "explosion_buildup1",
+    "explosion_release1",
     "foil1",
     "generic1",
     "highlight1",
@@ -134,7 +136,8 @@ pub fn play(
         requests.clear();
         return;
     };
-    let master = profile.volume() as f32 / 100.0 * profile.game_volume() as f32 / 100.0;
+    use crate::services::profile::VolumeChannel::{Game, Master};
+    let master = profile.volume_of(Master) as f32 / 100.0 * profile.volume_of(Game) as f32 / 100.0;
     for request in requests.read() {
         let Some(handle) = bank.loaded.get(request.name) else {
             continue;
@@ -152,6 +155,40 @@ pub fn play(
     }
 }
 
+/// Sounds due later, like a `play_sound` inside a delayed event: (real time due, sound).
+#[derive(Resource, Default)]
+pub struct ScheduledSfx {
+    due: Vec<(f32, Sfx)>,
+}
+
+impl ScheduledSfx {
+    /// Plays `sound` `delay` real seconds after `now`.
+    pub fn after(&mut self, now: f32, delay: f32, sound: Sfx) {
+        self.due.push((now + delay, sound));
+    }
+
+    /// Takes the sounds due at `now`, in the order they were scheduled.
+    fn take_due(&mut self, now: f32) -> Vec<Sfx> {
+        let (ready, waiting) = self.due.drain(..).partition(|(at, _)| *at <= now);
+        self.due = waiting;
+        ready.into_iter().map(|(_, sound)| sound).collect()
+    }
+}
+
+/// Sends the scheduled sounds whose time has come.
+pub fn release_scheduled(
+    time: Res<Time<Real>>,
+    mut scheduled: ResMut<ScheduledSfx>,
+    mut sounds: MessageWriter<Sfx>,
+) {
+    if scheduled.due.is_empty() {
+        return;
+    }
+    for sound in scheduled.take_due(time.elapsed_secs()) {
+        sounds.write(sound);
+    }
+}
+
 /// Original pitch jitter: `0.9 + 0.2 × random`.
 pub fn jitter(base: f32, spread: f32) -> f32 {
     base + spread * rand::random::<f32>()
@@ -165,6 +202,19 @@ mod tests {
     fn only_ogg_streams_are_accepted() {
         assert!(validate(b"OggS\0\x02").is_ok());
         assert!(validate(b"RIFF....WAVE").is_err());
+    }
+
+    #[test]
+    fn scheduled_sounds_wait_for_their_time() {
+        let mut scheduled = ScheduledSfx::default();
+        scheduled.after(1.0, 0.5, Sfx::new("explosion_buildup1", 1.0, 1.0));
+        scheduled.after(1.0, 2.0, Sfx::new("explosion_release1", 1.0, 1.0));
+        assert!(scheduled.take_due(1.4).is_empty());
+        let first = scheduled.take_due(1.5);
+        assert_eq!(first.len(), 1);
+        assert_eq!(first[0].name, "explosion_buildup1");
+        assert_eq!(scheduled.take_due(3.0)[0].name, "explosion_release1");
+        assert!(scheduled.due.is_empty());
     }
 
     #[test]

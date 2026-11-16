@@ -14,7 +14,9 @@ use bevy::{picking::prelude::Pickable, prelude::*};
 
 const MENU_ROW_Y: f32 = 87.0;
 
-pub fn main_menu(ui: &mut ChildSpawnerCommands, atlases: &Atlases) {
+/// The main menu; `splash` says the `splash` shader already fills the canvas behind it, so
+/// the still swirl is only drawn as its fallback.
+pub fn main_menu(ui: &mut ChildSpawnerCommands, atlases: &Atlases, splash: bool) {
     let full_room = Node {
         position_type: PositionType::Absolute,
         left: px(0),
@@ -23,15 +25,19 @@ pub fn main_menu(ui: &mut ChildSpawnerCommands, atlases: &Atlases) {
         height: percent(100),
         ..default()
     };
-    if let Some(mut swirl) = atlases.menu_swirl() {
-        swirl.color = Color::srgb(0.16, 0.17, 0.22);
-        ui.spawn((full_room.clone(), swirl, Pickable::IGNORE));
-    } else {
-        ui.spawn((
-            full_room.clone(),
-            BackgroundColor(Color::srgb(0.07, 0.08, 0.11)),
-            Pickable::IGNORE,
-        ));
+    match atlases.menu_swirl() {
+        _ if splash => {}
+        Some(mut swirl) => {
+            swirl.color = Color::srgb(0.16, 0.17, 0.22);
+            ui.spawn((full_room.clone(), swirl, Pickable::IGNORE));
+        }
+        None => {
+            ui.spawn((
+                full_room.clone(),
+                BackgroundColor(Color::srgb(0.07, 0.08, 0.11)),
+                Pickable::IGNORE,
+            ));
+        }
     }
 
     ui.spawn((

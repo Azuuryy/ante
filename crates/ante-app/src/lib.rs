@@ -111,10 +111,12 @@ pub fn run(backend: impl GameBackend) {
         .init_resource::<Atlases>()
         .init_resource::<tooltip::TooltipState>()
         .init_resource::<card_drag::CardDrag>()
+        .init_resource::<components::tiles::SliderGrab>()
         .init_resource::<screens::run::RoundEvalClock>()
         .init_resource::<components::travel::CardTrail>()
         .add_message::<Click>()
         .add_message::<services::assets::sounds::Sfx>()
+        .init_resource::<services::assets::sounds::ScheduledSfx>()
         .init_resource::<components::room::RoomShake>()
         .add_plugins(defaults)
         .insert_resource(RenderErrorHandler(render_error))
@@ -133,7 +135,13 @@ pub fn run(backend: impl GameBackend) {
                 components::dissolve::dissolve,
                 components::dissolve::move_particles,
                 components::widgets::hide_debuff_fallback,
-                services::assets::sounds::play,
+                (
+                    app::cues::pack_open_sounds,
+                    services::assets::sounds::release_scheduled,
+                    services::assets::sounds::play,
+                )
+                    .chain(),
+                services::assets::music::modulate_music,
             ),
         )
         .add_systems(
@@ -145,6 +153,7 @@ pub fn run(backend: impl GameBackend) {
                 atlas::load,
                 services::assets::shaders::load,
                 services::assets::sounds::load,
+                services::assets::music::load,
                 services::assets::ui_text::load,
             ),
         )
@@ -156,6 +165,7 @@ pub fn run(backend: impl GameBackend) {
                 screens::run::fill_local_text,
                 screens::run::reveal_round_eval,
                 screens::hand::paint_hand_actions,
+                components::tiles::drag_sliders,
             ),
         )
         .add_systems(
@@ -173,6 +183,7 @@ pub fn run(backend: impl GameBackend) {
                 crate::components::widgets::ease_hover,
                 components::travel::turn_card_backs,
                 render,
+                components::selection::apply_selection,
                 fit_room,
                 tooltip::update,
                 tooltip::animate_edition_badges,

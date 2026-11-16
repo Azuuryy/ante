@@ -19,8 +19,6 @@ impl RunBoard {
             trace: trace.is_some(),
             speed: session.speed,
             preview,
-            offer: session.shop_selection,
-            inventory_selection: session.inventory_selection,
         };
         commands
             .entity(self.error)
@@ -164,14 +162,7 @@ impl RunBoard {
                 .entity(self.inventory[i])
                 .despawn_children()
                 .with_children(|zone| {
-                    inventory_cards(
-                        zone,
-                        view,
-                        atlases,
-                        trace.is_some(),
-                        i == 0,
-                        session.inventory_selection,
-                    );
+                    inventory_cards(zone, view, atlases, trace.is_some(), i == 0);
                 });
         }
         let keys: Vec<_> = view.tags.iter().map(|tag| tag.content.id.0).collect();
@@ -234,12 +225,12 @@ impl RunBoard {
                     );
                 }
                 Phase::Shop => {
-                    shop_board(center, view, atlases, session.shop_selection, text);
+                    shop_board(center, view, atlases, text);
                 }
                 Phase::Reward => {
                     round_eval_panel(center, view, atlases, session.stake, text);
                 }
-                Phase::Pack => pack_board(center, view, atlases, session.shop_selection),
+                Phase::Pack => pack_board(center, view, atlases),
                 Phase::Won | Phase::Lost => {}
             });
         self.playing = playing;

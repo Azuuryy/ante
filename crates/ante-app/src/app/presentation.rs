@@ -35,16 +35,20 @@ pub(crate) struct Screen;
 #[derive(Component)]
 pub(crate) struct PlaybackLabel;
 
+/// The resources `render` reads besides the session.
+type RenderSources<'w> = (
+    Res<'w, Profile>,
+    Res<'w, Backend>,
+    Option<Res<'w, crate::services::assets::ui_text::UiText>>,
+    Option<Res<'w, crate::services::assets::shaders::LoveShaders>>,
+);
+
 pub(crate) fn render(
     mut commands: Commands,
     session: Res<Session>,
     screens: Query<Entity, With<Screen>>,
     atlases: Res<Atlases>,
-    (profile, backend, ui_text): (
-        Res<Profile>,
-        Res<Backend>,
-        Option<Res<crate::services::assets::ui_text::UiText>>,
-    ),
+    (profile, backend, ui_text, shaders): RenderSources,
     mut metrics: ResMut<FrameMetrics>,
     (pacing, mut previous_mode, mut surface): (
         Res<FramePacing>,
@@ -143,6 +147,15 @@ pub(crate) fn render(
                 UiTransform::IDENTITY,
             ))
             .id();
+        // `G.SPLASH_BACK` covers the whole canvas behind the room.
+        let splash = shaders
+            .as_ref()
+            .is_some_and(|shaders| shaders.get("splash").is_some());
+        if splash {
+            commands
+                .entity(root)
+                .with_child(crate::components::background::splash_layer());
+        }
         let room = commands.spawn(room_node()).id();
         commands.entity(root).add_child(room);
         commands.entity(room).with_children(|ui| {
@@ -156,7 +169,7 @@ pub(crate) fn render(
                 });
                 return;
             }
-            main_menu(ui, &atlases);
+            main_menu(ui, &atlases, splash);
             if page != Page::Main {
                 run_ui::overlay(ui, |modal| match page {
                     Page::DeckSelect => run_ui::deck_select(modal, &session, &atlases, &*backend.0),

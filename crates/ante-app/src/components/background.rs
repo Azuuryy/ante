@@ -17,7 +17,8 @@ pub struct BackgroundPlugin;
 impl Plugin for BackgroundPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BackgroundColours>()
-            .add_systems(Update, (ease_colours, attach_material, feed_shader).chain());
+            .add_systems(Update, (ease_colours, attach_material, feed_shader).chain())
+            .add_systems(Update, (attach_splash, feed_splash).chain());
     }
 }
 
@@ -37,6 +38,26 @@ pub(crate) fn layer() -> impl Bundle {
         },
         BackgroundColor(Color::srgb(0.31, 0.52, 0.43)),
         BackgroundLayer,
+        Pickable::IGNORE,
+    )
+}
+
+/// The main menu's full-canvas layer: `G.SPLASH_BACK` with the `splash` shader. Without the
+/// shader the menu draws its still swirl instead.
+#[derive(Component)]
+pub(crate) struct SplashLayer;
+
+pub(crate) fn splash_layer() -> impl Bundle {
+    (
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(0),
+            top: px(0),
+            width: percent(100),
+            height: percent(100),
+            ..default()
+        },
+        SplashLayer,
         Pickable::IGNORE,
     )
 }
@@ -202,6 +223,55 @@ fn feed_shader(
         material.set("colour_3", palette.d);
         material.set("contrast", Vec4::splat(palette.contrast));
         material.set("spin_amount", Vec4::ZERO);
+        material.set("love_ScreenSize", screen.extend(1.0).extend(1.0));
+    }
+}
+
+fn attach_splash(
+    mut commands: Commands,
+    layers: Query<Entity, (With<SplashLayer>, Without<MaterialNode<LoveMaterial>>)>,
+    shaders: Option<Res<LoveShaders>>,
+    mut materials: ResMut<Assets<LoveMaterial>>,
+) {
+    let Some((shader, uniforms)) = shaders.as_ref().and_then(|s| s.get("splash")) else {
+        return;
+    };
+    for entity in &layers {
+        let material = LoveMaterial::new(
+            shader.clone(),
+            uniforms.clone(),
+            Handle::default(),
+            "splash",
+        );
+        commands
+            .entity(entity)
+            .insert(MaterialNode(materials.add(material)));
+    }
+}
+
+/// `Game:main_menu` sends `time` (`G.TIMERS.REAL_SHADER`), `vort_speed` 0.4, RED and BLUE,
+/// `mid_flash` (0 without the splash screen, which Ante does not play) and `vort_offset` 0.
+fn feed_splash(
+    time: Res<Time<Real>>,
+    windows: Query<&Window>,
+    layers: Query<&MaterialNode<LoveMaterial>, With<SplashLayer>>,
+    mut materials: ResMut<Assets<LoveMaterial>>,
+) {
+    let screen = windows
+        .iter()
+        .next()
+        .map(|window| window.physical_size().as_vec2())
+        .unwrap_or(Vec2::ONE);
+    for node in &layers {
+        let Some(mut material) = materials.get_mut(&node.0) else {
+            continue;
+        };
+        material.set("time", Vec4::splat(time.elapsed_secs()));
+        material.set("vort_speed", Vec4::splat(0.4));
+        material.set("colour_1", v(RED));
+        material.set("colour_2", v(BLUE));
+        material.set("mid_flash", Vec4::ZERO);
+        material.set("vort_offset", Vec4::ZERO);
         material.set("love_ScreenSize", screen.extend(1.0).extend(1.0));
     }
 }

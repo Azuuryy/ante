@@ -9,7 +9,8 @@ use bevy::prelude::*;
 use serde_json::Value;
 use serde_json::json;
 
-const VERSION: u64 = 3;
+/// Version 4 adds the music volume; version 3 profiles read it as 100.
+const VERSION: u64 = 4;
 
 #[derive(Default)]
 struct Stored {
@@ -19,10 +20,12 @@ struct Stored {
     volumes: Volumes,
 }
 
-/// Original sound settings: master volume 50 and game sounds 100 by default.
+/// Original sound settings (`G.SETTINGS.SOUND`): master volume 50, music and game sounds
+/// 100 by default.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Volumes {
     master: u8,
+    music: u8,
     game: u8,
 }
 
@@ -30,9 +33,21 @@ impl Default for Volumes {
     fn default() -> Self {
         Self {
             master: 50,
+            music: 100,
             game: 100,
         }
     }
+}
+
+/// A volume of the Audio settings tab.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VolumeChannel {
+    /// `SETTINGS.SOUND.volume`.
+    Master,
+    /// `SETTINGS.SOUND.music_volume`.
+    Music,
+    /// `SETTINGS.SOUND.game_sounds_volume`.
+    Game,
 }
 
 #[derive(Resource)]
@@ -107,6 +122,7 @@ impl Profile {
         let defaults = Volumes::default();
         let volumes = Volumes {
             master: volume("volume", defaults.master),
+            music: volume("music_volume", defaults.music),
             game: volume("game_volume", defaults.game),
         };
         match version {
@@ -122,7 +138,7 @@ impl Profile {
                 game_speed: None,
                 volumes: Volumes::default(),
             }),
-            Some(3) => Ok(Stored {
+            Some(3 | 4) => Ok(Stored {
                 discovered,
                 all_unlocked,
                 game_speed,
@@ -181,6 +197,7 @@ impl Profile {
             "all_unlocked": self.all_unlocked,
             "game_speed": self.game_speed,
             "volume": self.volumes.master,
+            "music_volume": self.volumes.music,
             "game_volume": self.volumes.game,
         });
         fs::write(&pending, serde_json::to_vec(&data)?)?;
@@ -205,28 +222,27 @@ impl Profile {
         self.save()
     }
 
-    /// Master volume, 0 to 100, like the original `SETTINGS.SOUND.volume`.
-    pub fn volume(&self) -> u8 {
-        self.volumes.master
+    /// A volume from 0 to 100.
+    pub fn volume_of(&self, channel: VolumeChannel) -> u8 {
+        match channel {
+            VolumeChannel::Master => self.volumes.master,
+            VolumeChannel::Music => self.volumes.music,
+            VolumeChannel::Game => self.volumes.game,
+        }
     }
 
-    /// Game sounds volume, 0 to 100, like `SETTINGS.SOUND.game_sounds_volume`.
-    pub fn game_volume(&self) -> u8 {
-        self.volumes.game
+    /// Sets a volume (capped at 100) without saving, as a slider does while it is dragged.
+    pub fn set_volume(&mut self, channel: VolumeChannel, value: u8) {
+        let slot = match channel {
+            VolumeChannel::Master => &mut self.volumes.master,
+            VolumeChannel::Music => &mut self.volumes.music,
+            VolumeChannel::Game => &mut self.volumes.game,
+        };
+        *slot = value.min(100);
     }
 
-    /// Steps a volume by 10 and wraps from 100 back to 0, then saves it.
-    pub fn step_volume(&mut self, game: bool) -> io::Result<()> {
-        let value = if game {
-            &mut self.volumes.game
-        } else {
-            &mut self.volumes.master
-        };
-        *value = if *value >= 100 {
-            0
-        } else {
-            (*value + 10).min(100)
-        };
+    /// Saves the volumes, once a slider is released.
+    pub fn save_volumes(&mut self) -> io::Result<()> {
         if !self.writable {
             return Err(io::Error::other(
                 "Existing profile is unreadable and was preserved",
@@ -257,128 +273,4 @@ impl Profile {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn temporary(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("ante-{name}-{}.json", std::process::id()))
-    }
-
-    fn profile_at(path: PathBuf) -> Profile {
-        Profile {
-            path,
-            discovered: BTreeSet::new(),
-            all_unlocked: false,
-            game_speed: None,
-            volumes: Volumes::default(),
-            writable: true,
-            dirty: false,
-        }
-    }
-
-    #[test]
-    fn volumes_default_to_the_original_and_step_by_ten() {
-        let path = temporary("profile-volume");
-        let mut profile = profile_at(path.clone());
-        assert_eq!((profile.volume(), profile.game_volume()), (50, 100));
-        profile.step_volume(false).unwrap();
-        profile.step_volume(true).unwrap();
-        let stored = Profile::read(&path).unwrap();
-        assert_eq!(
-            stored.volumes,
-            Volumes {
-                master: 60,
-                game: 0
-            }
-        );
-        fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn game_speed_survives_a_save_and_older_versions_have_none() {
-        let path = temporary("profile-speed");
-        let mut profile = profile_at(path.clone());
-        profile.set_game_speed(4.0).unwrap();
-        assert_eq!(Profile::read(&path).unwrap().game_speed, Some(4.0));
-        fs::write(&path, r#"{"version":2,"discovered":[],"game_speed":8}"#).unwrap();
-        assert_eq!(Profile::read(&path).unwrap().game_speed, None);
-        fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn versioned_profile_saves_discoveries_across_writes() {
-        let path = temporary("profile");
-        let mut profile = profile_at(path.clone());
-        profile.discover("j_joker").unwrap();
-        profile.discover("j_misprint").unwrap();
-        let stored = Profile::read(&path).unwrap();
-        assert_eq!(
-            stored.discovered,
-            BTreeSet::from(["j_joker".into(), "j_misprint".into()])
-        );
-        assert!(!stored.all_unlocked);
-        fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn version_one_profiles_migrate_without_losing_discoveries() {
-        let path = temporary("profile-v1");
-        fs::write(&path, r#"{"version":1,"discovered":["j_joker","v_blank"]}"#).unwrap();
-        let stored = Profile::read(&path).unwrap();
-        assert_eq!(
-            stored.discovered,
-            BTreeSet::from(["j_joker".into(), "v_blank".into()])
-        );
-        assert!(!stored.all_unlocked);
-
-        let mut profile = Profile {
-            path: path.clone(),
-            discovered: stored.discovered,
-            all_unlocked: stored.all_unlocked,
-            game_speed: stored.game_speed,
-            volumes: stored.volumes,
-            writable: true,
-            dirty: false,
-        };
-        profile.discover("j_brainstorm").unwrap();
-        let rewritten: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-        assert_eq!(rewritten["version"], VERSION);
-        assert_eq!(rewritten["all_unlocked"], false);
-        fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn unlock_all_persists_flag_and_catalog_entries() {
-        let path = temporary("profile-unlock");
-        let mut profile = profile_at(path.clone());
-        profile
-            .unlock_all(["j_brainstorm", "v_blank", "tag_rare"])
-            .unwrap();
-        assert!(profile.all_unlocked());
-        assert!(profile.discovered("j_brainstorm"));
-        assert!(profile.is_unlocked("j_any", Some("Locked")));
-
-        let stored = Profile::read(&path).unwrap();
-        assert!(stored.all_unlocked);
-        assert_eq!(
-            stored.discovered,
-            BTreeSet::from(["j_brainstorm".into(), "v_blank".into(), "tag_rare".into()])
-        );
-        fs::remove_file(path).unwrap();
-    }
-
-    #[test]
-    fn unlocked_items_require_discovery_without_the_debug_flag() {
-        let profile = profile_at(temporary("profile-locks"));
-        assert!(profile.is_unlocked("j_joker", None));
-        assert!(!profile.is_unlocked("j_brainstorm", Some("Discard a Royal Flush")));
-    }
-
-    #[test]
-    fn corrupted_profile_is_rejected() {
-        let path = temporary("invalid-profile");
-        fs::write(&path, "not JSON").unwrap();
-        assert!(Profile::read(&path).is_err());
-        fs::remove_file(path).unwrap();
-    }
-}
+mod tests;

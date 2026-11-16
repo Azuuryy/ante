@@ -194,7 +194,7 @@ spilled {spilled:#?}"
 
 #[test]
 fn main_menu_lays_out_cleanly() {
-    let mut app = layout(|ui, _, atlases| crate::screens::menu::main_menu(ui, atlases));
+    let mut app = layout(|ui, _, atlases| crate::screens::menu::main_menu(ui, atlases, false));
     check(&mut app);
 }
 

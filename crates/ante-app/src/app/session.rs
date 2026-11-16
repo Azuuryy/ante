@@ -373,11 +373,6 @@ pub(crate) fn process_clicks(
                     session.options_tab = tab;
                 }
             }
-            Click::StepVolume(game) => {
-                if let Err(_error) = profile.step_volume(game) {
-                    journal_event!("profile_write_failed", json!({"error": _error.to_string()}));
-                }
-            }
             Click::ChangeSpeed => {
                 session.speed = session.speed.next();
                 if let Err(_error) = profile.set_game_speed(session.speed.factor()) {

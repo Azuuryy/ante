@@ -4,6 +4,10 @@
 
 ### Added
 
+- Music: the five original tracks loop together like `RESTART_MUSIC` (pitch 0.7, volume 0.6) and crossfade at `3·dt` toward the track `modulate_sound` picks: music1 in menus and blinds, music5 on a boss blind, music4 in the shop, music2 in Arcana, Spectral, Buffoon and Standard packs, music3 in Celestial packs. A game over slows them toward half pitch. The tracks load from the local installation; the importer copies `music1` to `music5`, and without them the game stays silent.
+- Opening a pack, bought or given by a tag, plays `explosion_buildup1` then `explosion_release1` at the delays of `Card:open` and `Card:explode`, scaled by the game speed (`ScheduledSfx` plays sounds after a delay).
+- The Audio settings tab has the three sliders of `G.UIDEF.settings_tab('Audio')` (`create_slider`): Master, Music and Game volume, dragged along the track and saved on release. The profile (version 4) stores `music_volume`, 100 by default; version 3 profiles keep their volumes.
+- The main menu draws the original `splash` shader over the whole window (`G.SPLASH_BACK`: RED and BLUE, `vort_speed` 0.4); the still swirl remains the fallback without the shader.
 - Round evaluation after a beaten blind, after `add_round_eval_row`: the Blind row (chip, target, stake), then the remaining hands, Joker bonuses, tags and interest under a dotted line, each row and dollar sign appearing on the original event timing with the `cancel`, `highlight1` and `coin3` sounds, then the "Cash Out: $N" button. Rows come from `RunView.reward_rows`, now with an `Interest` row.
 - The deck view follows `G.UIDEF.view_deck`: the deck name and description, base and effective tallies (aces, faces, numbers, suits) with the ui_assets icons, the rank column, and one `title` card row per suit at 0.7 card size. The Remaining tab greys the cards already drawn with the original `played` shader instead of hiding them.
 - The Collection follows `create_UIBox_your_collection*`: the hub with its Consumables group, one black box of card areas per page (Jokers 3 × 5, Tarots 5 + 6, Planets 6 + 6, Spectrals 4 + 5, Boosters 2 × 4 at 1.27 size, Vouchers in overlapping pairs, Enhanced 2 × 4, Seals, Editions on the Joker), a red "Page n/N" cycle, the Tags grid, the Blinds grid beside the ante table and the deck carousel with its pips. Undiscovered cards show the original undiscovered centre with the "?" over it; collection cards hover like hand cards.
@@ -133,6 +137,9 @@
 
 ### Fixed
 
+- Selecting a shop, pack or inventory card no longer rebuilds the shop, the pack box and the inventories: cards are spawned once and `components::selection` raises the selected one, brings it to the front and shows its buttons in place.
+- A disabled Play Hand, Sort or Discard button stays grey: hovering or releasing it painted it back in its colour, so Discard turned red again once the discards ran out.
+- A click on a button stops there, so a card's Buy, Sell or Use button no longer also toggles the card under it.
 - Clicking the selected shop or pack card deselects it again (`Card:click`), and the selected shop card keeps its hover lean. A click goes to the innermost target only, so a card's Buy or Use button no longer also toggles the card.
 - The shade behind menus (New Run, Options, Collection, pause) covers the whole window instead of only the room the menus are centred in.
 - Hovered cards no longer vanish: the hover tilt lowered the clip-space w of cards that sit near the far plane of the UI projection, which clipped them away; the depth now scales with w.

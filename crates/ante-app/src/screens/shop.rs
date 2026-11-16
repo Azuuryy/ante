@@ -4,6 +4,7 @@ use crate::{
     components::{
         cards::{consumable_tooltip, joker_tooltip},
         pixel_rect::{DynRole, PixelBox},
+        selection::{Layer, SelectKey, Selectable, SelectionButtons},
         theme::INK,
         tiles as menu_ui, tooltip,
         widgets::{atlas_image, card_hover, click_target, fallback_art, label, shadowed_label},
@@ -24,7 +25,6 @@ pub(crate) fn shop_board(
     ui: &mut ChildSpawnerCommands,
     view: &RunView,
     atlases: &Atlases,
-    selected: Option<Command>,
     text: &UiText,
 ) {
     use ante_core::contract::ShopArt;
@@ -217,7 +217,7 @@ pub(crate) fn shop_board(
                                     offer_area(
                                         zone,
                                         &cards,
-                                        (selected, view.revision, atlases),
+                                        (view.revision, atlases),
                                         (
                                             joker_max as f32 * 1.02 * menu_ui::CARD_W,
                                             1.05 * menu_ui::CARD_H,
@@ -259,7 +259,7 @@ pub(crate) fn shop_board(
                                                 offer_area(
                                                     inner,
                                                     &vouchers,
-                                                    (selected, view.revision, atlases),
+                                                    (view.revision, atlases),
                                                     (2.1 * menu_ui::CARD_W, 1.05 * menu_ui::CARD_H),
                                                     (1, 1.0),
                                                 );
@@ -270,7 +270,7 @@ pub(crate) fn shop_board(
                                     offer_area(
                                         zone,
                                         &packs,
-                                        (selected, view.revision, atlases),
+                                        (view.revision, atlases),
                                         (2.4 * menu_ui::CARD_W, 1.15 * menu_ui::CARD_H),
                                         (2, BOOSTER_SCALE),
                                     );

@@ -19,11 +19,13 @@ mod buttons;
 mod cycle;
 mod frame;
 mod palette;
+mod slider;
 
 pub(crate) use buttons::*;
 pub(crate) use cycle::*;
 pub(crate) use frame::*;
 pub(crate) use palette::*;
+pub(crate) use slider::*;
 
 /// Balatro draws everything in tile units: 1 tile = 20 base px x TILESCALE 3.65.
 pub const TILE: f32 = 73.0;

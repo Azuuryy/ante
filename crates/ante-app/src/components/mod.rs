@@ -8,6 +8,7 @@ pub(crate) mod edition;
 pub(crate) mod info;
 pub(crate) mod pixel_rect;
 pub(crate) mod room;
+pub(crate) mod selection;
 pub(crate) mod sparkles;
 pub(crate) mod theme;
 pub(crate) mod tiles;

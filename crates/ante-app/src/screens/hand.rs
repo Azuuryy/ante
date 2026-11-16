@@ -40,9 +40,9 @@ pub(crate) fn paint_hand_actions(
             pixel.fill = fill;
         }
         commands.entity(entity).insert(if action.enabled {
-            Pickable::default()
+            (Pickable::default(), menu_ui::ButtonTheme::of(action.color))
         } else {
-            Pickable::IGNORE
+            (Pickable::IGNORE, menu_ui::ButtonTheme::inactive())
         });
     }
 }
@@ -336,5 +336,47 @@ pub(crate) fn hand_rows(
                 );
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_disabled_action_stays_grey_whatever_the_pointer_does() {
+        let mut app = App::new();
+        app.add_systems(Update, paint_hand_actions);
+        let button = app
+            .world_mut()
+            .spawn((
+                PixelBox::new(menu_ui::RED),
+                menu_ui::ButtonTheme::of(menu_ui::RED),
+                HandAction {
+                    color: menu_ui::RED,
+                    enabled: false,
+                },
+            ))
+            .id();
+        app.update();
+        let world = app.world();
+        assert_eq!(
+            world.get::<PixelBox>(button).unwrap().fill,
+            menu_ui::INACTIVE
+        );
+        assert_eq!(
+            world.get::<menu_ui::ButtonTheme>(button),
+            Some(&menu_ui::ButtonTheme::inactive())
+        );
+        assert_eq!(world.get::<Pickable>(button), Some(&Pickable::IGNORE));
+        app.world_mut().entity_mut(button).insert(HandAction {
+            color: menu_ui::RED,
+            enabled: true,
+        });
+        app.update();
+        assert_eq!(
+            app.world().get::<menu_ui::ButtonTheme>(button),
+            Some(&menu_ui::ButtonTheme::of(menu_ui::RED))
+        );
     }
 }

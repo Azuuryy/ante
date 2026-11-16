@@ -1,10 +1,31 @@
 use super::*;
 
-#[derive(Component, Clone, Copy)]
-pub(super) struct ButtonTheme {
+/// The colours a button takes at rest, hovered and pressed.
+#[derive(Component, Clone, Copy, PartialEq, Debug)]
+pub(crate) struct ButtonTheme {
     pub(super) normal: Color,
     pub(super) hovered: Color,
     pub(super) pressed: Color,
+}
+
+impl ButtonTheme {
+    pub(crate) fn of(color: Color) -> Self {
+        Self {
+            normal: color,
+            hovered: hover_overlay(color),
+            pressed: scale_rgb(color, 0.52),
+        }
+    }
+
+    /// A disabled button keeps the inactive colour whatever the pointer does, so a hover
+    /// or release cannot paint it back in its colour.
+    pub(crate) fn inactive() -> Self {
+        Self {
+            normal: INACTIVE,
+            hovered: INACTIVE,
+            pressed: INACTIVE,
+        }
+    }
 }
 
 pub fn tile_button(
@@ -35,44 +56,43 @@ pub(crate) fn attach_button(
     color: Color,
     action: Click,
 ) {
-    node.insert(ButtonTheme {
-        normal: color,
-        hovered: hover_overlay(color),
-        pressed: scale_rgb(color, 0.52),
-    })
-    .observe(
-        move |event: On<PointerClick>, mut clicks: MessageWriter<Click>| {
-            if event.button == PointerButton::Primary {
-                clicks.write(action);
+    node.insert(ButtonTheme::of(color))
+        .observe(
+            move |mut event: On<PointerClick>, mut clicks: MessageWriter<Click>| {
+                if event.button == PointerButton::Primary {
+                    // The button takes the click: a card's Buy or Sell must not also toggle the
+                    // card under it.
+                    event.propagate(false);
+                    clicks.write(action);
+                }
+            },
+        )
+        .observe(|event: On<PointerOver>, mut buttons: Query<ButtonParts>| {
+            if let Ok((style, bg, pixel)) = buttons.get_mut(event.entity) {
+                paint(bg, pixel, style.hovered);
             }
-        },
-    )
-    .observe(|event: On<PointerOver>, mut buttons: Query<ButtonParts>| {
-        if let Ok((style, bg, pixel)) = buttons.get_mut(event.entity) {
-            paint(bg, pixel, style.hovered);
-        }
-    })
-    .observe(|event: On<PointerOut>, mut buttons: Query<ButtonParts>| {
-        if let Ok((style, bg, pixel)) = buttons.get_mut(event.entity) {
-            paint(bg, pixel, style.normal);
-        }
-    })
-    .observe(|event: On<PointerPress>, mut buttons: Query<ButtonParts>| {
-        if event.button == PointerButton::Primary
-            && let Ok((style, bg, pixel)) = buttons.get_mut(event.entity)
-        {
-            paint(bg, pixel, style.pressed);
-        }
-    })
-    .observe(
-        |event: On<PointerRelease>, mut buttons: Query<ButtonParts>| {
+        })
+        .observe(|event: On<PointerOut>, mut buttons: Query<ButtonParts>| {
+            if let Ok((style, bg, pixel)) = buttons.get_mut(event.entity) {
+                paint(bg, pixel, style.normal);
+            }
+        })
+        .observe(|event: On<PointerPress>, mut buttons: Query<ButtonParts>| {
             if event.button == PointerButton::Primary
                 && let Ok((style, bg, pixel)) = buttons.get_mut(event.entity)
             {
-                paint(bg, pixel, style.hovered);
+                paint(bg, pixel, style.pressed);
             }
-        },
-    );
+        })
+        .observe(
+            |event: On<PointerRelease>, mut buttons: Query<ButtonParts>| {
+                if event.button == PointerButton::Primary
+                    && let Ok((style, bg, pixel)) = buttons.get_mut(event.entity)
+                {
+                    paint(bg, pixel, style.hovered);
+                }
+            },
+        );
 }
 
 pub(super) type ButtonParts = (

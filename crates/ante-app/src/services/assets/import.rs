@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 
 use crate::services::assets::{
     catalog::{LOCAL_FILES, read_local_file, validate_local_file},
+    music::MUSIC_FILES,
     shaders::{SHADER_FILES, shader_path, validate as validate_shader},
     sounds::{SOUND_FILES, sound_path, validate as validate_sound},
     ui_text::{TEXT_FILES, validate as validate_text},
@@ -133,7 +134,7 @@ impl AssetSettings {
                 fs::write(destination, bytes)?;
                 count += 1;
             }
-            for &name in SOUND_FILES {
+            for &name in SOUND_FILES.iter().chain(MUSIC_FILES) {
                 let relative = sound_path(name);
                 if fs::symlink_metadata(source.join(&relative)).is_err() {
                     continue;

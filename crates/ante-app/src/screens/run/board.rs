@@ -40,8 +40,6 @@ pub(super) struct BoardFrame {
     pub(super) trace: bool,
     pub(super) speed: Speed,
     pub(super) preview: bool,
-    pub(super) offer: Option<Command>,
-    pub(super) inventory_selection: Option<(crate::components::card_drag::Lane, usize, u64)>,
 }
 
 /// The HUD sits 0.7 tiles left of the room (`align = 'cli'`, offset −0.7) over the full

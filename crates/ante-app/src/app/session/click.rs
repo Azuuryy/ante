@@ -56,7 +56,6 @@ pub(crate) enum Click {
     AssetCancelRemove,
     ChangeSpeed,
     /// Steps the master volume, or the game sounds volume when true.
-    StepVolume(bool),
     Skip,
     #[cfg_attr(not(feature = "dev-tools"), allow(dead_code))]
     UnlockAll,

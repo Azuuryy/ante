@@ -1,6 +1,8 @@
 use super::{
     card_drag::{self, Lane},
-    info, tiles as menu_ui, tooltip,
+    info,
+    selection::{Layer, SelectKey, Selectable, SelectionButtons},
+    tiles as menu_ui, tooltip,
     widgets::{atlas_image, card_hover, fallback_art},
 };
 use crate::{
@@ -157,7 +159,6 @@ pub(crate) fn inventory_cards(
     atlases: &Atlases,
     playing_trace: bool,
     jokers: bool,
-    selection: Option<(Lane, usize, u64)>,
 ) {
     let lane = if jokers {
         Lane::Jokers
@@ -186,7 +187,6 @@ pub(crate) fn inventory_cards(
                      actions: Vec<CardAction>,
                      (edition, seed): (&str, usize),
                      joker: Option<JokerKey>| {
-        let selected = !playing_trace && selection == Some((lane, index, revision));
         let mut card = ui.spawn(Node {
             position_type: PositionType::Absolute,
             left: px(menu_ui::spread_x(index, count, capacity, area, card_size.x)),
@@ -202,13 +202,17 @@ pub(crate) fn inventory_cards(
         } else if !jokers {
             card.insert(super::dissolve::HeldConsumable { index });
         }
-        if selected {
-            card.insert(UiTransform::from_xy(px(0), px(-10)));
-        } else {
-            card_hover(&mut card);
-        }
+        card_hover(&mut card);
         if !playing_trace {
-            // The selected card and its buttons come to the front until it is deselected.
+            // The selected card rises 10 px and comes to the front with its buttons until it
+            // is deselected (`components::selection`).
+            card.insert(Selectable {
+                key: SelectKey::Inventory(lane, index, revision),
+                layer: Layer::Global,
+                rest_z: index as i32,
+                chosen_z: SELECTED_Z,
+                lift: 10.0,
+            });
             card_drag::attach(
                 &mut card,
                 lane,
@@ -219,13 +223,13 @@ pub(crate) fn inventory_cards(
                     revision,
                 }),
                 None,
-                selected,
-                if selected { SELECTED_Z } else { index as i32 },
+                false,
+                index as i32,
             );
         }
         tooltip::attach(&mut card, tooltip::art(tip, sprite.as_ref()));
         card.with_children(|art| {
-            if selected && !actions.is_empty() {
+            if !playing_trace && !actions.is_empty() {
                 // Aligned 'cr' with offset -0.4: the buttons start under the card's right
                 // edge and are drawn behind it.
                 art.spawn((
@@ -242,6 +246,7 @@ pub(crate) fn inventory_cards(
                     },
                     ZIndex(-1),
                     super::dissolve::InventoryActions,
+                    SelectionButtons,
                 ))
                 .observe(|mut event: On<PointerPress>| event.propagate(false))
                 .with_children(|popup| card_actions(popup, &actions));

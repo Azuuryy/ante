@@ -102,6 +102,7 @@ fn pack_card_button(
             ..default()
         },
         ZIndex(-1),
+        SelectionButtons,
     ))
     .observe(|mut event: On<PointerPress>| event.propagate(false))
     .with_children(|anchor| {
@@ -140,12 +141,7 @@ pub(super) fn pack_title(family: Option<ante_core::contract::PackFamily>) -> &'s
 /// `create_UIBox_arcana_pack` and its siblings: the pack box rises from below the hand; for
 /// Arcana and Spectral packs the drawn hand stays under it, as `draw_from_deck_to_hand` deals
 /// it, and target cards are picked in that hand.
-pub(crate) fn pack_board(
-    ui: &mut ChildSpawnerCommands,
-    view: &RunView,
-    atlases: &Atlases,
-    selection: Option<Command>,
-) {
+pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases: &Atlases) {
     ui.spawn((
         Node {
             width: percent(100),
@@ -187,7 +183,6 @@ pub(crate) fn pack_board(
                         index,
                         revision: view.revision,
                     };
-                    let chosen = selection == Some(action);
                     let mut card = choices.spawn((
                         Node {
                             position_type: PositionType::Absolute,
@@ -195,14 +190,16 @@ pub(crate) fn pack_board(
                             top: px(0),
                             ..default()
                         },
-                        ZIndex(if chosen { 1 } else { 0 }),
+                        ZIndex(0),
+                        Selectable {
+                            key: SelectKey::Offer(action),
+                            layer: Layer::Local,
+                            rest_z: 0,
+                            chosen_z: 1,
+                            lift: crate::components::widgets::HIGHLIGHT_LIFT,
+                        },
                     ));
                     card_hover(&mut card);
-                    if chosen {
-                        card.insert(crate::components::widgets::HoverMotion::raised(
-                            crate::components::widgets::HIGHLIGHT_LIFT,
-                        ));
-                    }
                     click_target(
                         &mut card,
                         Click::SelectOffer {
@@ -237,11 +234,9 @@ pub(crate) fn pack_board(
                             fallback_art(art, &item.name, size.x);
                         }
                     });
-                    if chosen {
-                        card.with_children(|anchor| {
-                            pack_card_button(anchor, item, action, size);
-                        });
-                    }
+                    card.with_children(|anchor| {
+                        pack_card_button(anchor, item, action, size);
+                    });
                 }
             });
             pack.spawn(Node {
