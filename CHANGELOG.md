@@ -139,6 +139,7 @@
 
 ### Fixed
 
+- The Psychic, The Eye and The Mouth refuse the hands they forbid, like `Blind:debuff_hand`: a hand of fewer than 5 cards against The Psychic, a hand type already played this round against The Eye, or another hand type than the round's first against The Mouth scores 0, and Matador earns $8 on it. Before, The Psychic let a one-card hand score and Matador never paid against these bosses. The "Not Allowed!" message is not shown yet.
 - Selecting a shop, pack or inventory card no longer rebuilds the shop, the pack box and the inventories: cards are spawned once and `components::selection` raises the selected one, brings it to the front and shows its buttons in place.
 - A disabled Play Hand, Sort or Discard button stays grey: hovering or releasing it painted it back in its colour, so Discard turned red again once the discards ran out.
 - A click on a button stops there, so a card's Buy, Sell or Use button no longer also toggles the card under it.

@@ -29,6 +29,7 @@ use std::fmt;
 use strum::IntoEnumIterator;
 
 mod actions;
+mod boss_hand;
 mod consumables;
 mod display;
 mod progression;
@@ -124,6 +125,9 @@ pub struct Game {
     // shared game-level history some jokers key off (RideTheBus, Obelisk, etc)
     #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) hand_ranks_played_this_round: HashSet<HandRank>,
+    // The Mouth: the only hand type allowed this round, the first one played.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) mouth_hand: Option<HandRank>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub consecutive_hands_without_face_card: usize,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -238,6 +242,7 @@ impl Game {
             score: config.base_score,
             prob_mult: 1,
             hand_ranks_played_this_round: HashSet::new(),
+            mouth_hand: None,
             consecutive_hands_without_face_card: 0,
             consecutive_hands_not_most_played_type: 0,
             discarded_this_round: Vec::new(),

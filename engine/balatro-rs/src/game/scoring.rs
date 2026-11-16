@@ -115,6 +115,10 @@ impl Game {
         mut trace: Option<&mut TraceRecorder>,
     ) -> usize {
         self.boss_triggered_this_hand = false;
+        if self.hand_not_allowed(&hand) {
+            return self.score_not_allowed(&hand, trace);
+        }
+        self.remember_mouth_hand(&hand);
 
         // compute chips and mult from hand level
         let chips_before = self.chips;

@@ -26,6 +26,7 @@ impl Game {
         self.plays = self.plays_per_round();
         self.discards_remaining = self.discards_per_round();
         self.hand_ranks_played_this_round.clear();
+        self.mouth_hand = None;
         self.discarded_this_round.clear();
         self.boss_disabled_by_luchador = false;
         self.deck.append(&mut self.discarded);
