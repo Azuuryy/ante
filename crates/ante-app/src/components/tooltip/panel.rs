@@ -131,7 +131,8 @@ pub(super) fn main_panel(panel: &mut ChildSpawnerCommands, tip: &Tip) {
                 Pickable::IGNORE,
             ))
             .with_children(|name| playing_card_name(name, &tip.title));
-    } else {
+    } else if !tip.title.is_empty() {
+        // An enhancement in the collection has no name line (`full_UI_table.name = true`).
         panel
             .spawn((
                 Node {
@@ -223,7 +224,7 @@ pub(super) fn is_type_badge(badge: &str) -> bool {
     is_rarity_badge(badge)
         || matches!(
             badge,
-            "Tarot" | "Planet" | "Spectral" | "Voucher" | "Booster" | "Debuffed"
+            "Tarot" | "Planet" | "Spectral" | "Voucher" | "Booster" | "Edition" | "Debuffed"
         )
         || badge.ends_with(" Card")
 }

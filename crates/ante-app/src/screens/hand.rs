@@ -15,32 +15,121 @@ use crate::{
 use ante_core::contract::{Command, RunView};
 use bevy::prelude::*;
 
+/// A Play Hand, Sort or Discard button. The row outlives selection changes: only this
+/// state is repainted, so the buttons are not rebuilt (and do not settle again) each time a
+/// card is selected, as the original keeps `G.buttons` for the whole round.
+#[derive(Component, Clone, Copy, PartialEq)]
+pub(crate) struct HandAction {
+    color: Color,
+    enabled: bool,
+}
+
+/// Paints a hand action in its colour or greyed out, and lets it take clicks only when
+/// enabled.
+pub(crate) fn paint_hand_actions(
+    mut commands: Commands,
+    mut buttons: Query<(Entity, &HandAction, &mut PixelBox), Changed<HandAction>>,
+) {
+    for (entity, action, mut pixel) in &mut buttons {
+        let fill = if action.enabled {
+            action.color
+        } else {
+            menu_ui::INACTIVE
+        };
+        if pixel.fill != fill {
+            pixel.fill = fill;
+        }
+        commands.entity(entity).insert(if action.enabled {
+            Pickable::default()
+        } else {
+            Pickable::IGNORE
+        });
+    }
+}
+
+/// Which hand actions are allowed: Play Hand, Rank, Suit, Discard.
+fn allowed(view: &RunView) -> [bool; 4] {
+    [
+        view.can_play,
+        view.can_sort,
+        view.can_sort,
+        view.can_discard,
+    ]
+}
+
+fn in_hand(view: &RunView) -> String {
+    format!("{} in hand", view.cards.len())
+}
+
+/// The parts of a steady hand (no scoring trace, no deck preview) that are updated in place.
+pub(crate) struct HandSlots {
+    /// The node holding the hand rows, rebuilt on each change.
+    hand: Entity,
+    label: Entity,
+    buttons: [(Entity, Color); 4],
+    allowed: [bool; 4],
+}
+
+impl HandSlots {
+    /// Rebuilds the hand and repaints only the actions whose state changed.
+    pub(crate) fn refresh(&mut self, commands: &mut Commands, view: &RunView, atlases: &Atlases) {
+        commands
+            .entity(self.hand)
+            .despawn_children()
+            .with_children(|area| hand_rows(area, view, atlases, false));
+        commands.entity(self.label).insert(Text::new(in_hand(view)));
+        let allowed = allowed(view);
+        for ((&(entity, color), &enabled), before) in
+            self.buttons.iter().zip(&allowed).zip(self.allowed)
+        {
+            if enabled != before {
+                commands
+                    .entity(entity)
+                    .insert(HandAction { color, enabled });
+            }
+        }
+        self.allowed = allowed;
+    }
+}
+
 /// `create_UIBox_buttons`: Play Hand and Discard (2.5 x 1.3, text 0.45) around the Sort Hand
 /// box, a translucent dark box outlined in mix(WHITE, JOKER_GREY, 0.7).
-fn actions_row(ui: &mut ChildSpawnerCommands, view: &RunView) {
+fn actions_row(ui: &mut ChildSpawnerCommands, view: &RunView) -> [(Entity, Color); 4] {
     use menu_ui::{BLUE, ORANGE, RED, card_button, mix, text_px, tiles};
+    let allowed = allowed(view);
+    let mut buttons = [(Entity::PLACEHOLDER, BLUE); 4];
+    let mut button = |ui: &mut ChildSpawnerCommands,
+                      slot: usize,
+                      rows: &[&[(&str, f32)]],
+                      color: Color,
+                      size: (f32, f32),
+                      command: Command| {
+        let entity = card_button(
+            ui,
+            rows,
+            color,
+            size,
+            UiRect::all(tiles(0.1)),
+            Some(Click::Play(command)),
+        );
+        ui.commands().entity(entity).insert(HandAction {
+            color,
+            enabled: allowed[slot],
+        });
+        buttons[slot] = (entity, color);
+    };
     ui.spawn(Node {
         column_gap: tiles(0.3),
         align_items: AlignItems::Center,
         ..default()
     })
     .with_children(|actions| {
-        let big = |ui: &mut ChildSpawnerCommands, text: &str, color, action: Option<Click>| {
-            card_button(
-                ui,
-                &[&[(text, 0.45)]],
-                color,
-                (2.5, 1.3),
-                UiRect::all(tiles(0.1)),
-                action,
-            );
-        };
-        big(
-            actions,
-            "Play Hand",
-            BLUE,
-            view.can_play.then_some(Click::Play(Command::Play)),
-        );
+        let big = [
+            ("Play Hand", BLUE, Command::Play),
+            ("Discard", RED, Command::Discard),
+        ];
+        let (play, discard) = (big[0], big[1]);
+        button(actions, 0, &[&[(play.0, 0.45)]], play.1, (2.5, 1.3), play.2);
         let joker_grey = Color::srgb(
             0xBF as f32 / 255.0,
             0xC7 as f32 / 255.0,
@@ -67,29 +156,36 @@ fn actions_row(ui: &mut ChildSpawnerCommands, view: &RunView) {
                     column_gap: tiles(0.2),
                     ..default()
                 })
-                .with_children(|buttons| {
-                    for (text, action) in [("Rank", Command::SortRank), ("Suit", Command::SortSuit)]
-                    {
-                        card_button(
-                            buttons,
+                .with_children(|sorts| {
+                    for (slot, text, command) in [
+                        (1, "Rank", Command::SortRank),
+                        (2, "Suit", Command::SortSuit),
+                    ] {
+                        button(
+                            sorts,
+                            slot,
                             &[&[(text, 0.315)]],
                             ORANGE,
                             (0.9, 0.7),
-                            UiRect::all(tiles(0.1)),
-                            view.can_sort.then_some(Click::Play(action)),
+                            command,
                         );
                     }
                 });
             });
-        big(
+        button(
             actions,
-            "Discard",
-            RED,
-            view.can_discard.then_some(Click::Play(Command::Discard)),
+            3,
+            &[&[(discard.0, 0.45)]],
+            discard.1,
+            (2.5, 1.3),
+            discard.2,
         );
     });
+    buttons
 }
 
+/// The playing board: the hand, then the actions, or the scoring controls during a trace.
+/// A steady hand returns its slots so later selections update it in place.
 pub(crate) fn playing_board(
     ui: &mut ChildSpawnerCommands,
     view: &RunView,
@@ -97,7 +193,8 @@ pub(crate) fn playing_board(
     playing_trace: bool,
     speed: Speed,
     preview: bool,
-) {
+) -> Option<HandSlots> {
+    let mut slots = None;
     ui.spawn(Node {
         width: percent(100),
         flex_direction: FlexDirection::Column,
@@ -109,7 +206,16 @@ pub(crate) fn playing_board(
         if preview {
             deck_preview(area, view);
         }
-        hand_rows(area, view, atlases, playing_trace);
+        let hand = area
+            .spawn(Node {
+                width: percent(100),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: px(10),
+                ..default()
+            })
+            .with_children(|hand| hand_rows(hand, view, atlases, playing_trace))
+            .id();
         if preview {
             return;
         }
@@ -120,10 +226,26 @@ pub(crate) fn playing_board(
                 speed_button(actions, speed);
             });
         } else {
-            label(area, format!("{} in hand", view.cards.len()), 18.0, INK);
-            actions_row(area, view);
+            let label = area
+                .spawn((
+                    Text::new(in_hand(view)),
+                    TextFont {
+                        font_size: bevy::text::FontSize::Px(18.0),
+                        ..default()
+                    },
+                    TextColor(INK),
+                    Pickable::IGNORE,
+                ))
+                .id();
+            slots = Some(HandSlots {
+                hand,
+                label,
+                buttons: actions_row(area, view),
+                allowed: allowed(view),
+            });
         }
     });
+    slots
 }
 
 /// The hand, and during a scoring trace the played cards above it.

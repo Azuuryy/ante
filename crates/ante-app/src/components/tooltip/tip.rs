@@ -63,6 +63,19 @@ impl Tip {
         self
     }
 
+    /// The popup as players see it, without the dev-only technical lines.
+    #[cfg(test)]
+    pub(crate) fn without_technical(self) -> Self {
+        #[cfg(feature = "dev-tools")]
+        {
+            let mut tip = self;
+            tip.technical.clear();
+            tip
+        }
+        #[cfg(not(feature = "dev-tools"))]
+        self
+    }
+
     pub fn technical(self, text: impl Into<String>) -> Self {
         #[cfg(feature = "dev-tools")]
         {

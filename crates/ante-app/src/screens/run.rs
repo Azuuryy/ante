@@ -75,6 +75,12 @@ fn box_node(node: Node, color: Color) -> (Node, BackgroundColor) {
     )
 }
 
+/// How far the overlay shade reaches past the room on every side, so it covers the whole
+/// window and not only the 20 x 11.5 tile room the menus are centred in.
+const SHADE_REACH: f32 = 4000.0;
+
+/// A menu over the screen: the room-sized box centres the menu, and its shade dims the
+/// whole window behind it.
 pub fn overlay(ui: &mut ChildSpawnerCommands, content: impl FnOnce(&mut ChildSpawnerCommands)) {
     ui.spawn((
         Node {
@@ -85,14 +91,27 @@ pub fn overlay(ui: &mut ChildSpawnerCommands, content: impl FnOnce(&mut ChildSpa
             align_items: AlignItems::Center,
             ..default()
         },
-        BackgroundColor(Color::srgba(0.31, 0.40, 0.40, 0.65)),
         GlobalZIndex(200),
         Pickable {
             should_block_lower: true,
             is_hoverable: false,
         },
     ))
-    .with_children(content);
+    .with_children(|overlay| {
+        overlay.spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(-SHADE_REACH),
+                top: px(-SHADE_REACH),
+                right: px(-SHADE_REACH),
+                bottom: px(-SHADE_REACH),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.31, 0.40, 0.40, 0.65)),
+            Pickable::IGNORE,
+        ));
+        content(overlay);
+    });
 }
 
 fn modal(

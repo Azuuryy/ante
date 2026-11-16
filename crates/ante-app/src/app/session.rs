@@ -227,7 +227,9 @@ pub(crate) fn process_clicks(
                         matches!(view.phase, Phase::Shop | Phase::Pack) && view.revision == revision
                     })
                 {
-                    session.shop_selection = Some(action);
+                    // `Card:click`: clicking the highlighted card unhighlights it.
+                    session.shop_selection =
+                        (session.shop_selection != Some(action)).then_some(action);
                 }
             }
             Click::OpenDeck => {

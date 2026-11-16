@@ -11,6 +11,8 @@ pub struct Content {
     /// Human-readable condition that unlocks this item in the collection.
     /// `None` means the item is available from the start.
     pub unlock: Option<&'static str>,
+    /// The rarity badge of a Joker (`Common` to `Legendary`); `None` for other items.
+    pub rarity: Option<&'static str>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

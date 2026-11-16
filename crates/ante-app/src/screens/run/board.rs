@@ -30,6 +30,8 @@ pub struct RunBoard {
     pub(super) error: Entity,
     pub(super) frame: Option<BoardFrame>,
     pub(super) tag_keys: Vec<&'static str>,
+    /// The hand and its actions while a hand is steady, updated in place on selection.
+    pub(super) playing: Option<crate::screens::hand::HandSlots>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -386,6 +388,7 @@ impl RunBoard {
             error,
             frame: None,
             tag_keys: Vec::new(),
+            playing: None,
         }
     }
 }

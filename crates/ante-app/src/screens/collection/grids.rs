@@ -134,14 +134,8 @@ pub(super) fn blinds(
                             } else {
                                 "bl_undiscovered"
                             };
-                            let tip = if discovered {
-                                collection_tip(blind, ContentGroup::Blinds, true, locked)
-                            } else {
-                                tooltip::Tip::new(
-                                    "Undiscovered",
-                                    "Defeat this blind to discover it.",
-                                )
-                            };
+                            let tip =
+                                collection_tip(blind, ContentGroup::Blinds, discovered, locked);
                             sprite_cell(
                                 row,
                                 atlases.blind_chip(id),

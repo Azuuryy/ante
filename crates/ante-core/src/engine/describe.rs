@@ -269,3 +269,8 @@ pub(super) fn sticker_summary(stickers: balatro_rs::joker::Stickers) -> String {
     }
     active.join(" · ")
 }
+
+/// The starting rule of the deck with save id `id` (`b_red`, …), as the engine applies it.
+pub fn deck_description(id: &str) -> Option<String> {
+    balatro_types::DeckVariant::from_id(id).map(|deck| deck.description().to_owned())
+}

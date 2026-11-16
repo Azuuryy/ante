@@ -23,8 +23,11 @@ pub(crate) use hover::*;
 
 pub(crate) fn click_target(entity: &mut bevy::ecs::system::EntityCommands, action: Click) {
     entity.observe(
-        move |event: On<PointerClick>, mut clicks: MessageWriter<Click>| {
+        move |mut event: On<PointerClick>, mut clicks: MessageWriter<Click>| {
             if event.button == PointerButton::Primary {
+                // The innermost target takes the click: a shop card's Buy button must not
+                // also toggle the card's selection.
+                event.propagate(false);
                 clicks.write(action);
             }
         },

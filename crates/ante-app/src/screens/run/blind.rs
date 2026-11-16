@@ -178,8 +178,8 @@ pub(super) fn tag_icon(
     });
     crate::components::tooltip::attach(
         &mut icon,
+        // The tag popup has no type badge (`Tag:get_uibox_table`).
         crate::components::tooltip::Tip::new(&tag.name, &tag.content.description)
-            .badge("Tag")
             .info(crate::components::info::references(tag.content.id.0))
             .technical(tag.content.id.0),
     );
@@ -224,28 +224,8 @@ pub(super) fn blind_panel(
         }),
         BorderColor::all(if blind.selectable { color } else { muted }),
     ));
-    let effect = if blind.description.is_empty() {
-        format!("Score at least {}", blind.target)
-    } else {
-        blind.description.clone()
-    };
-    crate::components::tooltip::attach(
-        &mut panel,
-        crate::components::tooltip::Tip::new(&blind.name, effect)
-            .badge(["Small", "Big", "Boss"][index])
-            .technical(format!(
-                "{} · target {} · reward {}",
-                blind.id, blind.target, blind.reward
-            ))
-            .technical(format!(
-                "Selectable: {} · passed: {} · skipped: {} · can skip: {}",
-                blind.selectable, blind.passed, blind.skipped, blind.can_skip
-            ))
-            .technical(format!(
-                "Tag: {}",
-                blind.tag.as_ref().map_or("none", |tag| tag.content.id.0)
-            )),
-    );
+    // `create_UIBox_blind_choice` gives the blind no popup: its rule is printed on it, and
+    // a hover would hide the tag popup of the skip button inside it.
     panel.with_children(|card| {
         let selection = if blind.selectable {
             "Select"

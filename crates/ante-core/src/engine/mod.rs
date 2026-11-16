@@ -33,7 +33,7 @@ use view::*;
 
 pub use backend::ExternalBackend;
 pub use content::unlock_condition;
-pub use describe::joker_description;
+pub use describe::{deck_description, joker_description};
 pub use run::EngineRun;
 
 #[cfg(test)]

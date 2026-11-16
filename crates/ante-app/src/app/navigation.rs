@@ -90,12 +90,9 @@ impl DeckChoice {
         }
     }
 
-    pub fn effect(self) -> &'static str {
-        match self {
-            Self::Red => "4 hands / 4 discards per round",
-            Self::Blue => "5 hands / 3 discards per round",
-            _ => "Not available yet",
-        }
+    /// The deck's starting rule (`b_*` description), read from the engine.
+    pub fn effect(self) -> String {
+        ante_core::engine::deck_description(self.id()).unwrap_or_default()
     }
 
     pub fn id(self) -> &'static str {

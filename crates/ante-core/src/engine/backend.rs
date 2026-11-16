@@ -2,6 +2,17 @@ use std::sync::LazyLock;
 
 use super::*;
 
+/// The rarity badge text of a Joker, as `JokerView::rarity` writes it.
+fn rarity_name(rarity: balatro_types::Rarity) -> &'static str {
+    use balatro_types::Rarity::*;
+    match rarity {
+        Common => "Common",
+        Uncommon => "Uncommon",
+        Rare => "Rare",
+        Legendary => "Legendary",
+    }
+}
+
 pub struct ExternalBackend;
 impl GameBackend for ExternalBackend {
     fn start(&self, config: RunConfig) -> Box<dyn RunDriver> {
@@ -19,6 +30,7 @@ impl GameBackend for ExternalBackend {
                     cost: joker.cost(),
                     supported: joker.is_implemented(),
                     unlock: unlock_condition(joker.id()),
+                    rarity: Some(rarity_name(joker.rarity())),
                 })
                 .collect()
         });

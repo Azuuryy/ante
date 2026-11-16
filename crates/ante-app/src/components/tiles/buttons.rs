@@ -100,7 +100,7 @@ pub fn card_button(
     (min_w, min_h): (f32, f32),
     padding: UiRect,
     action: Option<Click>,
-) {
+) -> Entity {
     let mut node = ui.spawn((
         Node {
             min_width: tiles(min_w),
@@ -137,6 +137,7 @@ pub fn card_button(
                 });
         }
     });
+    node.id()
 }
 
 pub fn tile_optional(

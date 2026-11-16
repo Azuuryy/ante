@@ -155,6 +155,7 @@ pub fn run(backend: impl GameBackend) {
                 screens::run::float_text,
                 screens::run::fill_local_text,
                 screens::run::reveal_round_eval,
+                screens::hand::paint_hand_actions,
             ),
         )
         .add_systems(

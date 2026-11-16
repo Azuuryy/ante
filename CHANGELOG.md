@@ -82,6 +82,9 @@
 
 ### Changed
 
+- Collection popups are the ones cards have in a run, as `Card:generate_UIBox_ability_table` builds them: Jokers carry their rarity badge, Tarot, Planet and Spectral cards their set, vouchers and boosters their type; an enhancement shows its rule with its name as a badge, a seal its name and badge, an edition the "Edition" badge and its own; tags have no badge. Locked entries read "Locked" with their unlock condition. The "Discovered" badge is gone. The catalog now gives each Joker's rarity (`Content.rarity`).
+- The Blind choice panels have no popup any more, as in the original; this lets the tag next to Skip Blind show its popup, which the panel's popup used to cover. Tag popups have no "Tag" badge.
+- Selecting hand cards keeps the Play Hand, Sort and Discard row in place and only repaints the buttons whose state changes, instead of rebuilding the row each time.
 - Shop price tags overlap the top of their card as the original `create_shop_card_ui` aligns them; booster tags sit a little lower.
 - Hovering the deck shows "View Deck" in white on a half-transparent black box centred on the top card, which follows the pile as it shrinks.
 - The engine catalog lists Planets (Mercury to Eris), Blinds and Tags in their original `order`, as the collection shows them.
@@ -130,6 +133,10 @@
 
 ### Fixed
 
+- Clicking the selected shop or pack card deselects it again (`Card:click`), and the selected shop card keeps its hover lean. A click goes to the innermost target only, so a card's Buy or Use button no longer also toggles the card.
+- The shade behind menus (New Run, Options, Collection, pause) covers the whole window instead of only the room the menus are centred in.
+- Hovered cards no longer vanish: the hover tilt lowered the clip-space w of cards that sit near the far plane of the UI projection, which clipped them away; the depth now scales with w.
+- The deck view, the deck carousel and their popups show each deck's starting rule (the Red Deck gives "+1 discard every round"), read from the engine (`ante_core::engine::deck_description`), instead of placeholder text.
 - Arcana and Spectral packs work like the original: select target cards in the hand first, then click a pack card to highlight it and use it with its USE button (SELECT for Jokers and playing cards), which is red only when the selection fits. Consumables already in your slots can be used while a pack is open. A Planet or Tarot taken from a pack now counts as the last one used for The Fool.
 - Jokers that act on each card (Scary Face, Smiley Face, Fibonacci, the suit Jokers, Baron and 17 others) now trigger on every repetition of every scored or held card, as in the original: with Scary Face, Smiley Face, Sock and Buskin and Pareidolia, a five-card hand scores both Jokers ten times. Their popup appears on the card as it scores, and the Joker juices.
 - Pack choices stay on one row: the area is `n × CARD_W` wide for Arcana and Spectral packs, `× 1.1` for Standard and Buffoon, `× 1.1 + 0.5` for Celestial, and the cards close up instead of wrapping (`create_UIBox_*_pack`). After a pick in a Mega pack the area follows the remaining cards rather than the original's initial width.

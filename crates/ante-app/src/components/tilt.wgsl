@@ -47,7 +47,11 @@ fn vertex(
         let offset = (vertex_position.xy - tilt.cursor) / tilt.screen_scale;
         let depth = 0.2 * (-0.03 - 0.3 * max(0.0, 0.3 - mid_dist)) * tilt.hovering
             * dot(offset, offset) / (2.0 - mid_dist);
-        position.w = position.w + depth;
+        // The UI projection puts every node near the far plane (z/w ≈ 1): scale z with the
+        // new w so the depth stays put and a hovered card is not clipped away.
+        let ndc_z = clamp(position.z / position.w, 0.0, 1.0);
+        position.w = max(position.w + depth, 0.05);
+        position.z = ndc_z * position.w;
     }
     out.position = position;
     return out;

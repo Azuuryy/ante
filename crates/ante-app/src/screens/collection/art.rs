@@ -121,20 +121,13 @@ pub(super) fn collection_tip(
     locked: bool,
 ) -> tooltip::Tip {
     let tip = if locked {
-        tooltip::Tip::new(&item.name, "Locked")
-            .badge("Locked")
-            .detail(format!(
-                "Unlock: {}",
-                item.unlock.unwrap_or("Keep playing to unlock")
-            ))
+        // `generate_card_ui` with `card_type = 'Locked'`: the name "Locked" and the unlock
+        // condition, without badges.
+        tooltip::Tip::new("Locked", item.unlock.unwrap_or("Keep playing to unlock"))
     } else if discovered {
-        tooltip::Tip::new(&item.name, &item.description)
-            .badge(if item.supported {
-                "Discovered"
-            } else {
-                "Unavailable"
-            })
-            .info(crate::components::info::references(item.id.0))
+        discovered_tip(item, group)
+    } else if group == ContentGroup::Blinds {
+        tooltip::Tip::new("Not Discovered", "Defeat this blind to discover it.")
     } else {
         tooltip::Tip::new(
             "Not Discovered",
@@ -149,18 +142,46 @@ pub(super) fn collection_tip(
         .technical(format!("Locked: {locked}"))
 }
 
+/// The popup a discovered entry has in a run, as `Card:generate_UIBox_ability_table` builds
+/// it: Jokers carry their rarity, consumables their set, vouchers and boosters their type;
+/// an enhancement shows only its rule and its name as a badge; an edition is the plain
+/// Joker with the "Edition" badge and its own; tags and blinds have no badge.
+fn discovered_tip(item: &Content, group: ContentGroup) -> tooltip::Tip {
+    let tip = tooltip::Tip::new(&item.name, &item.description);
+    let set = match group {
+        ContentGroup::Jokers => item.rarity,
+        ContentGroup::Tarots => Some("Tarot"),
+        ContentGroup::Planets => Some("Planet"),
+        ContentGroup::Spectrals => Some("Spectral"),
+        ContentGroup::Vouchers => Some("Voucher"),
+        ContentGroup::Boosters => Some("Booster"),
+        ContentGroup::Seals => Some(item.name.as_str()),
+        ContentGroup::Enhancements => {
+            return tooltip::Tip::new("", &item.description).badge(&item.name);
+        }
+        ContentGroup::Editions => {
+            let tip = tip.badge("Edition");
+            return match edition_label(item.id.0) {
+                Some(edition) => tip.badge(edition),
+                None => tip,
+            };
+        }
+        ContentGroup::Tags | ContentGroup::Blinds => None,
+    };
+    let tip = match set {
+        Some(set) => tip.badge(set),
+        None => tip,
+    };
+    tip.info(crate::components::info::references(item.id.0))
+}
+
 pub(super) fn deck_tip(
     deck: DeckChoice,
     locked: bool,
     condition: Option<&'static str>,
 ) -> tooltip::Tip {
     let tip = if locked {
-        tooltip::Tip::new(deck.name(), "Locked")
-            .badge("Locked")
-            .detail(format!(
-                "Unlock: {}",
-                condition.unwrap_or("Keep playing to unlock")
-            ))
+        tooltip::Tip::new("Locked", condition.unwrap_or("Keep playing to unlock"))
     } else {
         tooltip::Tip::new(deck.name(), deck.effect())
     };

@@ -55,6 +55,7 @@ pub(crate) fn show_collection(
                     cost: 0,
                     supported: true,
                     unlock: None,
+                    rarity: None,
                 });
             }
             catalog.extend(backend.catalog(group).iter().cloned());

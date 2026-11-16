@@ -23,6 +23,7 @@ pub(super) static VOUCHERS: LazyLock<Vec<Content>> = LazyLock::new(|| {
             cost: voucher.cost(),
             supported: true,
             unlock: unlock_condition(voucher.id()),
+            rarity: None,
         })
         .collect()
 });
@@ -42,6 +43,7 @@ pub(super) fn consumable_content(card: balatro_rs::consumable::Consumable) -> Co
         cost: card.cost(),
         supported: true,
         unlock: None,
+        rarity: None,
     }
 }
 
@@ -153,6 +155,7 @@ pub(super) static BOOSTER_CONTENT: LazyLock<Vec<Content>> = LazyLock::new(|| {
                 cost,
                 supported: true,
                 unlock: None,
+                rarity: None,
             }
         })
         .collect()
@@ -168,6 +171,7 @@ pub(super) static BLINDS: LazyLock<Vec<Content>> = LazyLock::new(|| {
             cost: 0,
             supported: true,
             unlock: None,
+            rarity: None,
         },
         Content {
             id: ContentId("bl_big"),
@@ -176,6 +180,7 @@ pub(super) static BLINDS: LazyLock<Vec<Content>> = LazyLock::new(|| {
             cost: 0,
             supported: true,
             unlock: None,
+            rarity: None,
         },
     ];
     blinds.extend(BossBlind::iter().map(|boss| Content {
@@ -185,6 +190,7 @@ pub(super) static BLINDS: LazyLock<Vec<Content>> = LazyLock::new(|| {
         cost: 0,
         supported: true,
         unlock: None,
+        rarity: None,
     }));
     in_original_order(&mut blinds, &BLIND_ORDER);
     blinds
@@ -198,6 +204,7 @@ pub(super) fn rule(id: &'static str, name: &str, description: &str) -> Content {
         cost: 0,
         supported: true,
         unlock: None,
+        rarity: None,
     }
 }
 
@@ -294,6 +301,7 @@ pub(super) static TAGS: LazyLock<Vec<Content>> = LazyLock::new(|| {
             cost: 0,
             supported: true,
             unlock: None,
+            rarity: None,
         })
         .collect();
     in_original_order(&mut tags, &TAG_ORDER);

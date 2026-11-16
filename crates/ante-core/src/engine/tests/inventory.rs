@@ -288,3 +288,18 @@ fn collection_lists_follow_the_original_order() {
     let tags = crate::engine::ExternalBackend.catalog(ContentGroup::Tags);
     assert_eq!(tags[0].id.0, "tag_uncommon");
 }
+
+#[test]
+fn catalog_carries_joker_rarity_and_deck_rules() {
+    use crate::contract::{ContentGroup, GameBackend};
+    let jokers = crate::engine::ExternalBackend.catalog(ContentGroup::Jokers);
+    let joker = jokers.iter().find(|item| item.id.0 == "j_joker").unwrap();
+    assert_eq!(joker.rarity, Some("Common"));
+    let tarots = crate::engine::ExternalBackend.catalog(ContentGroup::Tarots);
+    assert!(tarots.iter().all(|item| item.rarity.is_none()));
+    assert_eq!(
+        crate::engine::deck_description("b_red").as_deref(),
+        Some("+1 discard every round")
+    );
+    assert_eq!(crate::engine::deck_description("b_unknown"), None);
+}

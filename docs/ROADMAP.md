@@ -28,7 +28,7 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | Options graphiques / ressources | In progress | Recetter import, remplacement et secours. |
 | Options audio | Not implemented | Cartographier les contrôles et la persistance. |
 | Collection / accueil | In progress | Disposition de `create_UIBox_your_collection` (groupe Consumables, compteurs). À comparer à taille égale. |
-| Collection / jokers | In progress | 3 zones `title` de 5, cycle « Page n/N », centre non découvert et « ? ». Le « ? » ne se balance pas encore. |
+| Collection / jokers | In progress | 3 zones `title` de 5, cycle « Page n/N », centre non découvert et « ? ». Popups de partie (badge de rareté) dans toutes les catégories. Le « ? » ne se balance pas encore. |
 | Collection / vouchers | In progress | 2 zones `voucher` de 4 (paires superposées). Comparer prérequis. |
 | Collection / tags | In progress | Grille de 6 par rangée, tag « ? » pour les non découverts. |
 | Collection / decks | In progress | Carrousel avec pastilles, nom et description sur blanc. La pile reste l'aperçu d'Ante. |
@@ -40,11 +40,13 @@ La recette commune compare une capture à taille cliente égale et vérifie le p
 | Collection / éditions | In progress | Base puis 4 éditions sur le Joker, avec leur shader. |
 | Collection / sceaux | In progress | 1 × 4 sur une carte vierge. |
 | Collection / blinds | In progress | Grille de 5 dans l'ordre d'origine et table ANTE / BASE (antes 1 à 16). L'ante la plus haute n'est pas enregistrée : tous les montants restent gris. |
+| Customize Deck | Not implemented | Choix des faces de cartes (`G.UIDEF.customize_deck`) chargées depuis l'import local, avec secours sur les faces par défaut. |
+| Mods | Not implemented | À concevoir : API de mods d'Ante (données puis scripts), chargée avant la run et inscrite dans les journaux de run. Pas d'exécution directe des mods Steamodded. |
 | Challenges | Not implemented | Inventorier conditions, sélection et sortie. |
 | HUD et compteurs | In progress | Reconstruit d'après `create_UIBox_HUD` : boîtes intérieures, jeton de mise, Chips × Mult côte à côte, enseigne animée, couleurs dynamiques et coins pixelisés. À comparer à 1920 × 1056 ; l'ombre portée ne suit pas encore la parallaxe horizontale. |
-| Choix des blinds | In progress | Vérifier les trois états et l’objectif du boss. |
+| Choix des blinds | In progress | Les panneaux n'ont pas de popup, comme l'original ; le tag à côté de Skip Blind a le sien. Vérifier les trois états et l’objectif du boss. Un boss qui voudrait sa propre popup (modding) n'a pas encore de champ pour la fournir. |
 | Tags détenus | In progress | Comparer pile, acquisition et disparition. |
-| Main et actions | In progress | Comparer taille, sélection et recouvrement. Vérifier le glisser-déposer et le tri Rank/Suit. |
+| Main et actions | In progress | La rangée Play Hand / Sort / Discard reste en place quand la sélection change. Comparer taille, sélection et recouvrement. Vérifier le glisser-déposer et le tri Rank/Suit. |
 | Aperçu Chips × Mult | In progress | Vérifier niveau, sélection vide et lecture du score. |
 | Résolution du score | In progress | Vérifier la trace et les interactions. Les effets animés viendront au jalon VFX. |
 | Encaissement | In progress | Lignes et dollars d'`add_round_eval_row` au rythme d'origine, puis Cash Out. Le panneau ne monte pas encore depuis le bas. |

@@ -186,6 +186,16 @@ impl RunBoard {
                     }
                 });
         }
+        // A steady hand keeps its action row: only the hand and the button states change.
+        let steady = view.phase == Phase::Playing && trace.is_none() && !preview;
+        if !steady {
+            self.playing = None;
+        }
+        if let Some(slots) = self.playing.as_mut() {
+            slots.refresh(commands, view, atlases);
+            return;
+        }
+        let mut playing = None;
         commands
             .entity(self.center)
             .insert(center_layout(view.phase))
@@ -213,14 +223,16 @@ impl RunBoard {
                         );
                     }
                 }
-                Phase::Playing => playing_board(
-                    center,
-                    view,
-                    atlases,
-                    trace.is_some(),
-                    session.speed,
-                    preview,
-                ),
+                Phase::Playing => {
+                    playing = playing_board(
+                        center,
+                        view,
+                        atlases,
+                        trace.is_some(),
+                        session.speed,
+                        preview,
+                    );
+                }
                 Phase::Shop => {
                     shop_board(center, view, atlases, session.shop_selection, text);
                 }
@@ -230,5 +242,6 @@ impl RunBoard {
                 Phase::Pack => pack_board(center, view, atlases, session.shop_selection),
                 Phase::Won | Phase::Lost => {}
             });
+        self.playing = playing;
     }
 }

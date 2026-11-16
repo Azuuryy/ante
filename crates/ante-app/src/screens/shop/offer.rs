@@ -96,9 +96,7 @@ pub(super) fn offer_area(
                 },
                 ZIndex(if chosen { SELECTED_OFFER_Z } else { 0 }),
             ));
-            if !chosen {
-                card_hover(&mut item);
-            }
+            card_hover(&mut item);
             click_target(
                 &mut item,
                 Click::SelectOffer {
