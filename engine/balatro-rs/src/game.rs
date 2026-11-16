@@ -128,6 +128,13 @@ pub struct Game {
     // The Mouth: the only hand type allowed this round, the first one played.
     #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) mouth_hand: Option<HandRank>,
+    // The Ox: `current_round.most_played_poker_hand`, set after each Boss Blind; None
+    // until then, which reads as High Card like the original's starting value.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) ox_hand: Option<HandRank>,
+    // The Hook or The Tooth triggered when the hand was played (`Blind:press_play`).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) boss_play_triggered: bool,
     #[cfg_attr(feature = "serde", serde(default))]
     pub consecutive_hands_without_face_card: usize,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -243,6 +250,8 @@ impl Game {
             prob_mult: 1,
             hand_ranks_played_this_round: HashSet::new(),
             mouth_hand: None,
+            ox_hand: None,
+            boss_play_triggered: false,
             consecutive_hands_without_face_card: 0,
             consecutive_hands_not_most_played_type: 0,
             discarded_this_round: Vec::new(),

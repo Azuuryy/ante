@@ -267,7 +267,7 @@ pub(super) fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color
                 });
             } else if matches!(
                 word_key.as_str(),
-                "tarot" | "tarots" | "spectral" | "spectrals"
+                "tarot" | "tarots" | "planet" | "planets" | "spectral" | "spectrals"
             ) {
                 shimmer_word(row, word, size, color);
             } else {
@@ -282,7 +282,7 @@ const SHIMMER_PERIOD: f32 = 2.4;
 const SHIMMER_WIDTH: f32 = 2.0;
 
 /// A word whose letters catch a light sweeping from left to right. An Ante addition for
-/// "Tarot" and "Spectral"; the original draws them in their plain set colour.
+/// "Tarot", "Planet" and "Spectral"; the original draws them in their plain set colour.
 #[derive(Component)]
 pub(crate) struct Shimmer {
     base: Color,

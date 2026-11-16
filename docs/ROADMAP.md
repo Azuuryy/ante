@@ -54,7 +54,7 @@ The common acceptance check compares a capture at equal client size and walks th
 | Shop / vouchers | In progress | Test multiple purchases, prices and prerequisites. |
 | Shop / boosters | In progress | Compare atlas, sizes, prices and opening. |
 | Packs / Standard | In progress | Compare card choice and return. |
-| Packs / Buffoon | In progress | Compare joker choice and capacity limits. |
+| Packs / Buffoon | In progress | Pack Jokers have the shop popup (rarity, edition). Compare joker choice and capacity limits. |
 | Packs / Celestial | In progress | Check the level gained and closing. |
 | Packs / Arcana | In progress | Check target selection and return. |
 | Packs / Spectral | In progress | Check target selection and return. |

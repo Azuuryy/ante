@@ -123,6 +123,7 @@ impl Game {
         let selected = SelectHand::new(self.available.selected());
         let best = selected.best_hand()?;
         let scored = best.clone();
+        let hooked = self.press_play(&best);
         let score = self.calc_score_inner(best, trace);
         let clear_blind = self.handle_score(score)?;
         // must run before the discard/redraw below: self.available still reflects
@@ -134,10 +135,11 @@ impl Game {
         self.age_ice_cream();
         self.discarded.extend(self.available.selected());
         let removed = self.available.remove_selected();
+        // The hand refills the cards played and those The Hook discarded.
         let n = if self.active_boss() == Some(BossBlind::Serpent) {
             3
         } else {
-            removed
+            removed + hooked
         };
         self.draw(n);
         for card in scored.hand.cards() {
@@ -158,9 +160,6 @@ impl Game {
         }
         self.discards_remaining -= 1;
         let discarded = self.available.selected();
-        self.discarded.extend(discarded.iter().copied());
-        self.discarded_this_round.extend(discarded.iter().copied());
-        self.total_cards_discarded += discarded.len();
         let removed = self.available.remove_selected();
         let n = if self.active_boss() == Some(BossBlind::Serpent) {
             3
@@ -168,6 +167,18 @@ impl Game {
             removed
         };
         self.draw(n);
+        self.record_discard(discarded);
+        Ok(())
+    }
+
+    /// The discard of `discarded` cards already out of the hand: they go to the discard
+    /// pile, Purple seals create a Tarot and discard Jokers act, like the `discard`
+    /// contexts of `G.FUNCS.discard_cards_from_highlighted`. The Discard action and The
+    /// Hook share it.
+    pub(super) fn record_discard(&mut self, discarded: Vec<Card>) {
+        self.discarded.extend(discarded.iter().copied());
+        self.discarded_this_round.extend(discarded.iter().copied());
+        self.total_cards_discarded += discarded.len();
 
         // Check for purple seals
         for card in &discarded {
@@ -195,7 +206,6 @@ impl Game {
                 f.lock().unwrap()(self, hand.clone())
             }
         }
-        Ok(())
     }
 
     pub(crate) fn destroy_card(&mut self, id: usize) {

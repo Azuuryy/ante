@@ -30,6 +30,13 @@ pub(super) type AnimatedJoker = (
     Option<&'static mut HoverMotion>,
 );
 
+/// Existing popups, the held Jokers and the parents of played cards (the play area).
+type PopupTargets<'w, 's> = (
+    Query<'w, 's, Entity, With<ScorePopup>>,
+    Query<'w, 's, AnimatedJoker, Without<ScoredCard>>,
+    Query<'w, 's, &'static ChildOf>,
+);
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn animate(
     mut commands: Commands,
@@ -38,10 +45,7 @@ pub(crate) fn animate(
     mut text: Query<&mut Text, (With<PlaybackLabel>, Without<run_ui::ScoreTile>)>,
     mut tiles: Query<(&run_ui::ScoreTile, &mut Text, &mut UiTransform), Without<PlaybackLabel>>,
     mut cards: Query<AnimatedCard>,
-    (popups, mut jokers): (
-        Query<Entity, With<ScorePopup>>,
-        Query<AnimatedJoker, Without<ScoredCard>>,
-    ),
+    (popups, mut jokers, parents): PopupTargets,
     (mut metrics, mut shown_popup): (ResMut<FrameMetrics>, Local<Option<(usize, usize)>>),
     (mut sounds, mut room, mut shown_stage): (
         MessageWriter<Sfx>,
@@ -77,8 +81,15 @@ pub(crate) fn animate(
         }
         if let Some((_, _, popup)) = current.filter(|_| new_popup) {
             sounds.write(popup_sound(popup));
-            // `card_eval_status_text` shakes the room by 0.7 per popup.
-            room.kick(0.7);
+            if popup == Popup::NotAllowed {
+                // The boss juices with `tarot2` as the refused hand is evaluated, and
+                // `play_area_status_text` shakes the room by 2.
+                sounds.write(Sfx::new("tarot2", 1.0, 0.4));
+                room.kick(2.0);
+            } else {
+                // `card_eval_status_text` shakes the room by 0.7 per popup.
+                room.kick(0.7);
+            }
         }
         let stage = playback.stage();
         if *shown_stage != Some(stage) {
@@ -150,6 +161,15 @@ pub(crate) fn animate(
                     .with_child(score_popup(label, color, PopupSide::Below));
             }
         }
+        // `play_area_status_text`: "Not Allowed!" over the middle of the play area.
+        if let Some((ScoreSource::NotAllowed, _)) = &popup
+            && let Some(area) = cards
+                .iter()
+                .find(|(.., played, _)| *played)
+                .and_then(|(entity, ..)| parents.get(entity).ok())
+        {
+            commands.entity(area.parent()).with_child(play_area_popup());
+        }
         for mut text in &mut text {
             let next = playback.description();
             if next != text.0 {
@@ -196,6 +216,7 @@ pub(super) fn popup_sound(popup: Popup) -> Sfx {
         Popup::Mult(_) => Sfx::new("multhit1", pitch, 1.0),
         Popup::XMult(_) => Sfx::new("multhit2", pitch, 0.7),
         Popup::Money(_) => Sfx::new("coin3", pitch, 1.0),
+        Popup::NotAllowed => Sfx::new("cardFan2", 1.0, 1.0),
     }
 }
 
@@ -209,6 +230,7 @@ pub(super) fn popup_text(popup: Popup) -> (String, Color) {
         Popup::XMult(hundredths) => (format!("X{} Mult", multiplier(hundredths)), POPUP_MULT),
         Popup::Money(amount) if amount < 0 => (format!("-${}", -amount), POPUP_MULT),
         Popup::Money(amount) => (format!("${amount}"), POPUP_MONEY),
+        Popup::NotAllowed => ("Not Allowed!".into(), Color::WHITE),
     }
 }
 
@@ -258,6 +280,33 @@ pub(super) fn score_popup(label: String, color: Color, side: PopupSide) -> impl 
                 ..default()
             },
             TextColor(Color::WHITE),
+            Pickable::IGNORE,
+        )],
+    )
+}
+
+/// `attention_text` at scale 0.9, centred one unit above the play area.
+fn play_area_popup() -> impl Bundle {
+    (
+        ScorePopup,
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(0),
+            right: px(0),
+            top: px(-menu_ui::TILE),
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        GlobalZIndex(500),
+        Pickable::IGNORE,
+        children![(
+            Text::new("Not Allowed!"),
+            TextFont {
+                font_size: bevy::text::FontSize::Px(menu_ui::text_px(0.9)),
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            crate::components::widgets::text_shadow(),
             Pickable::IGNORE,
         )],
     )

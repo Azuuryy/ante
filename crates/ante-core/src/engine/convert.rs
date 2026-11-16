@@ -165,6 +165,7 @@ pub(super) fn map_trace(trace: NativeTrace) -> ScoreTrace {
                     NativeSource::Voucher(voucher) => {
                         ScoreSource::Voucher(ContentId(voucher.id()), voucher_name(voucher))
                     }
+                    NativeSource::NotAllowed => ScoreSource::NotAllowed,
                 },
                 chips_before: step.chips_before,
                 chips_after: step.chips_after,

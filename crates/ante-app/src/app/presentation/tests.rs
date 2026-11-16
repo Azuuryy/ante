@@ -20,3 +20,13 @@ fn popups_read_like_the_original_status_text() {
     assert_eq!(popup_text(Popup::Money(3)).0, "$3");
     assert_eq!(popup_text(Popup::Money(-2)).0, "-$2");
 }
+
+#[test]
+fn glyphs_start_on_a_whole_pixel_and_keep_their_size() {
+    // An odd-sized glyph keeps its half-pixel centre; its corner lands on a pixel.
+    let snapped = snap_glyph(Vec2::new(10.3, 7.8), Vec2::new(5.0, 8.0));
+    assert_eq!(snapped, Vec2::new(10.5, 8.0));
+    assert_eq!(snapped - Vec2::new(2.5, 4.0), Vec2::new(8.0, 4.0));
+    let aligned = Vec2::new(12.5, 4.0);
+    assert_eq!(snap_glyph(aligned, Vec2::new(5.0, 8.0)), aligned);
+}

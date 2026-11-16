@@ -52,7 +52,7 @@ This roadmap tracks detailed behaviour, surface by surface. The high-level roadm
 | Blue Seal | To verify | Check the conditional Planet creation at end of round and capacity. |
 | Purple Seal | To verify | Check the Tarot on discard and consumable space. |
 | Seal assignment | In progress | Test Spectral cards, card effects and seal replacement/exclusivity. |
-| Engine debuff | In progress | Compare the rules per blind and Joker; check which contributions are cancelled. The Psychic, The Eye and The Mouth refuse their hands (score 0, Matador pays). Left: the "Not Allowed!" message in the client, and The Ox, The Hook and The Tooth, which the engine does not apply yet. |
+| Engine debuff | In progress | Compare the rules per blind and Joker; check which contributions are cancelled. The Psychic, The Eye and The Mouth refuse their hands (score 0, "Not Allowed!", Matador pays); The Ox, The Hook and The Tooth apply. Whole runs against them are tested (`game/tests/boss_runs.rs`). Left: the boss's juice and the second `tarot2` note when its ability triggers. |
 | Debuff visuals | In progress | Hand and Deck cards show a red cross and a red tint; compare opacity and extend to other surfaces if they can carry the state. |
 | Seal visuals | In progress | The hand and the Deck show a single seal on the left, under the rank corner. Check readability in game. |
 

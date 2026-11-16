@@ -1,5 +1,9 @@
 use super::*;
 
+mod items;
+
+use items::*;
+
 impl EngineRun {
     pub fn view(&self) -> RunView {
         let game = &self.game;
@@ -121,19 +125,9 @@ impl EngineRun {
             .jokers
             .iter()
             .map(|joker| JokerView {
-                id: JokerKey(joker.instance_id()),
-                kind: joker.id(),
-                name: joker.name(),
                 price: game.shop.joker_price(joker, &game.vouchers),
                 enabled: legal.contains(&Action::BuyJoker(joker.clone())),
-                description: joker_description(joker.id()),
-                state: format!("{} / {:?}", joker.state().counter, joker.state().selector),
-                current: joker_current(joker, game),
-                rarity: format!("{:?}", joker.rarity()),
-                edition: format!("{:?}", joker.edition()),
-                stickers: sticker_summary(joker.stickers()),
-                can_sell: false,
-                sell_price: joker.sell_value(),
+                ..joker_view(joker, game)
             })
             .collect();
 
@@ -142,19 +136,10 @@ impl EngineRun {
             .iter()
             .enumerate()
             .map(|(index, joker)| JokerView {
-                id: JokerKey(joker.instance_id()),
-                kind: joker.id(),
-                name: joker.name(),
                 price: game.price(joker.cost()),
                 enabled: true,
-                description: joker_description(joker.id()),
-                state: format!("{} / {:?}", joker.state().counter, joker.state().selector),
-                current: joker_current(joker, game),
-                rarity: format!("{:?}", joker.rarity()),
-                edition: format!("{:?}", joker.edition()),
-                stickers: sticker_summary(joker.stickers()),
                 can_sell: legal.contains(&Action::SellJoker(index)),
-                sell_price: joker.sell_value(),
+                ..joker_view(joker, game)
             })
             .collect();
         let consumables = game
@@ -162,17 +147,10 @@ impl EngineRun {
             .iter()
             .enumerate()
             .map(|(index, c)| ConsumableView {
-                index,
-                kind: c.id(),
-                name: c.name().to_owned(),
-                category: c.type_label().to_owned(),
-                description: consumable_description(*c),
                 price: game.price(c.cost()),
-                can_buy: false,
-                can_buy_and_use: false,
                 can_use: legal.contains(&Action::UseConsumable(*c)),
                 can_sell: legal.contains(&Action::SellConsumable(index)),
-                sell_price: c.sell_value(),
+                ..consumable_view(*c, index)
             })
             .collect();
         let consumable_offers = game
@@ -181,17 +159,10 @@ impl EngineRun {
             .iter()
             .enumerate()
             .map(|(index, c)| ConsumableView {
-                index,
-                kind: c.id(),
-                name: c.name().to_owned(),
-                category: c.type_label().to_owned(),
-                description: consumable_description(*c),
                 price: game.shop.consumable_price(c, &game.vouchers),
                 can_buy: legal.contains(&Action::BuyConsumable(*c)),
                 can_buy_and_use: game.can_buy_and_use(c),
-                can_use: false,
-                can_sell: false,
-                sell_price: c.sell_value(),
+                ..consumable_view(*c, index)
             })
             .collect();
 
@@ -263,6 +234,8 @@ impl EngineRun {
                             art: card_art(*card),
                             price: game.shop.card_price(card, &game.vouchers),
                             enabled: legal.contains(&Action::BuyPlayingCard(*card)),
+                            joker: None,
+                            consumable: None,
                         },
                     )
                 })
@@ -277,18 +250,20 @@ impl EngineRun {
                     art: pack_art(pack),
                     price: game.shop.pack_price(pack, &game.vouchers),
                     enabled: legal.contains(&Action::BuyPack(pack.clone())),
+                    joker: None,
+                    consumable: None,
                 })
                 .collect(),
             pack_choices: game
                 .open_pack
                 .iter()
                 .flat_map(|pack| &pack.contents)
-                .map(|content| ShopItem {
-                    name: content.name(),
-                    description: pack_content_description(content),
-                    art: pack_content_art(content),
-                    price: 0,
-                    enabled: legal.contains(&Action::PickPackCard(content.clone())),
+                .map(|content| {
+                    pack_choice(
+                        content,
+                        game,
+                        legal.contains(&Action::PickPackCard(content.clone())),
+                    )
                 })
                 .collect(),
             pack_picks: game

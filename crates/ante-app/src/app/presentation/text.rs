@@ -71,6 +71,36 @@ pub(crate) fn resnap_fonts(
     }
 }
 
+/// Puts every glyph's top-left corner on a whole physical pixel, keeping the antialiased
+/// look. Bevy places antialiased glyphs at fractional positions; with the nearest
+/// sampling of the font atlas, a glyph between two pixels lost a column (a cut "n") or
+/// caught an edge of its neighbour in the atlas (a mark beside a "t").
+/// A glyph's centre `position` moved so that its `size` box starts on a whole pixel.
+pub(crate) fn snap_glyph(position: Vec2, size: Vec2) -> Vec2 {
+    let half = size / 2.0;
+    (position - half).round() + half
+}
+
+pub(crate) fn snap_glyphs(
+    mut layouts: Query<&mut bevy::text::TextLayoutInfo, Changed<bevy::text::TextLayoutInfo>>,
+) {
+    for mut layout in &mut layouts {
+        let snapped = |glyph: &bevy::text::PositionedGlyph| {
+            snap_glyph(glyph.position, glyph.atlas_info.rect.size())
+        };
+        // Only write when a glyph moves, so the snapped layout is not marked changed again.
+        if layout
+            .glyphs
+            .iter()
+            .any(|glyph| snapped(glyph) != glyph.position)
+        {
+            for glyph in &mut layout.glyphs {
+                glyph.position = snapped(glyph);
+            }
+        }
+    }
+}
+
 pub(crate) fn use_nearest_glyph_sampling(
     atlases: Res<FontAtlasSet>,
     mut images: ResMut<Assets<Image>>,

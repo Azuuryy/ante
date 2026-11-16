@@ -4,6 +4,8 @@
 
 ### Added
 
+- The Ox, The Hook and The Tooth: the Ox empties your money when you play your most played hand, the Hook discards two random held cards with each hand played, the Tooth costs $1 per card played. Each pays Matador. Runs that meet The Hook draw two more random numbers per hand, so their seeds play out differently from earlier versions.
+- A hand the boss refuses shows "Not Allowed!" above the play area, as `play_area_status_text` does, with the `cardFan2` and `tarot2` sounds and a room shake; the engine marks it with a `NotAllowed` score step. `tarot2` joins the imported sounds.
 - Music: the five original tracks loop together like `RESTART_MUSIC` (pitch 0.7, volume 0.6) and crossfade at `3·dt` toward the track `modulate_sound` picks: music1 in menus and blinds, music5 on a boss blind, music4 in the shop, music2 in Arcana, Spectral, Buffoon and Standard packs, music3 in Celestial packs. A game over slows them toward half pitch. The tracks load from the local installation; the importer copies `music1` to `music5`, and without them the game stays silent.
 - Opening a pack, bought or given by a tag, plays `explosion_buildup1` then `explosion_release1` at the delays of `Card:open` and `Card:explode`, scaled by the game speed (`ScheduledSfx` plays sounds after a delay).
 - The Audio settings tab has the three sliders of `G.UIDEF.settings_tab('Audio')` (`create_slider`): Master, Music and Game volume, dragged along the track and saved on release. The profile (version 4) stores `music_volume`, 100 by default; version 3 profiles keep their volumes.
@@ -14,7 +16,7 @@
 - Shared pieces: `tiles::generic_options` (JOKER_GREY frame, L_BLACK body, full-width Back), `tiles::option_cycle` and `components/card_row.rs` (a card area drawn as a row with the slot fan).
 - Hovered cards lean toward the pointer like the original: a vertex stage written for Ante (`components/tilt.wgsl`) ports the `position()` stage of the card shaders, and card sprites inside a card switch to it automatically, with their edition overlays.
 - Cards lean with their sideways speed while they travel (`Moveable:move_r`: 0.015 × the x velocity, eased by `exp(-190·dt)`), then straighten.
-- "Tarot" and "Spectral" in descriptions catch a light sweeping across them every 2.4 seconds. This is an Ante addition; the original draws them in their plain set colour.
+- "Tarot", "Planet" and "Spectral" in descriptions catch a light sweeping across them every 2.4 seconds. This is an Ante addition; the original draws them in their plain set colour.
 - `components/card_area.rs` holds the positions of `CardArea:align_cards` for the hand, play, title, Joker, consumable and voucher areas; the hand fan, the shop and inventory spread, the play area and pack rows use it.
 - Run logs: every run writes its configuration and each command, with the confirmed state after it, to `%LOCALAPPDATA%\Ante\runs` (the 20 most recent are kept). `cargo run -p ante-core --example replay -- <log>` reruns a log and reports the first step that diverges (`ante_core::run_log`).
 - Playing cards draw their enhancement centre (Gold, Steel, Glass, Bonus, Mult, Wild, Lucky, Stone) instead of the plain base; Stone cards hide their face, like `Card:draw`.
@@ -139,6 +141,9 @@
 
 ### Fixed
 
+- Tooltip and interface text no longer loses a column of a letter or shows an edge of another letter: Bevy placed antialiased glyphs at fractional positions, which the nearest sampling of the font atlas cut, so `snap_glyphs` puts each glyph's corner on a whole physical pixel after layout. The text keeps its antialiased look.
+- Whole test runs against the bosses (`game/tests/boss_runs.rs`) found two engine faults, now fixed: the "Not Allowed!" step was dropped from the trace because it changes no value, and The Ox never recorded the most played hand because the beaten boss's blind was forgotten first.
+- Pack cards show the same popup as in the shop: a Joker carries its rarity badge, edition and side boxes, a Tarot, Planet or Spectral its set badge (`ShopItem.joker` and `ShopItem.consumable`). Consumable set badges also read "Tarot", "Planet" and "Spectral" with their colour instead of lower-case text.
 - The Psychic, The Eye and The Mouth refuse the hands they forbid, like `Blind:debuff_hand`: a hand of fewer than 5 cards against The Psychic, a hand type already played this round against The Eye, or another hand type than the round's first against The Mouth scores 0, and Matador earns $8 on it. Before, The Psychic let a one-card hand score and Matador never paid against these bosses. The "Not Allowed!" message is not shown yet.
 - Selecting a shop, pack or inventory card no longer rebuilds the shop, the pack box and the inventories: cards are spawned once and `components::selection` raises the selected one, brings it to the front and shows its buttons in place.
 - A disabled Play Hand, Sort or Discard button stays grey: hovering or releasing it painted it back in its colour, so Discard turned red again once the discards ran out.

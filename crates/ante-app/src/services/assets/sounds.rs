@@ -47,6 +47,7 @@ pub const SOUND_FILES: &[&str] = &[
     "paper1",
     "polychrome1",
     "tarot1",
+    "tarot2",
     "whoosh2",
 ];
 

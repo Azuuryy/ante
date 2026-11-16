@@ -21,6 +21,8 @@ pub mod timing {
     pub const JOKER_POPUP: f32 = 0.75 * 1.25;
     /// Money uses the default status delay.
     pub const MONEY_POPUP: f32 = 0.65 * 1.25;
+    /// `play_area_status_text("Not Allowed!")` blocks for its default 0.6 delay.
+    pub const NOT_ALLOWED_POPUP: f32 = 0.6;
     /// Total shown, then the chip count, the score ease and the final pause.
     pub const TOTAL_SHOWN: f32 = 0.4;
     pub const TOTAL_HOLD: f32 = 0.8;
@@ -260,6 +262,7 @@ impl Playback {
             ScoreSource::Joker { name, .. } | ScoreSource::Voucher(_, name) => (*name).to_owned(),
             ScoreSource::JokerOnCard { name, .. } => format!("{name} on card"),
             ScoreSource::HandLevel(rank) => format!("{rank:?}"),
+            ScoreSource::NotAllowed => "Not Allowed!".to_owned(),
         };
         let effect = if step.retrigger {
             format!("{source} retrigger")
@@ -286,6 +289,8 @@ pub enum Popup {
     /// Factor in hundredths: 150 is X1.5 Mult.
     XMult(usize),
     Money(i64),
+    /// The boss refused the hand.
+    NotAllowed,
 }
 
 /// Popups of a step and their delays in game seconds. Cards use the chips and mult
@@ -293,6 +298,7 @@ pub enum Popup {
 pub fn popups(step: &ScoreStep, previous: Option<&ScoreStep>) -> Vec<(Popup, f32)> {
     let joker = match step.source {
         ScoreSource::HandLevel(_) => return Vec::new(),
+        ScoreSource::NotAllowed => return vec![(Popup::NotAllowed, NOT_ALLOWED_POPUP)],
         ScoreSource::Joker { .. } | ScoreSource::Voucher(..) => true,
         ScoreSource::Card { .. } | ScoreSource::JokerOnCard { .. } => false,
     };

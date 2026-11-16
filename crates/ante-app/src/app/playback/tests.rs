@@ -198,3 +198,21 @@ fn a_joker_effect_on_a_card_pops_on_the_card() {
         vec![(Popup::Chips(30), CHIPS_POPUP)]
     );
 }
+
+#[test]
+fn a_refused_hand_shows_not_allowed_over_the_play_area() {
+    let step = ScoreStep {
+        source: ScoreSource::NotAllowed,
+        chips_before: 0,
+        chips_after: 0,
+        mult_before: 0.0,
+        mult_after: 0.0,
+        retrigger: false,
+        xmult: None,
+        money: 0,
+    };
+    assert_eq!(
+        popups(&step, None),
+        vec![(Popup::NotAllowed, NOT_ALLOWED_POPUP)]
+    );
+}

@@ -150,6 +150,9 @@ pub struct ShopItem {
     pub price: usize,
     pub enabled: bool,
     pub art: ShopArt,
+    /// The Joker or consumable behind a pack card, so its popup matches the shop's.
+    pub joker: Option<JokerView>,
+    pub consumable: Option<ConsumableView>,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]

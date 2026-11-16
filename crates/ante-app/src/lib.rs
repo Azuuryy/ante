@@ -202,6 +202,7 @@ pub fn run(backend: impl GameBackend) {
                 use_nearest_glyph_sampling
                     .after(bevy::ui::UiSystems::PostLayout)
                     .before(bevy::asset::AssetEventSystems),
+                app::presentation::snap_glyphs.after(bevy::ui::UiSystems::PostLayout),
                 components::travel::prepare.before(bevy::ui::UiSystems::Layout),
                 components::travel::place
                     .after(bevy::ui::UiSystems::Layout)

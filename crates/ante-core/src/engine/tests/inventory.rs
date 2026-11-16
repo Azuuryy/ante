@@ -303,3 +303,31 @@ fn catalog_carries_joker_rarity_and_deck_rules() {
     );
     assert_eq!(crate::engine::deck_description("b_unknown"), None);
 }
+
+#[test]
+fn pack_jokers_and_consumables_carry_the_shop_view() {
+    use balatro_rs::joker::{Jokers, Matador};
+    use balatro_rs::pack::{Pack, PackCategory, PackContent, PackSize};
+    let mut run = shop();
+    run.game.money = 100;
+    run.game.shop.packs = vec![Pack {
+        category: PackCategory::Buffoon,
+        size: PackSize::Normal,
+        contents: vec![
+            PackContent::Joker(Jokers::Matador(Matador::default())),
+            PackContent::Tarot(Tarot::Lovers),
+        ],
+    }];
+    let revision = run.view().revision;
+    run.apply(Command::BuyPack { index: 0, revision }).unwrap();
+    let view = run.view();
+    let joker = view.pack_choices[0].joker.as_ref().expect("joker view");
+    assert_eq!(joker.rarity, "Uncommon");
+    assert_eq!(joker.kind, "j_matador");
+    assert!(view.pack_choices[0].consumable.is_none());
+    let tarot = view.pack_choices[1]
+        .consumable
+        .as_ref()
+        .expect("tarot view");
+    assert_eq!(tarot.category, "Tarot");
+}

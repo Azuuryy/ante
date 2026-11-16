@@ -210,10 +210,16 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
                     tooltip::attach(
                         &mut card,
                         tooltip::art(
-                            art_tip(item.art, &item.name, &item.description)
-                                .technical(format!("Pack choice {index}"))
-                                .technical(format!("{:?}", item.art))
-                                .technical(format!("Enabled: {}", item.enabled)),
+                            // The same popup as in the shop: a Joker's rarity, edition
+                            // and side boxes, a consumable's set badge.
+                            match (&item.joker, &item.consumable) {
+                                (Some(joker), _) => joker_tooltip(joker),
+                                (_, Some(card)) => consumable_tooltip(card),
+                                _ => art_tip(item.art, &item.name, &item.description),
+                            }
+                            .technical(format!("Pack choice {index}"))
+                            .technical(format!("{:?}", item.art))
+                            .technical(format!("Enabled: {}", item.enabled)),
                             shop_art(atlases, item.art).as_ref(),
                         ),
                     );

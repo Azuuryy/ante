@@ -66,8 +66,12 @@ impl Game {
         let money_before = t.money.replace(self.money).unwrap_or(self.money);
         let money = self.money as i64 - money_before as i64;
         // skip no-op checks (e.g. a Base-edition joker, a conditional
-        // effect that didn't fire)
-        if chips_before == self.chips && mult_before == self.mult && money == 0 {
+        // effect that didn't fire); a refused hand's step changes nothing but is shown.
+        if chips_before == self.chips
+            && mult_before == self.mult
+            && money == 0
+            && source != ScoreSource::NotAllowed
+        {
             return;
         }
         let xmult = xmult.filter(|_| mult_before != self.mult);
@@ -114,11 +118,13 @@ impl Game {
         mut hand: MadeHand,
         mut trace: Option<&mut TraceRecorder>,
     ) -> usize {
-        self.boss_triggered_this_hand = false;
+        // The Hook and The Tooth trigger when the hand is played, before it scores.
+        self.boss_triggered_this_hand = std::mem::take(&mut self.boss_play_triggered);
         if self.hand_not_allowed(&hand) {
             return self.score_not_allowed(&hand, trace);
         }
         self.remember_mouth_hand(&hand);
+        self.apply_ox(&hand);
 
         // compute chips and mult from hand level
         let chips_before = self.chips;

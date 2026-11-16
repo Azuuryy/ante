@@ -131,6 +131,9 @@ impl Game {
         self.round_reward = reward;
 
         if blind == Blind::Boss {
+            // `end_round` records the most played hand for The Ox after each Boss Blind;
+            // `advance_ante` below forgets the blind, so it is done here.
+            self.remember_most_played_hand();
             let next = if self.endless_mode {
                 self.ante_current.next_supported()
             } else {

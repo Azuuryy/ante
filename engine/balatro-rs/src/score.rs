@@ -18,6 +18,9 @@ pub enum ScoreSource {
     JokerOnCard(Jokers, Card),
     // Observatory is the only voucher that touches a scoring pass
     Voucher(Voucher),
+    /// The boss refused the hand (`Blind:debuff_hand`): the "Not Allowed!" text, before
+    /// the Jokers that act on a refused hand.
+    NotAllowed,
 }
 
 /// One step in a scoring pass
@@ -55,6 +58,7 @@ impl ScoreStep {
             ScoreSource::Joker(j) => j.name().to_string(),
             ScoreSource::JokerOnCard(j, c) => format!("{} on {c}", j.name()),
             ScoreSource::Voucher(v) => v.name().to_string(),
+            ScoreSource::NotAllowed => "Not Allowed!".to_string(),
         };
 
         let mut parts = Vec::new();

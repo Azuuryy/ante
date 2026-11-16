@@ -22,6 +22,8 @@ fn redeem(g: &mut Game, voucher: Voucher) {
 }
 
 mod boss_effects;
+mod boss_play;
+mod boss_runs;
 mod editions_and_snapshots;
 mod enhancements_and_seals;
 mod real_rng;

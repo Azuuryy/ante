@@ -55,6 +55,9 @@ pub enum ScoreSource {
         name: &'static str,
         card: CardKey,
     },
+    /// The boss refused the hand: "Not Allowed!" over the play area, like
+    /// `play_area_status_text` in `evaluate_play`. The hand scores nothing.
+    NotAllowed,
 }
 
 #[derive(Clone, Debug, PartialEq)]
