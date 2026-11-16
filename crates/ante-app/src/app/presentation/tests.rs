@@ -50,12 +50,3 @@ fn chips_and_money_popups_are_larger_than_mult_ones() {
     assert_eq!(popup_scale(Popup::XMult(200)), 0.7);
     assert_eq!(popup_scale(Popup::Again), 0.7);
 }
-
-#[test]
-fn scoring_cards_sound_one_after_another_with_a_rising_pitch() {
-    let pitches = highlight_pitches(5);
-    assert_eq!(pitches.len(), 5);
-    assert!((pitches[0] - 0.85).abs() < 1e-6);
-    assert!(pitches.windows(2).all(|pair| pair[1] > pair[0]));
-    assert!(highlight_pitches(0).is_empty());
-}

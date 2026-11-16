@@ -67,6 +67,31 @@ fn every_supported_joker_has_an_effect_description() {
 }
 
 #[test]
+fn castle_and_mail_in_rebate_name_the_rounds_target() {
+    use balatro_rs::card::{Suit, Value};
+    use balatro_rs::joker::Jokers;
+    use balatro_types::joker::SelectorValue;
+    let mut castle = Jokers::Castle(Default::default());
+    assert!(
+        joker_text(&castle).contains("current suit"),
+        "no target drawn yet"
+    );
+    castle.state_mut().selector = Some(SelectorValue::Suit(Suit::Heart));
+    assert!(
+        joker_text(&castle).contains("discarded Heart card"),
+        "{}",
+        joker_text(&castle)
+    );
+    let mut mail = Jokers::MailInRebate(Default::default());
+    mail.state_mut().selector = Some(SelectorValue::Value(Value::Ten));
+    assert!(
+        joker_text(&mail).contains("discarded 10 pays"),
+        "{}",
+        joker_text(&mail)
+    );
+}
+
+#[test]
 fn consumable_use_availability_follows_targets_and_stage() {
     let mut run = EngineRun::new(7);
     run.game.stage = Stage::Shop();

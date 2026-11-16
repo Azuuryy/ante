@@ -13,7 +13,7 @@ use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use strum::IntoEnumIterator;
 
-mod generators;
+pub(crate) mod generators;
 
 pub(crate) use generators::*;
 
@@ -107,7 +107,7 @@ impl Shop {
         if self.free_jokers.contains(&joker.instance_id()) {
             0
         } else {
-            vouchers.discounted(joker.cost())
+            vouchers.discounted(joker.full_cost())
         }
     }
 

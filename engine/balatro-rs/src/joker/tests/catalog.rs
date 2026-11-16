@@ -4,14 +4,15 @@ use super::*;
 // `effects()` behavior implemented. Shop/pack generation
 // must never offer joker that silently does nothing.
 #[test]
-fn test_exactly_74_jokers_implemented() {
+fn test_implemented_joker_count() {
+    // 74 before Lot 3, then 10 from batch 1, 12 from batch 2a, 7 from batch 2b, 7 from batch 3, 9 from batch 4a, 3 from batch 4b and 12 from batch 5a.
     let count = Jokers::iter().filter(|j| j.is_implemented()).count();
     let extra = if cfg!(feature = "ante-extra-jokers") {
         3
     } else {
         0
     };
-    assert_eq!(count, 74 + extra);
+    assert_eq!(count, 134 + extra);
 }
 
 #[test]

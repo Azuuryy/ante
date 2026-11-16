@@ -121,6 +121,24 @@ fn test_sell_joker() {
 }
 
 #[test]
+fn test_joker_price_and_sell_value_count_the_edition() {
+    // `Card:set_cost`: a Holographic Wily Joker costs 4 + 3 and sells for floor(7 / 2).
+    use crate::card::Edition;
+    use crate::joker::Jokers;
+    use balatro_types::joker::WilyJoker;
+    let mut g = Game::default();
+    let mut joker = Jokers::WilyJoker(WilyJoker::default());
+    assert_eq!(g.joker_sell_value(&joker), 2);
+    joker.set_edition(Edition::Holographic);
+    assert_eq!(g.shop.joker_price(&joker, &g.vouchers), 7);
+    assert_eq!(g.joker_sell_value(&joker), 3);
+    g.vouchers.redeem(crate::voucher::Voucher::ClearanceSale);
+    // With 25% off: floor((7 + 0.5) × 0.75) = 5, sold for 2.
+    assert_eq!(g.shop.joker_price(&joker, &g.vouchers), 5);
+    assert_eq!(g.joker_sell_value(&joker), 2);
+}
+
+#[test]
 fn test_sell_joker_invalid_index() {
     let mut g = Game::default();
     g.start();

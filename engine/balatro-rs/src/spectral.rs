@@ -71,6 +71,7 @@ impl SpectralEffect for Spectral {
                 let copy_two = Card::new(og.value, og.suit);
                 let (id_one, id_two) = (copy_one.id, copy_two.id);
                 game.available.extend(vec![copy_one, copy_two]);
+                game.playing_cards_added(2);
                 let copy_fields = |c: &mut Card| {
                     c.enhancement = og.enhancement;
                     c.edition = og.edition;
@@ -95,6 +96,7 @@ impl SpectralEffect for Spectral {
                     .gen_random_card(game.prob_mult, true, Some(&values));
                 game.available
                     .extend([card_one, card_two, card_three].to_vec());
+                game.playing_cards_added(3);
             }
             Self::Grim => {
                 let card = game.backend.pick_random_card(game.available.cards());
@@ -107,6 +109,7 @@ impl SpectralEffect for Spectral {
                     .backend
                     .gen_random_card(game.prob_mult, true, Some(&values));
                 game.available.extend([card_one, card_two].to_vec());
+                game.playing_cards_added(2);
             }
             Self::Incantation => {
                 let card = game.backend.pick_random_card(game.available.cards());

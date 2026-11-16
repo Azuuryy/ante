@@ -69,13 +69,11 @@ impl RunDriver for EngineRun {
                 TraceMode::Capture => Some(false),
                 TraceMode::Profile => Some(true),
             },
-        )?;
-        Ok(RunUpdate::confirmed(
-            before,
-            won,
-            command,
-            outcome,
-            self.view(),
-        ))
+        );
+        // A refused command leaves no notes behind for the next one.
+        let notes = self.take_notes();
+        let mut update = RunUpdate::confirmed(before, won, command, outcome?, self.view());
+        update.notes = notes;
+        Ok(update)
     }
 }

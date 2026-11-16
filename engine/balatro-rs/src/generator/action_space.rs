@@ -262,7 +262,7 @@ impl Game {
         if self.stage != Stage::Shop() {
             return;
         }
-        if self.money < self.reroll_cost {
+        if self.money < self.current_reroll_cost() {
             return;
         }
         space.unmask_reroll();

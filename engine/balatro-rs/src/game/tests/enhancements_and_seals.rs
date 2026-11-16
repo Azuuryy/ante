@@ -192,7 +192,8 @@ fn test_enhancement_steel_held() {
 
 #[test]
 fn test_enhancement_gold_held() {
-    // Gold card held in unplayed hand gives $3 per hand scored
+    // A held Gold card pays $3 when the round ends (`get_end_of_round_effect`), not
+    // while a hand scores.
     let mut g = Game::default();
     let mut gold_card = Card::new(Value::Two, Suit::Heart);
     gold_card.enhancement = Some(Enhancement::Gold);
@@ -200,7 +201,23 @@ fn test_enhancement_gold_held() {
     let ace = Card::new(Value::Ace, Suit::Spade);
     let hand = SelectHand::new(vec![ace]).best_hand().unwrap();
     g.calc_score(hand);
+    assert_eq!(g.money, 0, "nothing while the hand scores");
+    g.handle_round_end();
     assert_eq!(g.money, 3);
+}
+
+#[test]
+fn test_debuffed_gold_card_pays_nothing_at_round_end() {
+    let mut g = Game {
+        current_boss: Some(BossBlind::Club),
+        blind: Some(Blind::Boss),
+        ..Default::default()
+    };
+    let mut gold_king = Card::new(Value::King, Suit::Club);
+    gold_king.enhancement = Some(Enhancement::Gold);
+    g.available.extend(vec![gold_king]);
+    g.handle_round_end();
+    assert_eq!(g.money, 0);
 }
 
 #[test]
@@ -227,8 +244,8 @@ fn test_seal_red_retrigger_played() {
 
 #[test]
 fn test_seal_red_retrigger_gold_held() {
-    // Red Seal retriggers held-card abilities too, not just played ones:
-    // a held Gold+Red card earns $6 (2x $3), not $3.
+    // Red Seal retriggers end-of-round abilities too: a held Gold+Red card earns $6
+    // (2x $3) when the round ends, not $3.
     let mut g = Game::default();
     let mut gold_red = Card::new(Value::Two, Suit::Heart);
     gold_red.enhancement = Some(Enhancement::Gold);
@@ -237,6 +254,8 @@ fn test_seal_red_retrigger_gold_held() {
     let ace = Card::new(Value::Ace, Suit::Spade);
     let hand = SelectHand::new(vec![ace]).best_hand().unwrap();
     g.calc_score(hand);
+    assert_eq!(g.money, 0);
+    g.handle_round_end();
     assert_eq!(g.money, 6);
 }
 

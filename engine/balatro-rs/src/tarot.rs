@@ -119,7 +119,7 @@ impl TarotEffect for Tarot {
                 game.money += gain;
             }
             Self::Temperance => {
-                let total: usize = game.jokers.iter().map(|j| j.sell_value()).sum();
+                let total: usize = game.jokers.iter().map(|j| game.joker_sell_value(j)).sum();
                 game.money += total.min(50);
             }
             Self::WheelOfFortune => {

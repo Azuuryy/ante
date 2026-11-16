@@ -75,6 +75,14 @@ pub enum LoggedCommand {
 }
 
 impl LoggedCommand {
+    /// A command that only selects, sorts or moves hand cards.
+    pub fn is_selection(&self) -> bool {
+        matches!(
+            self,
+            Self::ToggleCard { .. } | Self::SortRank | Self::SortSuit | Self::MoveCard { .. }
+        )
+    }
+
     pub fn from_command(command: Command, view: &RunView) -> Self {
         let hand = |id| view.cards.iter().position(|card| card.id == id);
         let unresolved = || Self::Unresolved {

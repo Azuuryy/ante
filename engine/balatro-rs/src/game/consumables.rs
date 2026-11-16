@@ -102,9 +102,24 @@ impl Game {
             Consumable::Planet(planet) => {
                 self.planetarium.level_up(planet.hand_rank());
                 self.last_consumable_used = Some(Consumable::Planet(planet));
+                self.planets_used.insert(planet);
+                // Constellation: X0.1 more per Planet used.
+                self.grow_jokers(
+                    |j| matches!(j, Jokers::Constellation(_)),
+                    0.1,
+                    |value| JokerNote::XMult(100 + (value * 100.0).round() as usize),
+                );
             }
             Consumable::Tarot(t) => {
                 t.apply(self)?;
+                // Fortune Teller: +1 Mult per Tarot used this run.
+                self.tarots_used += 1;
+                let used = self.tarots_used;
+                self.grow_jokers(
+                    |j| matches!(j, Jokers::FortuneTeller(_)),
+                    0.0,
+                    move |_| JokerNote::MultPlus(used),
+                );
                 if t != Tarot::Fool {
                     self.last_consumable_used = Some(Consumable::Tarot(t));
                 }
@@ -225,6 +240,7 @@ impl Game {
     }
 
     pub(super) fn open_booster(&mut self, mut pack: Pack) {
+        self.card_makers_open_booster();
         if self.vouchers.omen_globe() {
             self.backend
                 .omen_globe_contents(self.ante_current.number() as i32, &mut pack);
@@ -273,6 +289,7 @@ impl Game {
             PackContent::Joker(j) => self.add_acquired_joker(j),
             PackContent::PlayingCard(c) => {
                 self.deck.push(c);
+                self.playing_cards_added(1);
             }
             PackContent::Spectral(s) => self.apply_consumable(Consumable::Spectral(s))?,
         }
@@ -295,6 +312,12 @@ impl Game {
         if self.stage != Stage::PackOpen() {
             return Err(GameError::InvalidStage);
         }
+        // Red Card: +3 Mult per Booster Pack skipped.
+        self.grow_jokers(
+            |j| matches!(j, Jokers::RedCard(_)),
+            3.0,
+            |_| JokerNote::MultPlus(3),
+        );
         self.finish_pack();
         Ok(())
     }

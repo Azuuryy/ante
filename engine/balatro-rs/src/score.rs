@@ -24,6 +24,9 @@ pub enum ScoreSource {
     /// A Joker's own value grew while the hand scored (Wee Joker, Spare Trousers, ...):
     /// the original shows a message such as "Upgrade!" on it.
     JokerUpgrade(Jokers),
+    /// A Joker's value went back to its start while the hand scored (Ride the Bus,
+    /// Obelisk): the original shows "Reset" on it.
+    JokerReset(Jokers),
 }
 
 /// One step in a scoring pass
@@ -63,6 +66,7 @@ impl ScoreStep {
             ScoreSource::Voucher(v) => v.name().to_string(),
             ScoreSource::NotAllowed => "Not Allowed!".to_string(),
             ScoreSource::JokerUpgrade(j) => format!("{} upgrade", j.name()),
+            ScoreSource::JokerReset(j) => format!("{} reset", j.name()),
         };
 
         let mut parts = Vec::new();

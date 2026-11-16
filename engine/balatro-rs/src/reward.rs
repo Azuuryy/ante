@@ -30,11 +30,27 @@ impl RoundReward {
     }
 }
 
-/// A Joker's `calculate_dollar_bonus` at the end of a round.
-pub(crate) fn dollar_bonus(joker: &Jokers) -> Option<usize> {
-    match joker {
+/// A Joker's `calculate_dollar_bonus` at the end of a round: Golden Joker $4, Cloud 9 $1
+/// per 9 in the full deck, Rocket $1 and $2 more per Boss Blind beaten, Satellite $1 per
+/// Planet card used this run, Delayed Gratification $2 per discard left when none was used.
+pub(crate) fn dollar_bonus(joker: &Jokers, game: &crate::game::Game) -> Option<usize> {
+    let bonus = match joker {
         #[cfg(feature = "ante-extra-jokers")]
-        Jokers::GoldenJoker(_) => Some(4),
-        _ => None,
-    }
+        Jokers::GoldenJoker(_) => 4,
+        Jokers::Cloud9(_) => game
+            .full_deck()
+            .iter()
+            .filter(|card| {
+                card.value == crate::card::Value::Nine
+                    && card.enhancement != Some(crate::card::Enhancement::Stone)
+            })
+            .count(),
+        Jokers::Rocket(_) => 1 + joker.state().counter as usize,
+        Jokers::Satellite(_) => game.planets_used.len(),
+        Jokers::DelayedGratification(_) if game.discards_used_this_round() == 0 => {
+            2 * game.discards_remaining
+        }
+        _ => return None,
+    };
+    (bonus > 0).then_some(bonus)
 }

@@ -115,7 +115,6 @@ pub(crate) fn animate(
                 .filter(|(step, _)| *step == index)
                 .map(|(_, step)| (step.source, popup))
         });
-        let mut moved = 0;
         for (entity, card, _, motion, played, travel) in &mut cards {
             if discarding
                 && played
@@ -134,7 +133,6 @@ pub(crate) fn animate(
                 };
                 if motion.raise != raise {
                     motion.raise = raise;
-                    moved += 1;
                 }
             }
             if let Some((
@@ -148,17 +146,6 @@ pub(crate) fn animate(
                     .entity(entity)
                     .with_child(score_popup(*popup, PopupSide::Above));
             }
-        }
-        // `highlight_card` plays cardSlide1 for each scoring card that rises or falls, 0.1
-        // game seconds apart with a pitch climbing by 0.2 over the hand; at once, the five
-        // sounds saturated.
-        for (index, pitch) in highlight_pitches(moved).into_iter().enumerate() {
-            let delay = index as f32 * crate::app::playback::timing::HIGHLIGHT_PER_CARD;
-            scheduled.after(
-                time.elapsed_secs(),
-                delay / speed.factor(),
-                Sfx::new("cardSlide1", pitch, 1.0),
-            );
         }
         // A per-card Joker effect juices the Joker; its popup is on the card.
         if let Some((ScoreSource::JokerOnCard { joker: id, .. }, _)) = &popup {
@@ -229,12 +216,4 @@ pub(crate) fn animate(
         }
     }
     metrics.record_playback(start.elapsed());
-}
-
-/// Pitch of each `highlight_card` sound for `count` cards: `0.85 + percent × 0.2`, with
-/// `percent` from 0 to 1 over the hand like the original's `(i - 0.999) / 5`.
-pub(super) fn highlight_pitches(count: usize) -> Vec<f32> {
-    (0..count)
-        .map(|index| 0.85 + 0.2 * index as f32 / count.max(5) as f32)
-        .collect()
 }

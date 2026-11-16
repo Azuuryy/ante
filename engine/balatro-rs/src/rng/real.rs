@@ -164,6 +164,14 @@ impl RngBackend for RealBackend {
         self.instance.activate_voucher(voucher);
     }
 
+    fn roll_index(&mut self, len: usize) -> usize {
+        self.fast.roll_index(len)
+    }
+
+    fn set_gros_michel_extinct(&mut self, extinct: bool) {
+        self.fast.set_gros_michel_extinct(extinct);
+    }
+
     fn set_showman(&mut self, owned: bool) {
         self.instance.params.showman = owned;
     }

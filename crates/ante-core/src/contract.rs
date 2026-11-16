@@ -2,11 +2,13 @@ use std::{fmt, time::Duration};
 
 mod command;
 mod content;
+mod note;
 mod trace;
 mod view;
 
 pub use command::*;
 pub use content::*;
+pub use note::*;
 pub use trace::*;
 pub use view::*;
 

@@ -28,6 +28,9 @@ pub struct Card {
     pub edition: Edition,
     pub enhancement: Option<Enhancement>,
     pub seal: Option<Seal>,
+    /// Chips the card gained for good (`ability.perma_bonus`, Hiker).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub perma_bonus: usize,
 }
 
 impl Card {
@@ -40,6 +43,7 @@ impl Card {
             edition: Edition::Base,
             enhancement: None,
             seal: None,
+            perma_bonus: 0,
         }
     }
 

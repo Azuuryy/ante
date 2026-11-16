@@ -92,11 +92,18 @@ pub(crate) fn gen_random_playing_card(
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
-pub(crate) struct JokerGenerator {}
+pub(crate) struct JokerGenerator {
+    /// `G.GAME.pool_flags.gros_michel_extinct`: Cavendish enters the pool, Gros Michel
+    /// leaves it.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) gros_michel_extinct: bool,
+}
 
 impl JokerGenerator {
     pub(crate) fn new() -> Self {
-        JokerGenerator {}
+        JokerGenerator {
+            gros_michel_extinct: false,
+        }
     }
 
     // Randomly generate rarity of new joker.
@@ -126,7 +133,15 @@ impl JokerGenerator {
         rarity: Rarity,
         rng: &mut impl Rng,
     ) -> Jokers {
-        let all = jokers_by_rarity(rarity);
+        let extinct = self.gros_michel_extinct;
+        let all: Vec<_> = jokers_by_rarity(rarity)
+            .into_iter()
+            .filter(|j| match j {
+                Jokers::GrosMichel(_) => !extinct,
+                Jokers::Cavendish(_) => extinct,
+                _ => true,
+            })
+            .collect();
         let choices: Vec<_> = all
             .iter()
             .filter(|j| {
@@ -217,7 +232,11 @@ impl ConsumableGenerator {
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone)]
-pub(crate) struct PackGenerator {}
+pub(crate) struct PackGenerator {
+    /// Same flag as [`JokerGenerator`], for Buffoon packs.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) gros_michel_extinct: bool,
+}
 
 impl PackGenerator {
     // Weighted random pack selection per spec (real per-mille weights from
@@ -286,7 +305,9 @@ impl PackGenerator {
         held_jokers: &[Jokers],
         rng: &mut impl Rng,
     ) -> Vec<PackContent> {
-        let joker_gen = JokerGenerator {};
+        let joker_gen = JokerGenerator {
+            gros_michel_extinct: self.gros_michel_extinct,
+        };
         let consumable_gen = ConsumableGenerator {};
 
         match category {

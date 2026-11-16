@@ -313,7 +313,7 @@ pub(super) fn center_layout(phase: Phase) -> Node {
         left: px(CENTER_LEFT),
         right: px(204),
         top: px(219),
-        bottom: px(28),
+        bottom: px(crate::screens::hand::CENTER_BOTTOM),
         justify_content: if phase == Phase::Playing {
             JustifyContent::End
         } else {

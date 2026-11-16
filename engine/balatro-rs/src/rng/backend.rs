@@ -129,6 +129,20 @@ impl RngBackend for Backend {
         }
     }
 
+    fn roll_index(&mut self, len: usize) -> usize {
+        match self {
+            Backend::Fast(b) => b.roll_index(len),
+            Backend::Real(b) => b.roll_index(len),
+        }
+    }
+
+    fn set_gros_michel_extinct(&mut self, extinct: bool) {
+        match self {
+            Backend::Fast(b) => b.set_gros_michel_extinct(extinct),
+            Backend::Real(b) => b.set_gros_michel_extinct(extinct),
+        }
+    }
+
     fn set_showman(&mut self, owned: bool) {
         match self {
             Backend::Fast(b) => b.set_showman(owned),

@@ -27,10 +27,12 @@ use crate::{
     },
 };
 
+mod notes;
 mod popup;
 mod score;
 mod text;
 
+pub(crate) use notes::*;
 pub(crate) use popup::*;
 pub(crate) use score::*;
 pub(crate) use text::*;

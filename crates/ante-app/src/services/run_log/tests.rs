@@ -29,8 +29,16 @@ fn a_written_log_replays_from_its_file() {
         let after = RunDriver::view(&run);
         log.record(&before, command, result.as_ref(), &after);
     }
-    let text = fs::read_to_string(log.path()).unwrap();
-    assert_eq!(text.lines().count(), 3);
+    let path = log.path().to_owned();
+    let text = fs::read_to_string(&path).unwrap();
+    assert_eq!(
+        text.lines().count(),
+        2,
+        "the sort waits for the next command"
+    );
+    drop(log);
+    let text = fs::read_to_string(&path).unwrap();
+    assert_eq!(text.lines().count(), 3, "closing the log writes it");
     let report = replay(text.lines()).unwrap();
     assert_eq!((report.steps, report.divergence), (2, None));
     fs::remove_dir_all(&dir).unwrap();

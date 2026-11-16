@@ -12,14 +12,14 @@ pub(super) fn joker_view(joker: &Jokers, game: &Game) -> JokerView {
         name: joker.name(),
         price: 0,
         enabled: false,
-        description: joker_description(joker.id()),
+        description: joker_text(joker),
         state: format!("{} / {:?}", joker.state().counter, joker.state().selector),
         current: joker_current(joker, game),
         rarity: format!("{:?}", joker.rarity()),
         edition: format!("{:?}", joker.edition()),
         stickers: sticker_summary(joker.stickers()),
         can_sell: false,
-        sell_price: joker.sell_value(),
+        sell_price: game.joker_sell_value(joker),
     }
 }
 

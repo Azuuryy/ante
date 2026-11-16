@@ -3,6 +3,8 @@ use super::*;
 #[derive(Debug)]
 pub struct RunUpdate {
     pub events: Vec<RunEvent>,
+    /// What the command did outside its score trace, oldest first.
+    pub notes: Vec<Note>,
     pub outcome: Outcome,
     pub view: RunView,
 }
@@ -40,6 +42,7 @@ impl RunUpdate {
         }
         Self {
             events,
+            notes: Vec::new(),
             outcome,
             view,
         }

@@ -63,11 +63,20 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
             vec![Effects::OnCardScored(Arc::new(Mutex::new(apply)))]
         }
         Jokers::FacelessJoker(_) => {
-            fn apply(g: &mut Game, _hand: MadeHand) {
-                if _hand.all.len() >= 5 {
+            // $5 when the discard holds at least 3 face cards; a debuffed card is not a
+            // face (`Card:is_face`).
+            let id = joker.instance_id();
+            let apply = move |g: &mut Game, hand: MadeHand| {
+                let faces = g
+                    .non_debuffed(hand.all.iter())
+                    .iter()
+                    .filter(|c| g.is_face_card(c))
+                    .count();
+                if faces >= 3 {
                     g.money += 5;
+                    g.joker_message(id, JokerNote::Dollars(5));
                 }
-            }
+            };
             vec![Effects::OnDiscard(Arc::new(Mutex::new(apply)))]
         }
         Jokers::Baron(_) => {
@@ -177,7 +186,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::RoughGem(_) => {
             fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
-                if card.matches_suit(Suit::Diamond) {
+                if g.is_suit(&card, Suit::Diamond) {
                     g.money += 1;
                 }
             }
@@ -185,7 +194,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::Bloodstone(_) => {
             fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
-                if card.matches_suit(Suit::Heart) && g.prob_roll(1, 2) {
+                if g.is_suit(&card, Suit::Heart) && g.prob_roll(1, 2) {
                     g.mult *= 1.5;
                     g.note_xmult(1.5);
                 }
@@ -194,7 +203,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::Arrowhead(_) => {
             fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
-                if card.matches_suit(Suit::Spade) {
+                if g.is_suit(&card, Suit::Spade) {
                     g.chips += 50;
                 }
             }
@@ -202,7 +211,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::OnyxAgate(_) => {
             fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
-                if card.matches_suit(Suit::Club) {
+                if g.is_suit(&card, Suit::Club) {
                     g.mult += 7.0;
                 }
             }

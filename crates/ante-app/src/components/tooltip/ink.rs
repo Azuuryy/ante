@@ -269,7 +269,9 @@ pub(super) fn effect_line(ui: &mut ChildSpawnerCommands, line: &str, base: Color
                 word_key.as_str(),
                 "tarot" | "tarots" | "planet" | "planets" | "spectral" | "spectrals"
             ) {
-                shimmer_word(row, word, size, color);
+                shimmer_word(row, word, size, color, false);
+            } else if matches!(word_key.as_str(), "gold" | "golden") {
+                shimmer_word(row, word, size, GOLD_TEXT, true);
             } else {
                 label(row, word, size, color);
             }
@@ -287,6 +289,28 @@ const SHIMMER_WIDTH: f32 = 2.0;
 pub(crate) struct Shimmer {
     base: Color,
     len: usize,
+    /// Gold cards, seals and Golden Ticket: the letters ripple between gold tones under
+    /// the sweep, like polished metal.
+    gold: bool,
+}
+
+/// `G.C.GOLD`: `#eac058`.
+pub(super) const GOLD_TEXT: Color = Color::srgb(0.918, 0.753, 0.345);
+
+/// The dark and bright ends of the gold ripple.
+const GOLD_DARK: [f32; 3] = [0.70, 0.50, 0.12];
+const GOLD_BRIGHT: [f32; 3] = [1.0, 0.93, 0.62];
+
+/// Colour of letter `index` of a gold word at real time `real`: a slow wave between dark
+/// and bright gold across the letters, lit toward white by the sweep.
+pub(super) fn gold_glyph(index: usize, len: usize, real: f32) -> Color {
+    let wave = 0.5 + 0.5 * (real * 2.2 - index as f32 * 0.9).sin();
+    let light = 0.7 * shimmer_glow(index, len, real);
+    let channel = |i: usize| {
+        let tone = GOLD_DARK[i] + (GOLD_BRIGHT[i] - GOLD_DARK[i]) * wave;
+        tone + (1.0 - tone) * light
+    };
+    Color::srgb(channel(0), channel(1), channel(2))
 }
 
 #[derive(Component)]
@@ -299,7 +323,7 @@ pub(super) fn shimmer_glow(index: usize, len: usize, real: f32) -> f32 {
     (1.0 - (index as f32 - head).abs() / SHIMMER_WIDTH).clamp(0.0, 1.0)
 }
 
-fn shimmer_word(ui: &mut ChildSpawnerCommands, word: &str, size: f32, color: Color) {
+fn shimmer_word(ui: &mut ChildSpawnerCommands, word: &str, size: f32, color: Color, gold: bool) {
     let font = || TextFont {
         font_size: FontSize::Px(size),
         ..default()
@@ -311,6 +335,7 @@ fn shimmer_word(ui: &mut ChildSpawnerCommands, word: &str, size: f32, color: Col
         Shimmer {
             base: color,
             len: word.chars().count(),
+            gold,
         },
         Pickable::IGNORE,
     ))
@@ -336,13 +361,17 @@ pub(crate) fn animate_shimmer(
         let base = shimmer.base.to_srgba();
         for child in children {
             if let Ok((glyph, mut colour)) = glyphs.get_mut(*child) {
-                let light = 0.6 * shimmer_glow(glyph.0, shimmer.len, real);
-                let lit = Color::srgba(
-                    base.red + (1.0 - base.red) * light,
-                    base.green + (1.0 - base.green) * light,
-                    base.blue + (1.0 - base.blue) * light,
-                    base.alpha,
-                );
+                let lit = if shimmer.gold {
+                    gold_glyph(glyph.0, shimmer.len, real)
+                } else {
+                    let light = 0.6 * shimmer_glow(glyph.0, shimmer.len, real);
+                    Color::srgba(
+                        base.red + (1.0 - base.red) * light,
+                        base.green + (1.0 - base.green) * light,
+                        base.blue + (1.0 - base.blue) * light,
+                        base.alpha,
+                    )
+                };
                 if colour.0 != lit {
                     colour.0 = lit;
                 }

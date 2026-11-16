@@ -209,7 +209,8 @@ pub(crate) fn discounted(cost: usize, pct: usize) -> usize {
     if pct == 0 || cost == 0 {
         return cost;
     }
-    (cost * (100 - pct) / 100).max(1)
+    // `Card:set_cost`: floor((cost + 0.5) × (100 − discount) / 100), at least 1.
+    ((2 * cost + 1) * (100 - pct) / 200).max(1)
 }
 
 #[cfg(test)]
@@ -256,6 +257,8 @@ mod tests {
             owning(&[Voucher::ClearanceSale, Voucher::Liquidation]).discounted(8),
             4
         );
+        // `Card:set_cost` adds 0.5 before the discount: floor(5.5 × 0.75) = 4.
+        assert_eq!(owning(&[Voucher::ClearanceSale]).discounted(5), 4);
         // never free, even at 50% off a $1 item
         assert_eq!(owning(&[Voucher::Liquidation]).discounted(1), 1);
         assert_eq!(owning(&[Voucher::Liquidation]).discounted(0), 0);

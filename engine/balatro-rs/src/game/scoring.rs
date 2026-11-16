@@ -34,7 +34,11 @@ impl Game {
                 };
                 let chips_before = self.chips;
                 let mult_before = self.mult;
+                let grown_from = self.joker_counter(&joker);
                 apply.lock().unwrap()(self, card, hand);
+                if self.joker_counter(&joker) > grown_from {
+                    self.record_message(trace, ScoreSource::JokerUpgrade(joker.clone()));
+                }
                 self.record_step(
                     trace,
                     ScoreSource::JokerOnCard(joker.clone(), card),
@@ -75,10 +79,17 @@ impl Game {
     ) -> usize {
         // The Hook and The Tooth trigger when the hand is played, before it scores.
         self.boss_triggered_this_hand = std::mem::take(&mut self.boss_play_triggered);
+        // `evaluate_play` records the hand type before the boss can refuse it.
+        self.last_hand_played = Some(hand.rank);
         if self.hand_not_allowed(&hand) {
             return self.score_not_allowed(&hand, trace);
         }
         self.remember_mouth_hand(&hand);
+        self.jokers_before_scoring(&mut hand);
+        // Splash: every played card scores.
+        if self.count_jokers(|j| matches!(j, Jokers::Splash(_))) > 0 {
+            hand.hand = SelectHand::new(hand.all.clone());
+        }
         self.apply_ox(&hand);
 
         // compute chips and mult from hand level
@@ -156,6 +167,8 @@ impl Game {
                 if card.enhancement != Some(Enhancement::Stone) {
                     self.chips += card.chips();
                 }
+                // `get_chip_bonus` adds the permanent bonus, Stone cards included.
+                self.chips += card.perma_bonus;
                 match card.enhancement {
                     Some(Enhancement::Bonus) => self.chips += 30,
                     Some(Enhancement::Mult) => self.mult += 4.0,
@@ -164,12 +177,16 @@ impl Game {
                         self.note_xmult(2.0);
                     }
                     Some(Enhancement::Lucky) => {
-                        if self.prob_roll(1, 5) {
+                        let mult = self.prob_roll(1, 5);
+                        if mult {
                             self.mult += 20.0;
                         }
-                        if self.prob_roll(1, 15) {
+                        let money = self.prob_roll(1, 15);
+                        if money {
                             self.money += 20;
                         }
+                        // `lucky_trigger`, read by Lucky Cat.
+                        self.lucky_trigger = (mult || money).then_some(card.id);
                     }
                     _ => {}
                 }
@@ -237,13 +254,10 @@ impl Game {
             for trig in 0..self.trigger_count_held(&card) {
                 let chips_before = self.chips;
                 let mult_before = self.mult;
-                match card.enhancement {
-                    Some(Enhancement::Steel) => {
-                        self.mult *= 1.5;
-                        self.note_xmult(1.5);
-                    }
-                    Some(Enhancement::Gold) => self.money += 3,
-                    _ => {}
+                // A Gold card pays at the end of the round (`handle_round_end`).
+                if card.enhancement == Some(Enhancement::Steel) {
+                    self.mult *= 1.5;
+                    self.note_xmult(1.5);
                 }
                 self.record_step(
                     &mut trace,
@@ -287,10 +301,21 @@ impl Game {
                     let chips_before = self.chips;
                     let mult_before = self.mult;
                     let grown_from = self.joker_counter(&joker);
+                    let bus_from = self.consecutive_hands_without_face_card;
                     f.lock().unwrap()(self, hand.clone());
-                    // The upgrade message comes before the value it feeds.
-                    if self.joker_counter(&joker) > grown_from {
-                        self.record_upgrade(&mut trace, &joker);
+                    // The message comes before the value it feeds.
+                    let counter = self.joker_counter(&joker);
+                    let reset = match joker {
+                        Jokers::RideTheBus(_) => {
+                            bus_from > 0 && self.consecutive_hands_without_face_card == 0
+                        }
+                        Jokers::Obelisk(_) => grown_from > 0.0 && counter == 0.0,
+                        _ => false,
+                    };
+                    if counter > grown_from {
+                        self.record_message(&mut trace, ScoreSource::JokerUpgrade(joker.clone()));
+                    } else if reset {
+                        self.record_message(&mut trace, ScoreSource::JokerReset(joker.clone()));
                     }
                     self.record_step(
                         &mut trace,
@@ -367,15 +392,19 @@ impl Game {
     }
 
     /// The rows of `G.FUNCS.evaluate_round` for a cleared `blind`; tags are added by the caller.
-    pub(super) fn calc_reward(
+    pub(crate) fn calc_reward(
         &mut self,
         blind: Blind,
     ) -> Result<crate::reward::RoundReward, GameError> {
-        let mut interest = (self.money as f32 * self.config.interest_rate).floor() as usize;
-        let interest_max = self.interest_max();
-        if interest > interest_max {
-            interest = interest_max
-        }
+        // `min(floor($ / 5), cap / 5) × interest_amount`; To the Moon adds 1 to the amount.
+        let chunks = ((self.money as f32 * self.config.interest_rate).floor() as usize)
+            .min(self.interest_max());
+        let moons = self
+            .jokers
+            .iter()
+            .filter(|joker| matches!(joker, Jokers::ToTheMoon(_)))
+            .count();
+        let interest = chunks * (1 + moons);
         Ok(crate::reward::RoundReward {
             blind: blind.reward(),
             hands_left: self.plays,
@@ -383,7 +412,9 @@ impl Game {
             jokers: self
                 .jokers
                 .iter()
-                .filter_map(|joker| crate::reward::dollar_bonus(joker).map(|d| (joker.clone(), d)))
+                .filter_map(|joker| {
+                    crate::reward::dollar_bonus(joker, self).map(|d| (joker.clone(), d))
+                })
                 .collect(),
             tags: Vec::new(),
             interest,

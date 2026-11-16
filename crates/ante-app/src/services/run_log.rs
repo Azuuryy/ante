@@ -58,8 +58,9 @@ impl RunLogFile {
         result: Result<&RunUpdate, &RunError>,
         after: &RunView,
     ) {
-        let line = self.recorder.step(before, command, result, after);
-        self.write(&line);
+        for line in self.recorder.step(before, command, result, after) {
+            self.write(&line);
+        }
     }
 
     #[cfg(test)]
@@ -79,6 +80,16 @@ impl RunLogFile {
                 serde_json::json!({"path": self.path.display().to_string(), "error": _error.to_string()}),
             );
             self.file = None;
+        }
+    }
+}
+
+/// A run's last selections wait for the next command; write them when the log closes,
+/// with a new run or when the game quits.
+impl Drop for RunLogFile {
+    fn drop(&mut self) {
+        if let Some(line) = self.recorder.finish() {
+            self.write(&line);
         }
     }
 }

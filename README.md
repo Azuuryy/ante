@@ -15,7 +15,7 @@ The workspace has three parts: `ante-core` (headless contract and engine adapter
 
 Run the local checks with `bash scripts/check.sh` (format, Clippy with and without features, tests and build). A first build needs access to crates.io.
 
-See [architecture](docs/ARCHITECTURE.md), [engine](docs/ENGINE.md), [roadmap](docs/ROADMAP.md), [compatibility](docs/COMPATIBILITY.md) and [legal](docs/LEGAL.md). Ante code is MIT licensed; the vendored engine and dependencies keep their own licenses.
+See [architecture](docs/ARCHITECTURE.md), [engine](docs/ENGINE.md), [roadmap](docs/ROADMAP.md), [content coverage](docs/CONTENT_COVERAGE.md), [compatibility](docs/COMPATIBILITY.md) and [legal](docs/LEGAL.md). Ante code is MIT licensed; the vendored engine and dependencies keep their own licenses.
 
 ## Windows builds
 

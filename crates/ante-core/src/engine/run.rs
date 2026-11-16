@@ -65,6 +65,11 @@ impl EngineRun {
         }
     }
 
+    /// The engine's events since the last call, as notes.
+    pub fn take_notes(&mut self) -> Vec<Note> {
+        self.game.take_events().into_iter().map(note).collect()
+    }
+
     pub fn phase(&self) -> Phase {
         phase_from(self.game.stage)
     }

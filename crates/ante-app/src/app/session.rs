@@ -74,6 +74,8 @@ pub(crate) struct Session {
     pub(crate) debug_panel: bool,
     pub(crate) speed: Speed,
     pub(crate) playback: Option<(RunView, Playback)>,
+    /// Notes of the last commands, shown once the score animation is over.
+    pub(crate) notes: std::collections::VecDeque<ante_core::contract::Note>,
     pub(crate) options_tab: u8,
     pub(crate) asset_settings: AssetSettings,
     pub(crate) run_info_tab: u8,
@@ -106,6 +108,7 @@ impl Session {
             debug_panel: false,
             speed: Speed::default(),
             playback: None,
+            notes: Default::default(),
             options_tab: 0,
             asset_settings,
             run_info_tab: 0,
@@ -219,7 +222,13 @@ pub(crate) fn process_clicks(
             }
             Click::RunInfoTab(tab) => session.run_info_tab = tab,
             Click::HoverDeck(hover) => {
-                session.deck_hovered = hover && session.navigation.screen == Page::Run
+                // Writing the same value would still mark the session changed and rebuild
+                // the screen: the pointer leaving the deck as the Deck view opens over it
+                // rebuilt the view a frame after it appeared.
+                let hovered = hover && session.navigation.screen == Page::Run;
+                if session.deck_hovered != hovered {
+                    session.deck_hovered = hovered;
+                }
             }
             Click::SelectOffer { action, revision } => {
                 if session.navigation.screen == Page::Run

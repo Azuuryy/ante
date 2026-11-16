@@ -5,8 +5,7 @@ use crate::{
         theme::INK,
         tiles as menu_ui,
         widgets::{
-            CARD_HEIGHT, PLAY_AREA_RISE, button, card_control, label, row, shadowed_label,
-            speed_button,
+            CARD_HEIGHT, PLAY_AREA_RISE, button, card_control, label, shadowed_label, speed_button,
         },
     },
     screens::run::deck_preview,
@@ -14,6 +13,9 @@ use crate::{
 };
 use ante_core::contract::{Command, RunView};
 use bevy::prelude::*;
+
+/// Gap between the bottom of the room and the board's centre column (`center_layout`).
+pub(crate) const CENTER_BOTTOM: f32 = 28.0;
 
 /// A Play Hand, Sort or Discard button. The row outlives selection changes: only this
 /// state is repainted, so the buttons are not rebuilt (and do not settle again) each time a
@@ -200,6 +202,10 @@ pub(crate) fn playing_board(
         flex_direction: FlexDirection::Column,
         align_items: AlignItems::Center,
         row_gap: px(10),
+        // While a hand is played (`G.STATE = HAND_PLAYED`) `CardArea:move` lowers the hand
+        // 1.9 units, back to its rest position at the bottom of the room, level with the
+        // deck: the buttons below it are gone, and the play area sits 3.6 units above it.
+        margin: UiRect::bottom(px(if playing_trace { -CENTER_BOTTOM } else { 0.0 })),
         ..default()
     })
     .with_children(|area| {
@@ -220,10 +226,21 @@ pub(crate) fn playing_board(
             return;
         }
         if playing_trace {
-            area.spawn((PlaybackLabel, Text::new("Scoring..."), TextColor(INK)));
-            row(area, |actions| {
-                button(actions, "Skip", Some(Click::Skip));
-                speed_button(actions, speed);
+            // Out of the flow, so the hand can drop into the buttons' place: the scoring
+            // controls wait right of the hand, above the deck pile.
+            area.spawn(Node {
+                position_type: PositionType::Absolute,
+                left: percent(100),
+                bottom: px(CARD_HEIGHT + 0.3 * menu_ui::TILE),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                row_gap: px(10),
+                ..default()
+            })
+            .with_children(|controls| {
+                controls.spawn((PlaybackLabel, Text::new("Scoring..."), TextColor(INK)));
+                button(controls, "Skip", Some(Click::Skip));
+                speed_button(controls, speed);
             });
         } else {
             let label = area

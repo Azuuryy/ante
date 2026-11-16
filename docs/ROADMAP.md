@@ -46,7 +46,7 @@ The common acceptance check compares a capture at equal client size and walks th
 | HUD and counters | In progress | Rebuilt after `create_UIBox_HUD`: inner boxes, stake chip, Chips × Mult side by side, animated sign, dynamic colours and pixel corners. To compare at 1920 × 1056; the drop shadow does not follow the horizontal parallax yet. |
 | Blind choice | In progress | The panels have no popup, as in the original; the tag next to Skip Blind has its own. Check the three states and the boss objective. A boss that wants its own popup (modding) has no field to provide it yet. |
 | Held tags | In progress | Compare stack, acquisition and removal. |
-| Hand and actions | In progress | The Play Hand / Sort / Discard row stays in place when the selection changes, and a disabled button stays grey on hover. Compare size, selection and overlap. Check drag and drop and Rank/Suit sorting. |
+| Hand and actions | In progress | While a hand is played the hand drops level with the deck and the played cards sit 3.6 units above it; check that they clear the Jokers. The Play Hand / Sort / Discard row stays in place when the selection changes, and a disabled button stays grey on hover. Compare size, selection and overlap. Check drag and drop and Rank/Suit sorting. |
 | Chips × Mult preview | In progress | Check level, empty selection and score readout. |
 | Score resolution | In progress | Popups with the turning colour square of `attention_text`, Joker "Upgrade!" messages, score flames and their fire and organ ambience. Check the trace and interactions against the reference. |
 | Cash out | In progress | Rows and dollars of `add_round_eval_row` at the original pace, then Cash Out. The panel does not rise from the bottom yet. |

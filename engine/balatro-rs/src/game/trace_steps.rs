@@ -29,7 +29,7 @@ impl Game {
             && money == 0
             && !matches!(
                 source,
-                ScoreSource::NotAllowed | ScoreSource::JokerUpgrade(_)
+                ScoreSource::NotAllowed | ScoreSource::JokerUpgrade(_) | ScoreSource::JokerReset(_)
             )
         {
             return;
@@ -59,18 +59,18 @@ impl Game {
             .map_or(0.0, |held| held.state().counter)
     }
 
-    /// A Joker upgrade in the trace. It changes no value and leaves the pending XMult
-    /// note to the step that follows.
-    pub(super) fn record_upgrade(
+    /// A Joker message in the trace (`JokerUpgrade` or `JokerReset`). It changes no value
+    /// and leaves the pending XMult note to the step that follows.
+    pub(super) fn record_message(
         &mut self,
         trace: &mut Option<&mut TraceRecorder>,
-        joker: &Jokers,
+        source: ScoreSource,
     ) {
         let Some(t) = trace else {
             return;
         };
         t.trace.0.push(ScoreStep {
-            source: ScoreSource::JokerUpgrade(joker.clone()),
+            source,
             chips_before: self.chips,
             chips_after: self.chips,
             mult_before: self.mult,

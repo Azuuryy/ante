@@ -117,7 +117,9 @@ fn test_gen_moves_buy_consumable_no_funds() {
 #[test]
 fn test_pack_gen_produces_valid_packs() {
     let planetarium = Planetarium::new();
-    let gen = PackGenerator {};
+    let gen = PackGenerator {
+        gros_michel_extinct: false,
+    };
     for _ in 0..50 {
         let pack = gen.gen_pack(&planetarium, 1, None, &[], &mut rand::thread_rng());
         let expected_count = balatro_seed::pack_card_count(pack.category, pack.size) as usize;
@@ -128,7 +130,9 @@ fn test_pack_gen_produces_valid_packs() {
 #[test]
 fn test_pack_gen_can_produce_valid_spectral_packs() {
     let planetarium = Planetarium::new();
-    let gen = PackGenerator {};
+    let gen = PackGenerator {
+        gros_michel_extinct: false,
+    };
     let mut saw_spectral = false;
     for _ in 0..200 {
         let pack = gen.gen_pack(&planetarium, 1, None, &[], &mut rand::thread_rng());

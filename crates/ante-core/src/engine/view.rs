@@ -283,7 +283,11 @@ impl EngineRun {
             blind_rule: boss.map_or_else(String::new, |boss| boss.description().to_owned()),
             blinds,
             selected_hand: (phase == Phase::Playing)
-                .then(|| SelectHand::new(game.available.selected()).best_hand().ok())
+                .then(|| {
+                    SelectHand::new(game.available.selected())
+                        .best_hand_with(game.hand_rules())
+                        .ok()
+                })
                 .flatten()
                 .map(|hand| hand_view(game, hand.rank)),
             hand_levels: [
@@ -344,7 +348,7 @@ impl EngineRun {
             consumables,
             consumable_offers,
             consumable_slots: game.consumable_slots(),
-            reroll_cost: game.reroll_cost,
+            reroll_cost: game.current_reroll_cost(),
             can_reroll: legal.contains(&Action::Reroll()),
             can_play: legal.contains(&Action::Play()),
             can_discard: legal.contains(&Action::Discard()),

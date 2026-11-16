@@ -1,4 +1,5 @@
 use crate::card::{Edition, Suit, Value};
+use crate::rank::HandRank;
 use strum::EnumIter;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -50,6 +51,10 @@ pub struct Stickers {
 pub enum SelectorValue {
     Suit(Suit),
     Value(Value),
+    /// A card's rank and suit (The Idol's `idol_card`).
+    Card(Value, Suit),
+    /// A poker hand (To Do List's `to_do_poker_hand`).
+    Hand(HandRank),
 }
 
 /// Per-instance persistent state slot, uniform across all jokers and mostly
@@ -61,6 +66,9 @@ pub enum SelectorValue {
 pub struct JokerState {
     pub counter: f32,
     pub selector: Option<SelectorValue>,
+    /// Sell value gained (`ability.extra_value`: Egg, Gift Card).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub extra_value: usize,
 }
 
 /// `Jokers` is the definitive static repr of all jokers in the game.
@@ -124,6 +132,17 @@ macro_rules! make_jokers {
             }
 
             pub fn edition(&self) -> Edition { *self.inner_ref().0 }
+            /// `Card:set_cost` before discounts: the base cost plus the edition's
+            /// `extra_cost` (Foil 2, Holographic 3, Polychrome and Negative 5).
+            pub fn full_cost(&self) -> usize {
+                self.cost()
+                    + match self.edition() {
+                        Edition::Base => 0,
+                        Edition::Foil => 2,
+                        Edition::Holographic => 3,
+                        Edition::Polychrome | Edition::Negative => 5,
+                    }
+            }
             pub fn stickers(&self) -> Stickers { *self.inner_ref().1 }
             pub fn instance_id(&self) -> usize { *self.inner_ref().2 }
             pub fn state(&self) -> JokerState { *self.inner_ref().3 }

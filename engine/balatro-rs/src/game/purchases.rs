@@ -6,6 +6,7 @@ impl Game {
         self.reward = 0;
         self.round_reward = Default::default();
         self.reroll_cost = self.base_reroll_cost();
+        self.free_rerolls = self.count_jokers(|j| matches!(j, Jokers::ChaosTheClown(_)));
         self.stage = Stage::Shop();
         self.refresh_voucher_offer();
         let planetarium = self.planetarium.clone();
@@ -39,11 +40,21 @@ impl Game {
         if self.stage != Stage::Shop() {
             return Err(GameError::InvalidStage);
         }
-        if self.money < self.reroll_cost {
+        if self.money < self.current_reroll_cost() {
             return Err(GameError::InvalidBalance);
         }
-        self.money -= self.reroll_cost;
-        self.reroll_cost += 1;
+        if self.free_rerolls > 0 {
+            self.free_rerolls -= 1;
+        } else {
+            self.money -= self.reroll_cost;
+            self.reroll_cost += 1;
+        }
+        // Flash Card: +2 Mult per reroll.
+        self.grow_jokers(
+            |j| matches!(j, Jokers::FlashCard(_)),
+            2.0,
+            |_| JokerNote::MultPlus(2),
+        );
         let planetarium = self.planetarium.clone();
         let mut held = self.consumables.clone();
         held.extend(self.shop.consumables.clone());
@@ -65,8 +76,11 @@ impl Game {
         if idx >= self.jokers.len() {
             return Err(GameError::InvalidAction);
         }
-        self.money += self.jokers[idx].sell_value();
+        self.money += self.joker_sell_value(&self.jokers[idx]);
         let sold = self.jokers.remove(idx);
+        if matches!(sold, Jokers::ChaosTheClown(_)) {
+            self.chaos_changed(false);
+        }
         for e in sold.effects(self) {
             if let Effects::OnSell(f) = e {
                 f.lock().unwrap()(self);
@@ -88,6 +102,7 @@ impl Game {
         }
         self.effect_registry
             .register_jokers(self.jokers.clone(), &self.clone());
+        self.jokers_card_sold();
         Ok(())
     }
 
@@ -100,6 +115,7 @@ impl Game {
         }
         self.money += self.consumables[idx].sell_value();
         self.consumables.remove(idx);
+        self.jokers_card_sold();
         Ok(())
     }
 
@@ -131,6 +147,9 @@ impl Game {
                 (self.config.joker_slots + 1).min(self.config.joker_slots_max);
         }
         self.backend.on_joker_bought(&joker);
+        if matches!(joker, Jokers::ChaosTheClown(_)) {
+            self.chaos_changed(true);
+        }
         self.jokers.push(joker);
         self.effect_registry
             .register_jokers(self.jokers.clone(), &self.clone());
@@ -225,6 +244,7 @@ impl Game {
         let bought = self.shop.buy_card(&card)?;
         self.money -= cost;
         self.deck.push(bought);
+        self.playing_cards_added(1);
         Ok(())
     }
 }

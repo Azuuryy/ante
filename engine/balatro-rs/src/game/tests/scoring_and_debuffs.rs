@@ -244,10 +244,10 @@ fn test_wild_card_debuffed_by_suit_boss_despite_different_suit() {
 }
 
 #[test]
-fn test_debuffed_stone_kicker_loses_chip_bonus() {
-    // Same shape as test_enhancement_stone_as_kicker, but the Stone
-    // card is Club-suited under the Club boss - the kicker's +50 chips
-    // no longer apply. (5 + 11) * 1 = 16, not 66.
+fn test_stone_kicker_is_not_debuffed_by_a_suit_boss() {
+    // A Stone card has no suit (`Card:is_suit` returns false), so The Club
+    // does not debuff a Club-based Stone card: its +50 chips still score.
+    // (5 + 11 + 50) * 1 = 66.
     let mut g = Game {
         current_boss: Some(BossBlind::Club),
         blind: Some(Blind::Boss),
@@ -257,7 +257,7 @@ fn test_debuffed_stone_kicker_loses_chip_bonus() {
     let mut stone = Card::new(Value::Two, Suit::Club);
     stone.enhancement = Some(Enhancement::Stone);
     let hand = SelectHand::new(vec![ace, stone]).best_hand().unwrap();
-    assert_eq!(g.calc_score(hand), 16);
+    assert_eq!(g.calc_score(hand), 66);
 }
 
 #[test]

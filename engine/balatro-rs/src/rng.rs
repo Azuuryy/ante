@@ -61,6 +61,9 @@ pub(crate) trait RngBackend {
     /// Jokers::Showman's real effect. No call site yet — see `jokers.md`.
     #[allow(dead_code)]
     fn set_showman(&mut self, owned: bool);
+    fn set_gros_michel_extinct(&mut self, extinct: bool);
+    /// A uniform index below `len` (`pseudorandom_element` over a list).
+    fn roll_index(&mut self, len: usize) -> usize;
 
     /// A single freshly generated joker, outside the shop/pack context —
     /// currently only Judgement. Distinct from `gen_shop_item`'s joker arm
@@ -120,7 +123,9 @@ impl FastBackend {
             rng,
             joker_gen: JokerGenerator::new(),
             consumable_gen: ConsumableGenerator::new(),
-            pack_gen: PackGenerator {},
+            pack_gen: PackGenerator {
+                gros_michel_extinct: false,
+            },
         }
     }
 }
@@ -187,6 +192,15 @@ impl RngBackend for FastBackend {
     fn on_joker_sold(&mut self, _joker: &Jokers) {}
     fn on_voucher_bought(&mut self, _voucher: &Voucher) {}
     fn set_showman(&mut self, _owned: bool) {}
+
+    fn roll_index(&mut self, len: usize) -> usize {
+        self.rng.gen_range(0..len.max(1))
+    }
+
+    fn set_gros_michel_extinct(&mut self, extinct: bool) {
+        self.joker_gen.gros_michel_extinct = extinct;
+        self.pack_gen.gros_michel_extinct = extinct;
+    }
 
     fn gen_joker(&mut self, _ante: i32, prob_mult: u32, exclude: &[Jokers]) -> Jokers {
         self.joker_gen.gen_joker(prob_mult, exclude, &mut self.rng)

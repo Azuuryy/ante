@@ -19,6 +19,7 @@ impl Game {
             1 + before - self.tags.len()
         };
         for _ in 0..copies {
+            self.emit(crate::event::GameEvent::TagGained(tag));
             match tag {
                 Tag::Speed => self.money += self.skipped_count * 5,
                 Tag::Handy => {

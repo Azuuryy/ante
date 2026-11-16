@@ -75,6 +75,16 @@ pub enum MessageInk {
     Chips,
     Mult,
     Filter,
+    /// `G.C.PURPLE`, for "+1 Tarot".
+    Tarot,
+    /// `G.C.SECONDARY_SET.Planet`, for "+1 Planet".
+    Planet,
+    /// `G.C.MONEY`, for "Value Up!".
+    Money,
+    /// `G.C.SECONDARY_SET.Spectral`, for "+1 Spectral".
+    Spectral,
+    /// `G.C.BLUE`, for "+1 Joker".
+    Blue,
 }
 
 #[derive(Clone, Debug, PartialEq)]

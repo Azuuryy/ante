@@ -7,6 +7,7 @@ use crate::consumable::Consumable;
 use crate::deck::Deck;
 use crate::effect::{EffectRegistry, Effects, RuleFlag};
 use crate::error::GameError;
+use crate::event::JokerNote;
 use crate::hand::{MadeHand, SelectHand};
 use crate::joker::{joker_display, JokerEffects, JokerState, Jokers};
 use crate::pack::{OpenPackState, Pack, PackCategory, PackContent, PackSize};
@@ -32,6 +33,8 @@ mod actions;
 mod boss_hand;
 mod consumables;
 mod display;
+mod joker_cards;
+mod joker_hooks;
 mod progression;
 mod purchases;
 mod round;
@@ -129,6 +132,25 @@ pub struct Game {
     // The Mouth: the only hand type allowed this round, the first one played.
     #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) mouth_hand: Option<HandRank>,
+    // `G.GAME.last_hand_played`: the type of the last hand played, refused or not. A Blue
+    // Seal held at the end of the round makes its Planet.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) last_hand_played: Option<HandRank>,
+    // `G.GAME.pool_flags.gros_michel_extinct`, mirrored into the Joker generator.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) gros_michel_extinct: bool,
+    // `G.GAME.consumeable_usage_total.tarot` (Fortune Teller).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) tarots_used: usize,
+    // `current_round.free_rerolls` (Chaos the Clown).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) free_rerolls: usize,
+    // Distinct Planet cards used this run (Satellite).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) planets_used: HashSet<crate::planet::Planets>,
+    // The card whose Lucky effect triggered in the current scoring step (Lucky Cat).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) lucky_trigger: Option<usize>,
     // The Ox: `current_round.most_played_poker_hand`, set after each Boss Blind; None
     // until then, which reads as High Card like the original's starting value.
     #[cfg_attr(feature = "serde", serde(default))]
@@ -172,6 +194,10 @@ pub struct Game {
     // open pack state (set when a pack is purchased and being opened)
     #[cfg_attr(feature = "serde", serde(default))]
     pub open_pack: Option<OpenPackState>,
+
+    // Events not yet taken by the adapter; never saved.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) events: Vec<crate::event::GameEvent>,
 }
 
 #[derive(Default)]
@@ -251,6 +277,12 @@ impl Game {
             prob_mult: 1,
             hand_ranks_played_this_round: HashSet::new(),
             mouth_hand: None,
+            last_hand_played: None,
+            gros_michel_extinct: false,
+            tarots_used: 0,
+            free_rerolls: 0,
+            planets_used: HashSet::new(),
+            lucky_trigger: None,
             ox_hand: None,
             boss_play_triggered: false,
             consecutive_hands_without_face_card: 0,
@@ -263,6 +295,7 @@ impl Game {
             last_score: 0,
             reroll_cost: default_reroll_cost(),
             open_pack: None,
+            events: Vec::new(),
             seed,
             seed_str,
             backend,
@@ -301,12 +334,56 @@ impl Game {
     pub fn hand_size(&self) -> usize {
         let base =
             (self.config.available + self.vouchers.hand_size_bonus() + self.temporary_hand_size)
+                .saturating_add(self.joker_hand_size_bonus())
+                .saturating_sub(self.joker_hand_size_cut())
                 .min(self.config.available_max);
         if self.active_boss() == Some(BossBlind::Manacle) {
             base.saturating_sub(1)
         } else {
             base
         }
+    }
+
+    /// Blinds skipped this run (Throwback).
+    pub fn skipped_count(&self) -> usize {
+        self.skipped_count
+    }
+
+    /// Discards used in the current round (Delayed Gratification).
+    pub fn discards_used_this_round(&self) -> usize {
+        self.discards_per_round()
+            .saturating_sub(self.discards_remaining)
+    }
+
+    /// Distinct Planet cards used this run (Satellite).
+    pub fn planets_used(&self) -> usize {
+        self.planets_used.len()
+    }
+
+    /// Tarot cards used this run (Fortune Teller).
+    pub fn tarots_used(&self) -> usize {
+        self.tarots_used
+    }
+
+    /// Hand size the held Jokers take away (`G.hand:change_size` in `add_to_deck`):
+    /// Stuntman 2, Merry Andy 1.
+    fn joker_hand_size_cut(&self) -> usize {
+        2 * self.count_jokers(|j| matches!(j, Jokers::Stuntman(_)))
+            + self.count_jokers(|j| matches!(j, Jokers::MerryAndy(_)))
+    }
+
+    /// Hand size the held Jokers add: Turtle Bean 5 (one less each round), Juggler 1,
+    /// Troubadour 2.
+    fn joker_hand_size_bonus(&self) -> usize {
+        let beans: usize = self
+            .jokers
+            .iter()
+            .filter(|joker| matches!(joker, Jokers::TurtleBean(_)))
+            .map(|joker| 5usize.saturating_sub(joker.state().counter as usize))
+            .sum();
+        beans
+            + self.count_jokers(|j| matches!(j, Jokers::Juggler(_)))
+            + 2 * self.count_jokers(|j| matches!(j, Jokers::Troubadour(_)))
     }
 
     /// Joker slots — Antimatter adds one on top of any Negative-edition
@@ -324,13 +401,49 @@ impl Game {
     /// Hands per round — Grabber/Nacho Tong add, Hieroglyph subtracts.
     /// Never drops below one; a run with no hands is unplayable.
     pub fn plays_per_round(&self) -> usize {
-        Self::apply_delta(self.config.plays, self.vouchers.hands_delta()).max(1)
+        // Troubadour: one hand less per round.
+        let troubadours = self.count_jokers(|j| matches!(j, Jokers::Troubadour(_)));
+        Self::apply_delta(self.config.plays, self.vouchers.hands_delta())
+            .saturating_sub(troubadours)
+            .max(1)
+    }
+
+    /// How hands read under the held Jokers (Four Fingers, Shortcut, Smeared Joker).
+    pub fn hand_rules(&self) -> crate::hand::HandRules {
+        crate::hand::HandRules {
+            four_fingers: self.count_jokers(|j| matches!(j, Jokers::FourFingers(_))) > 0,
+            shortcut: self.count_jokers(|j| matches!(j, Jokers::Shortcut(_))) > 0,
+            smeared: self.count_jokers(|j| matches!(j, Jokers::SmearedJoker(_))) > 0,
+        }
+    }
+
+    /// `Card:is_suit(suit)`: a Stone card is no suit, a Wild card every suit, and Smeared
+    /// Joker joins the suits of a colour. Callers skip debuffed cards themselves.
+    pub fn is_suit(&self, card: &Card, suit: Suit) -> bool {
+        self.hand_rules().flush_suit(card, suit)
+    }
+
+    /// Held Jokers matching `kind`.
+    pub(crate) fn count_jokers(&self, kind: fn(&Jokers) -> bool) -> usize {
+        self.jokers.iter().filter(|joker| kind(joker)).count()
+    }
+
+    /// What the next reroll costs: nothing while Chaos the Clown's free rerolls last.
+    pub fn current_reroll_cost(&self) -> usize {
+        if self.free_rerolls > 0 {
+            0
+        } else {
+            self.reroll_cost
+        }
     }
 
     /// Discards per round — Wasteful/Recyclomancy add, Petroglyph
     /// subtracts. May legitimately reach zero.
     pub fn discards_per_round(&self) -> usize {
-        Self::apply_delta(self.config.discards, self.vouchers.discards_delta())
+        // Drunkard +1, Merry Andy +3.
+        let extra = self.count_jokers(|j| matches!(j, Jokers::Drunkard(_)))
+            + 3 * self.count_jokers(|j| matches!(j, Jokers::MerryAndy(_)));
+        Self::apply_delta(self.config.discards, self.vouchers.discards_delta()) + extra
     }
 
     /// Interest cap at cash out — Seed Money / Money Tree raise it.
@@ -348,6 +461,13 @@ impl Game {
     /// themselves are never discounted.
     pub fn price(&self, cost: usize) -> usize {
         self.vouchers.discounted(cost)
+    }
+
+    /// What selling a held Joker pays: half its discounted cost with its edition, at
+    /// least $1, like `sell_cost` from `Card:set_cost`, which reruns when a voucher
+    /// changes the discount.
+    pub fn joker_sell_value(&self, joker: &Jokers) -> usize {
+        (self.vouchers.discounted(joker.full_cost()) / 2).max(1) + joker.state().extra_value
     }
 
     fn apply_delta(base: usize, delta: isize) -> usize {

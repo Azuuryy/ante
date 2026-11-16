@@ -168,3 +168,17 @@ fn the_shimmer_sweeps_each_letter_in_turn() {
     };
     assert!(brightest(&early) < brightest(&late));
 }
+
+#[test]
+fn gold_letters_ripple_between_gold_tones() {
+    // Out of the sweep, each letter stays a gold: red over green over blue.
+    let colours: Vec<_> = (0..4).map(|i| gold_glyph(i, 4, 0.0).to_srgba()).collect();
+    for colour in &colours {
+        assert!(
+            colour.red > colour.green && colour.green > colour.blue,
+            "{colour:?}"
+        );
+    }
+    // The wave gives neighbouring letters different tones.
+    assert_ne!(colours[0], colours[1]);
+}

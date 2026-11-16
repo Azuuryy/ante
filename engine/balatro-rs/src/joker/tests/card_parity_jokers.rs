@@ -189,8 +189,15 @@ fn test_faceless_joker() {
     g.buy_joker(j).unwrap();
     g.stage = Stage::Blind(Blind::Small);
 
+    // At least 3 face cards among the discarded ones.
     let cards: Vec<Card> = g.available.cards().iter().take(5).copied().collect();
-    for card in &cards {
+    for card in &cards[..3] {
+        g.mutate_card(card.id, |c| c.value = Value::King);
+    }
+    for card in &cards[3..] {
+        g.mutate_card(card.id, |c| c.value = Value::Two);
+    }
+    for card in g.available.cards().iter().take(5) {
         g.available.select_card(*card).expect("can select");
     }
     assert_eq!(g.available.selected().len(), 5);
@@ -215,8 +222,12 @@ fn test_faceless_joker_few_cards() {
     g.buy_joker(j).unwrap();
     g.stage = Stage::Blind(Blind::Small);
 
+    // Three cards that are not faces.
     let cards: Vec<Card> = g.available.cards().iter().take(3).copied().collect();
     for card in &cards {
+        g.mutate_card(card.id, |c| c.value = Value::Two);
+    }
+    for card in g.available.cards().iter().take(3) {
         g.available.select_card(*card).expect("can select");
     }
     assert_eq!(g.available.selected().len(), 3);

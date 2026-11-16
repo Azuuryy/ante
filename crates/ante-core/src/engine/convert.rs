@@ -63,6 +63,66 @@ pub(super) fn seal_name(value: Seal) -> &'static str {
     }
 }
 
+/// The engine's events as contract notes.
+pub(super) fn note(event: balatro_rs::event::GameEvent) -> Note {
+    use balatro_rs::event::{GameEvent, JokerNote as EngineNote};
+    match event {
+        GameEvent::CardPaid { card, amount } => Note::CardPaid {
+            card: CardKey(card.id),
+            label: engine_card_label(card),
+            amount,
+        },
+        GameEvent::SealCreated { card, consumable } => Note::SealCreated {
+            card: CardKey(card.id),
+            label: engine_card_label(card),
+            created: consumable.name().to_owned(),
+            planet: matches!(consumable, balatro_rs::consumable::Consumable::Planet(_)),
+        },
+        GameEvent::TagGained(tag) => Note::TagGained(tag.name().to_owned()),
+        GameEvent::JokerMessage { joker, note } => Note::JokerMessage {
+            id: JokerKey(joker.instance_id()),
+            kind: ContentId(joker.id()),
+            name: joker.name(),
+            note: match note {
+                EngineNote::Upgrade => JokerNote::Upgrade,
+                EngineNote::Reset => JokerNote::Reset,
+                EngineNote::Dollars(amount) => JokerNote::Dollars(amount),
+                EngineNote::XMult(hundredths) => JokerNote::XMult(hundredths),
+                EngineNote::MultMinus(amount) => JokerNote::MultMinus(amount),
+                EngineNote::Extinct => JokerNote::Extinct,
+                EngineNote::Safe => JokerNote::Safe,
+                EngineNote::MultPlus(amount) => JokerNote::MultPlus(amount),
+                EngineNote::XMultMinus(hundredths) => JokerNote::XMultMinus(hundredths),
+                EngineNote::HandSizeMinus(amount) => JokerNote::HandSizeMinus(amount),
+                EngineNote::Eaten => JokerNote::Eaten,
+                EngineNote::UpgradePlain => JokerNote::UpgradePlain,
+                EngineNote::Remaining(left) => JokerNote::Remaining(left),
+                EngineNote::Drank => JokerNote::Drank,
+                EngineNote::ValueUp => JokerNote::ValueUp,
+                EngineNote::UpgradeMoney => JokerNote::UpgradeMoney,
+                EngineNote::HandsPlus(amount) => JokerNote::HandsPlus(amount),
+                EngineNote::Saved => JokerNote::Saved,
+                EngineNote::PlusTarot => JokerNote::PlusTarot,
+                EngineNote::PlusSpectral => JokerNote::PlusSpectral,
+                EngineNote::PlusJoker => JokerNote::PlusJoker,
+                EngineNote::PlusStone => JokerNote::PlusStone,
+                EngineNote::LevelUp => JokerNote::LevelUp,
+            },
+        },
+    }
+}
+
+/// [`card_label`] of an engine card.
+pub(super) fn engine_card_label(card: balatro_rs::card::Card) -> String {
+    card_label(
+        char::from(card.value),
+        suit_name(card.suit),
+        card.enhancement.map_or("", enhancement_name),
+        edition_name(card.edition),
+        card.seal.map_or("", seal_name),
+    )
+}
+
 pub(super) fn card_art(card: balatro_rs::card::Card) -> ShopArt {
     ShopArt::Card {
         rank: char::from(card.value),
@@ -124,7 +184,7 @@ pub(super) fn pack_content_description(content: &PackContent) -> String {
     use balatro_rs::consumable::Consumable;
     match content {
         PackContent::PlayingCard(card) => card_effect_summary(*card),
-        PackContent::Joker(joker) => joker_description(joker.id()),
+        PackContent::Joker(joker) => joker_text(joker),
         PackContent::Tarot(card) => consumable_description(Consumable::Tarot(*card)),
         PackContent::Planet(card) => consumable_description(Consumable::Planet(*card)),
         PackContent::Spectral(card) => consumable_description(Consumable::Spectral(*card)),
@@ -180,6 +240,13 @@ pub(super) fn map_trace(trace: NativeTrace) -> ScoreTrace {
                                 ink,
                             }
                         }
+                        NativeSource::JokerReset(joker) => ScoreSource::JokerMessage {
+                            id: JokerKey(joker.instance_id()),
+                            kind: ContentId(joker.id()),
+                            name: joker.name(),
+                            message: "Reset",
+                            ink: MessageInk::Filter,
+                        },
                     },
                     chips_before: step.chips_before,
                     chips_after: step.chips_after,
@@ -200,7 +267,7 @@ pub(super) fn map_trace(trace: NativeTrace) -> ScoreTrace {
 pub(super) fn upgrade_message(id: &str) -> Option<(&'static str, MessageInk)> {
     Some(match id {
         "j_wee" | "j_square" | "j_runner" => ("Upgrade!", MessageInk::Chips),
-        "j_trousers" => ("Upgrade!", MessageInk::Mult),
+        "j_trousers" | "j_lucky_cat" => ("Upgrade!", MessageInk::Mult),
         "j_green_joker" => ("+1 Mult", MessageInk::Filter),
         _ => return None,
     })

@@ -1,5 +1,6 @@
 use crate::card::{Card, Edition, Enhancement, Suit, Value};
 use crate::effect::{Effects, RuleFlag};
+use crate::event::JokerNote;
 use crate::game::Game;
 use crate::hand::{MadeHand, SelectHand};
 use crate::rank::HandRank;
@@ -13,6 +14,10 @@ pub use balatro_types::joker::*;
 mod effects_1;
 mod effects_2;
 mod effects_3;
+mod effects_4;
+mod effects_5;
+mod effects_6;
+mod effects_7;
 
 static JOKER_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
@@ -72,6 +77,10 @@ impl JokerEffects for Jokers {
         effects_1::effects(self)
             .or_else(|| effects_2::effects(self))
             .or_else(|| effects_3::effects(self))
+            .or_else(|| effects_4::effects(self))
+            .or_else(|| effects_5::effects(self))
+            .or_else(|| effects_6::effects(self))
+            .or_else(|| effects_7::effects(self))
             .unwrap_or_default()
     }
 
@@ -152,6 +161,66 @@ impl JokerEffects for Jokers {
                 | Self::Luchador(_)
                 | Self::Chicot(_)
                 | Self::Matador(_)
+                | Self::Swashbuckler(_)
+                | Self::Blackboard(_)
+                | Self::FlowerPot(_)
+                | Self::SeeingDouble(_)
+                | Self::Stuntman(_)
+                | Self::Bootstraps(_)
+                | Self::GrosMichel(_)
+                | Self::Cavendish(_)
+                | Self::AncientJoker(_)
+                | Self::TheIdol(_)
+                | Self::SquareJoker(_)
+                | Self::Runner(_)
+                | Self::Throwback(_)
+                | Self::FortuneTeller(_)
+                | Self::FlashCard(_)
+                | Self::RedCard(_)
+                | Self::Constellation(_)
+                | Self::Popcorn(_)
+                | Self::TurtleBean(_)
+                | Self::Ramen(_)
+                | Self::LuckyCat(_)
+                | Self::GlassJoker(_)
+                | Self::Hiker(_)
+                | Self::Vampire(_)
+                | Self::Seltzer(_)
+                | Self::Hologram(_)
+                | Self::Campfire(_)
+                | Self::CeremonialDagger(_)
+                | Self::Madness(_)
+                | Self::DelayedGratification(_)
+                | Self::Egg(_)
+                | Self::ToTheMoon(_)
+                | Self::Cloud9(_)
+                | Self::Rocket(_)
+                | Self::Satellite(_)
+                | Self::ToDoList(_)
+                | Self::OopsAllSixes(_)
+                | Self::ChaosTheClown(_)
+                | Self::Burglar(_)
+                | Self::Juggler(_)
+                | Self::Drunkard(_)
+                | Self::Troubadour(_)
+                | Self::MerryAndy(_)
+                | Self::MrBones(_)
+                | Self::Splash(_)
+                | Self::FourFingers(_)
+                | Self::Shortcut(_)
+                | Self::SmearedJoker(_)
+                | Self::EightBall(_)
+                | Self::Superposition(_)
+                | Self::Seance(_)
+                | Self::Vagabond(_)
+                | Self::LoyaltyCard(_)
+                | Self::DietCola(_)
+                | Self::SpaceJoker(_)
+                | Self::Hallucination(_)
+                | Self::Cartomancer(_)
+                | Self::RiffRaff(_)
+                | Self::MarbleJoker(_)
+                | Self::BurntJoker(_)
         ) || cfg!(feature = "ante-extra-jokers")
             && matches!(
                 self,

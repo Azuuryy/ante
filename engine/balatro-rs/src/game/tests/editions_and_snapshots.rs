@@ -95,8 +95,10 @@ fn test_seal_blue_round_end_creates_planet() {
     assert_eq!(g.consumables.len(), 0);
     g.play_selected().expect("can play selected");
 
+    // The Planet of the last hand played (`G.GAME.last_hand_played`), not a random one.
+    let played = g.last_hand_played.expect("a hand was played");
     assert_eq!(g.consumables.len(), 1);
-    assert!(matches!(g.consumables[0], Consumable::Planet(_)));
+    assert!(matches!(g.consumables[0], Consumable::Planet(p) if p.hand_rank() == played));
 }
 
 #[test]
@@ -109,10 +111,10 @@ fn test_seal_blue_does_not_fire_before_blind_cleared() {
 
     let held_card = g.available.cards()[7];
     g.mutate_card(held_card.id, |c| c.seal = Some(Seal::Blue));
-    for card in g.available.cards()[0..5].to_vec() {
-        g.available.select_card(card).expect("can select card");
-    }
-    // score not bumped past required_score() - blind stays open
+    // A single card cannot reach the blind's score (five random cards sometimes
+    // could), so the blind stays open.
+    let card = g.available.cards()[0];
+    g.available.select_card(card).expect("can select card");
     g.play_selected().expect("can play selected");
 
     assert_eq!(g.consumables.len(), 0);

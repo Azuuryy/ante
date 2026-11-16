@@ -194,6 +194,32 @@ fn unavailable_decks_cannot_start_and_quit_is_requested() {
     assert!(!app.world().resource::<Messages<AppExit>>().is_empty());
 }
 
+/// The pointer leaving the deck pile as the Deck view opens over it must not mark the
+/// session changed, or the whole view rebuilds a frame after it appeared.
+#[test]
+fn leaving_the_deck_pile_while_the_deck_view_opens_rebuilds_nothing() {
+    let mut app = app();
+    click(&mut app, Click::OpenDecks);
+    click(&mut app, Click::Start);
+    click(&mut app, Click::Play(Command::StartBlind));
+    click(&mut app, Click::OpenDeck);
+    let changed = || {
+        app.world()
+            .get_resource_change_ticks::<Session>()
+            .unwrap()
+            .changed
+    };
+    let opened = changed();
+    click(&mut app, Click::HoverDeck(false));
+    assert_eq!(
+        app.world()
+            .get_resource_change_ticks::<Session>()
+            .unwrap()
+            .changed,
+        opened
+    );
+}
+
 #[test]
 fn run_board_survives_phase_and_deck_modal_changes() {
     let mut app = app();

@@ -9,6 +9,9 @@ use crate::card::Value;
 use crate::error::PlayHandError;
 use crate::rank::HandRank;
 
+mod rules;
+pub use rules::HandRules;
+
 // Hand, SelectHand and MadeHand are all representations of a collection of Card,
 // just at different phases in the cycle of selecting, executing and scoring cards.
 // Hand represents all drawn cards, cards available for action (play/discard).

@@ -29,6 +29,8 @@ impl Game {
         while self.take_tag(Tag::Juggle) {
             self.temporary_hand_size += 3;
         }
+        self.roll_card_targets(false);
+        self.jokers_set_blind(blind);
         self.deal();
         Ok(())
     }
@@ -53,6 +55,13 @@ impl Game {
             .skip_tag(blind)
             .expect("blind is not Boss, checked above");
         self.skipped_count += 1;
+        // Throwback says its new XMult.
+        let factor = 100 + 25 * self.skipped_count;
+        self.grow_jokers(
+            |j| matches!(j, Jokers::Throwback(_)),
+            0.0,
+            move |_| JokerNote::XMult(factor),
+        );
         let orbital = self.orbital_targets[usize::from(blind == Blind::Big)];
         self.acquire_tag(tag, orbital);
         self.resolve_blind_choice_tags();
@@ -94,7 +103,7 @@ impl Game {
     }
 
     // Returns true if should clear blind after, false if not.
-    pub(super) fn handle_score(&mut self, score: usize) -> Result<bool, GameError> {
+    pub(crate) fn handle_score(&mut self, score: usize) -> Result<bool, GameError> {
         // can only handle score if stage is blind
         if !self.stage.is_blind() {
             return Err(GameError::InvalidStage);
@@ -104,15 +113,18 @@ impl Game {
         let required = self.required_score();
 
         // blind not passed
+        let mut saved = false;
         if self.score < required {
-            // no more hands to play -> lose
-            if self.plays == 0 {
-                self.stage = Stage::End(End::Lose);
-                return Ok(false);
-            } else {
-                // more hands to play, carry on
+            // more hands to play, carry on
+            if self.plays > 0 {
                 return Ok(false);
             }
+            // no more hands to play -> lose, unless Mr. Bones saves the run
+            if !self.mr_bones_saves(required) {
+                self.stage = Stage::End(End::Lose);
+                return Ok(false);
+            }
+            saved = true;
         }
 
         let blind = self.blind.expect("stage is blind");
@@ -121,6 +133,10 @@ impl Game {
         // score exceeds blind (blind passed).
         // handle reward then progress to next stage.
         let mut reward = self.calc_reward(blind)?;
+        // Saved by Mr. Bones: the blind itself pays nothing.
+        if saved {
+            reward.blind = 0;
+        }
         self.unused_discards += self.discards_remaining;
         if blind == Blind::Boss {
             while self.take_tag(Tag::Investment) {

@@ -11,7 +11,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::GreedyJoker(_) => {
             fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
-                if card.matches_suit(Suit::Diamond) {
+                if g.is_suit(&card, Suit::Diamond) {
                     g.mult += 3.0;
                 }
             }
@@ -19,7 +19,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::LustyJoker(_) => {
             fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
-                if card.matches_suit(Suit::Heart) {
+                if g.is_suit(&card, Suit::Heart) {
                     g.mult += 3.0;
                 }
             }
@@ -27,7 +27,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::WrathfulJoker(_) => {
             fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
-                if card.matches_suit(Suit::Spade) {
+                if g.is_suit(&card, Suit::Spade) {
                     g.mult += 3.0;
                 }
             }
@@ -35,7 +35,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::GluttonousJoker(_) => {
             fn apply(g: &mut Game, card: Card, _hand: &MadeHand) {
-                if card.matches_suit(Suit::Club) {
+                if g.is_suit(&card, Suit::Club) {
                     g.mult += 3.0;
                 }
             }
@@ -67,7 +67,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::CrazyJoker(_) => {
             fn apply(g: &mut Game, hand: MadeHand) {
-                if hand.hand.is_straight().is_some() {
+                if hand.hand.straight_with(g.hand_rules()).is_some() {
                     g.mult += (12) as f64
                 }
             }
@@ -75,7 +75,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::DrollJoker(_) => {
             fn apply(g: &mut Game, hand: MadeHand) {
-                if hand.hand.is_flush().is_some() {
+                if hand.hand.flush_with(g.hand_rules()).is_some() {
                     g.mult += (10) as f64
                 }
             }
@@ -107,7 +107,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::DeviousJoker(_) => {
             fn apply(g: &mut Game, hand: MadeHand) {
-                if hand.hand.is_straight().is_some() {
+                if hand.hand.straight_with(g.hand_rules()).is_some() {
                     g.chips += 100
                 }
             }
@@ -115,7 +115,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::CraftyJoker(_) => {
             fn apply(g: &mut Game, hand: MadeHand) {
-                if hand.hand.is_flush().is_some() {
+                if hand.hand.flush_with(g.hand_rules()).is_some() {
                     g.chips += 80
                 }
             }

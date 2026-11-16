@@ -16,6 +16,7 @@ pub mod consumable;
 pub mod deck;
 pub mod effect;
 pub mod error;
+pub mod event;
 pub mod game;
 pub mod generator;
 pub mod hand;

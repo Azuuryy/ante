@@ -20,6 +20,8 @@ impl Game {
                 return Err(serde::de::Error::custom("invalid ante in snapshot"));
             }
         }
+        let extinct = game.gros_michel_extinct;
+        game.backend.set_gros_michel_extinct(extinct);
         let jokers = game.jokers.clone();
         game.effect_registry.register_jokers(jokers, &game.clone());
 

@@ -14,7 +14,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::TheOrder(_) => {
             fn apply(g: &mut Game, hand: MadeHand) {
-                if hand.hand.is_straight().is_some() {
+                if hand.hand.straight_with(g.hand_rules()).is_some() {
                     g.mult *= 3.0;
                     g.note_xmult(3.0);
                 }
@@ -23,7 +23,7 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         }
         Jokers::TheTribe(_) => {
             fn apply(g: &mut Game, hand: MadeHand) {
-                if hand.hand.is_flush().is_some() {
+                if hand.hand.flush_with(g.hand_rules()).is_some() {
                     g.mult *= 2.0;
                     g.note_xmult(2.0);
                 }
@@ -133,14 +133,16 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
             // "First discard of round" == joker.discards already
             // decremented to config.discards - 1 by the time this fires
             // (discard_selected decrements before invoking OnDiscard).
-            fn apply(g: &mut Game, hand: MadeHand) {
+            let id = joker.instance_id();
+            let apply = move |g: &mut Game, hand: MadeHand| {
                 if hand.all.len() == 1
                     && g.discards_remaining == g.config.discards.saturating_sub(1)
                 {
                     g.destroy_card(hand.all[0].id);
                     g.money += 3;
+                    g.joker_message(id, JokerNote::Dollars(3));
                 }
-            }
+            };
             vec![Effects::OnDiscard(Arc::new(Mutex::new(apply)))]
         }
         Jokers::GreenJoker(_) => {
@@ -155,8 +157,13 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
                 g.mult += (mult) as f64;
             };
             let discarded = move |g: &mut Game, _hand: MadeHand| {
-                if let Some(state) = g.joker_state_mut(id) {
-                    state.counter = (state.counter - 1.0).max(0.0);
+                let Some(state) = g.joker_state_mut(id) else {
+                    return;
+                };
+                let before = state.counter;
+                state.counter = (state.counter - 1.0).max(0.0);
+                if state.counter != before {
+                    g.joker_message(id, JokerNote::MultMinus(1));
                 }
             };
             vec![
@@ -174,7 +181,27 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
                 g.mult *= 1.0 + 0.5 * jacks as f64;
                 g.note_xmult(1.0 + 0.5 * jacks as f64);
             }
-            vec![Effects::OnScore(Arc::new(Mutex::new(apply)))]
+            // "X1.5", "X2"… on the Joker for each Jack discarded, counting the round's.
+            let id = joker.instance_id();
+            let discarded = move |g: &mut Game, hand: MadeHand| {
+                let total = g
+                    .non_debuffed(g.discarded_this_round.iter())
+                    .iter()
+                    .filter(|c| c.value == Value::Jack)
+                    .count();
+                let now = g
+                    .non_debuffed(hand.all.iter())
+                    .iter()
+                    .filter(|c| c.value == Value::Jack)
+                    .count();
+                for jacks in total.saturating_sub(now) + 1..=total {
+                    g.joker_message(id, JokerNote::XMult(100 + 50 * jacks));
+                }
+            };
+            vec![
+                Effects::OnScore(Arc::new(Mutex::new(apply))),
+                Effects::OnDiscard(Arc::new(Mutex::new(discarded))),
+            ]
         }
         Jokers::Yorick(_) => {
             // X1 more every 23 cards discarded since this Yorick was acquired.
@@ -190,8 +217,14 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
                 }
             };
             let discarded = move |g: &mut Game, hand: MadeHand| {
-                if let Some(state) = g.joker_state_mut(id) {
-                    state.counter += hand.all.len() as f32;
+                let Some(state) = g.joker_state_mut(id) else {
+                    return;
+                };
+                let before = state.counter as usize / 23;
+                state.counter += hand.all.len() as f32;
+                let after = state.counter as usize / 23;
+                for level in before + 1..=after {
+                    g.joker_message(id, JokerNote::XMult(100 * (1 + level)));
                 }
             };
             vec![
@@ -219,10 +252,13 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
                 let count = g
                     .non_debuffed(hand.all.iter())
                     .iter()
-                    .filter(|c| c.matches_suit(suit))
+                    .filter(|c| g.is_suit(c, suit))
                     .count();
                 if let Some(state) = g.joker_state_mut(id) {
                     state.counter += 3.0 * count as f32;
+                }
+                for _ in 0..count {
+                    g.joker_message(id, JokerNote::Upgrade);
                 }
             };
             vec![
@@ -242,8 +278,16 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
                 else {
                     return;
                 };
-                let count = hand.all.iter().filter(|c| c.value == value).count();
+                // A debuffed card does not pay.
+                let count = g
+                    .non_debuffed(hand.all.iter())
+                    .iter()
+                    .filter(|c| c.value == value)
+                    .count();
                 g.money += count * 5;
+                for _ in 0..count {
+                    g.joker_message(id, JokerNote::Dollars(5));
+                }
             };
             vec![Effects::OnDiscard(Arc::new(Mutex::new(apply)))]
         }

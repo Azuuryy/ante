@@ -183,6 +183,7 @@ pub fn run(backend: impl GameBackend) {
                 components::travel::detach_discards,
                 components::dissolve::detach_leaving,
                 animate,
+                app::presentation::show_notes,
                 crate::components::widgets::fan_hand,
                 crate::components::widgets::ease_hover,
                 components::travel::turn_card_backs,

@@ -45,6 +45,7 @@ pub(super) fn start_run(session: &mut Session, backend: &dyn GameBackend, click:
         session.confirmed = Some(view);
         session.run = Some(run);
         session.run_log = Some(crate::services::run_log::RunLogFile::start(config));
+        session.notes.clear();
         session.run_id = session.run_id.wrapping_add(1);
         session.last_config = Some(config);
         session.navigation.screen = Page::Run;
@@ -109,6 +110,7 @@ pub(super) fn play(
     match result {
         Ok(update) => {
             session.confirmed = Some(update.view);
+            session.notes.extend(update.notes);
             let outcome = update.outcome;
             metrics.record_simulation(elapsed, outcome.trace_time);
             #[cfg(feature = "dev-tools")]

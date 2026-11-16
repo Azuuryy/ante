@@ -21,13 +21,20 @@ Snapshots go through `Game::from_json`, which rebuilds the effect registry and a
 
 ## Run logs and replay
 
-Every run writes one JSON-lines file to `%LOCALAPPDATA%\Ante\runs\` (`<timestamp>-<seed>.jsonl`, the 20 most recent kept), in Prod and Dev. The first line is the run configuration (seed, deck, goal, starting money, Ante version, whether the optional Jokers were built in); each following line is one command, its refusal if any, the number of score steps it produced and the confirmed state after it (phase, ante, round, money, score, hands, discards, reward, hand, Jokers, consumables, deck size). Commands name cards and offers by their position in the confirmed view, not by the engine's runtime ids, so a log replays in any process.
+Every run writes one JSON-lines file to `%LOCALAPPDATA%\Ante\runs\` (`<timestamp>-<seed>.jsonl`, the 20 most recent kept), in Prod and Dev. Commands name cards and offers by their position in the confirmed view, not by the engine's runtime ids, so a log replays in any process. Format 2 (`run_log::FORMAT_VERSION`) has three kinds of lines:
+
+- `header`: the run configuration (seed, deck, goal, starting money, Ante version, whether the optional Jokers were built in).
+- `step`: one command, its refusal if any, the number of score steps it produced, the state fields that changed (`after`: phase, ante, round, money, score, hands, discards, reward, hand, Jokers, consumables, tags, deck size) and, when there is something to say, an `explain` block. That block holds the blind started (name, score, rule), the hand played (type, Chips × Mult, score), the score trace summarised by source (`Greedy Joker on JD +3 mult ×2`, `KH held x1.5`), the engine's notes (a Gold card paid, a seal created a card, a tag gained), the Jokers whose current value moved, and the offers of the shop or a pack just opened.
+- `select`: card selections, sorts and moves sent one after another, as short codes (`t2`, `ss`, `sr`, `m3>`), with their refusals and the hand they leave. They wait for the next other command and are written when the log closes.
+
+Cards are short (`KH steel`, `2C purple_seal`, `*` when selected). A run takes about a fifth of the space of format 1. The replay still reads format 1, whose lines hold every field.
 
 ```powershell
 cargo run -p ante-core --example replay -- "$env:LOCALAPPDATA\Ante\runs\<file>.jsonl"
+cargo run -p ante-core --example log_summary -- "$env:LOCALAPPDATA\Ante\runs\<file>.jsonl"
 ```
 
-The replay reruns the commands on a fresh run and prints the first step whose refusal or state differs from the log, with both states. Add `--features extra-jokers` for logs of runs with the optional Jokers; a log refuses to replay with a different Joker set or line format (`run_log::FORMAT_VERSION`).
+The replay reruns the commands on a fresh run and prints the first step whose refusal or state differs from the log, with both states. `log_summary` prints one line per command that matters (selections folded), with the cards played or discarded, what changed and the explanations. Add `--features extra-jokers` for logs of runs with the optional Jokers; a log refuses to replay with a different Joker set or an unknown format.
 
 ## Seed 0 route
 
@@ -37,13 +44,13 @@ Launch from the Ante root in native Windows, select Play, enable Seeded Run, and
 cargo run --locked -p ante-app --bin ante -- --one-ante
 ```
 
-The numbers below are card positions from left to right in the current hand, counted again after each play or discard.
+The Small Blind names card positions from left to right in the current hand, counted again after each play or discard; the later blinds name the cards. The route changes whenever the Joker pool changes, since the shop then draws different random numbers.
 
 | Blind | Actions | Expected result |
 | --- | --- | --- |
 | Small | Discard card 1. Play 4/5/6/7/8, then 1/5/6/7/8, then 3/5/6/7/8, then 2/3/4/7/8. | 349 / 300. Cash out, then click Next blind. |
-| Big | Play 1/2/3/7/8, then 3/5/6/7/8, then 1/2/4/7/8, then 3/5/6/7/8. | 500 / 450. Cash out, buy the second offer named Joker, then click Next blind. |
-| The Manacle | Play 1/2/3/5/6, then 3/4/5/6/7. | 672 / 600 and victory. |
+| Big | Play 8♥ 8♦ 2♥ 2♣ 2♦, then J♣ J♦ 5♠ 5♣ 5♦. | 548 / 450. Cash out, buy the second offer, Joker, then click Next blind. |
+| The Manacle | Play K♣ Q♠ Q♥ 10♠ 10♥, then A♣ J♥ J♣ 9♦ 7♥, then 8♦ 6♦ 2♠ 2♥ 2♦. | 792 / 600 and victory. |
 
 To replay the loss, click Retry same seed and start Small. Check that Play hand is disabled without a selection. Select and play only the first card four times. Check the loss screen and retry once more.
 

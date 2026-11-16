@@ -106,6 +106,68 @@ pub(super) fn with_selection(effect: &str, requires_hand: bool, max: usize) -> S
     }
 }
 
+/// A Joker's description with the round's target in it, like the original `loc_vars`:
+/// Castle names its suit (`castle_card`), Mail-In Rebate its rank (`mail_card`). Before
+/// a target is drawn, the general description.
+pub(super) fn joker_text(joker: &balatro_rs::joker::Jokers) -> String {
+    use balatro_types::joker::SelectorValue;
+    match (joker.id(), joker.state().selector) {
+        ("j_castle", Some(SelectorValue::Suit(suit))) => format!(
+            "Gains 3 chips per discarded {} card; suit changes each round.",
+            suit_name(suit).trim_end_matches('s')
+        ),
+        ("j_mail", Some(SelectorValue::Value(value))) => format!(
+            "Each discarded {} pays $5; rank changes each round.",
+            rank_word(char::from(value))
+        ),
+        ("j_todo_list", Some(SelectorValue::Hand(rank))) => format!(
+            "Earns $4 when a {} is played; the hand changes each round.",
+            hand_name(rank)
+        ),
+        ("j_ancient", Some(SelectorValue::Suit(suit))) => format!(
+            "Each scored {} multiplies Mult by 1.5; suit changes each round.",
+            suit_name(suit).trim_end_matches('s')
+        ),
+        ("j_idol", Some(SelectorValue::Card(value, suit))) => format!(
+            "Each scored {} of {} multiplies Mult by 2; card changes each round.",
+            rank_word(char::from(value)),
+            suit_name(suit)
+        ),
+        (id, _) => joker_description(id),
+    }
+}
+
+/// A poker hand's name, as the original writes it.
+pub(super) fn hand_name(rank: HandRank) -> &'static str {
+    match rank {
+        HandRank::HighCard => "High Card",
+        HandRank::OnePair => "Pair",
+        HandRank::TwoPair => "Two Pair",
+        HandRank::ThreeOfAKind => "Three of a Kind",
+        HandRank::Straight => "Straight",
+        HandRank::Flush => "Flush",
+        HandRank::FullHouse => "Full House",
+        HandRank::FourOfAKind => "Four of a Kind",
+        HandRank::StraightFlush => "Straight Flush",
+        HandRank::RoyalFlush => "Royal Flush",
+        HandRank::FiveOfAKind => "Five of a Kind",
+        HandRank::FlushHouse => "Flush House",
+        HandRank::FlushFive => "Flush Five",
+    }
+}
+
+/// A rank as the original names it: 2 to 10 in figures, then Jack, Queen, King, Ace.
+pub(super) fn rank_word(rank: char) -> String {
+    match rank {
+        'T' => "10".to_owned(),
+        'J' => "Jack".to_owned(),
+        'Q' => "Queen".to_owned(),
+        'K' => "King".to_owned(),
+        'A' => "Ace".to_owned(),
+        other => other.to_string(),
+    }
+}
+
 pub fn joker_description(id: &str) -> String {
     match id {
         "j_joker" => "Adds 4 Mult when a hand scores.",
@@ -128,17 +190,17 @@ pub fn joker_description(id: &str) -> String {
         "j_mystic_summit" => "Adds 15 Mult when no discards remain.",
         "j_supernova" => "Adds Mult based on the number of times this hand was played.",
         "j_ride_the_bus" => "Gains Mult for hands without scoring face cards.",
-        "j_fibonacci" => "Scored aces, twos, threes, fives and eights each add 8 Mult.",
+        "j_fibonacci" => "Each scored Ace, 2, 3, 5 or 8 adds 8 Mult.",
         "j_scary_face" => "Each scored face card adds 30 chips.",
         "j_abstract" => "Each owned joker adds 3 Mult.",
         "j_pareidolia" => "Treats every playing card as a face card.",
         "j_even_steven" => "Scored even ranks each add 4 Mult.",
         "j_odd_todd" => "Scored odd ranks each add 31 chips.",
-        "j_scholar" => "Each scored ace adds 20 chips and 4 Mult.",
+        "j_scholar" => "Each scored Ace adds 20 chips and 4 Mult.",
         "j_blue_joker" => "Each card remaining in the deck adds 2 chips.",
-        "j_baron" => "Each king held in hand multiplies Mult by 1.5.",
+        "j_baron" => "Each King held in hand multiplies Mult by 1.5.",
         "j_mime" => "Repeats abilities of cards held in hand.",
-        "j_hack" => "Repeats scored twos, threes, fours and fives.",
+        "j_hack" => "Repeats each scored 2, 3, 4 or 5.",
         "j_dusk" => "Repeats played cards on the last hand of the round.",
         "j_hanging_chad" => "Repeats the first scoring card.",
         "j_raised_fist" => "Adds twice the lowest held rank to Mult.",
@@ -162,7 +224,7 @@ pub fn joker_description(id: &str) -> String {
         "j_bull" => "Each dollar held adds 2 chips.",
         "j_trading" => "A single-card first discard destroys the card and earns $3.",
         "j_trousers" => "Gains 2 Mult when a hand contains two pairs.",
-        "j_walkie_talkie" => "Each scored four or ten adds 10 chips and 4 Mult.",
+        "j_walkie_talkie" => "Each scored 10 or 4 adds 10 chips and 4 Mult.",
         "j_castle" => {
             "Gains 3 chips per discarded card of the current suit; suit changes each round."
         }
@@ -174,21 +236,93 @@ pub fn joker_description(id: &str) -> String {
         "j_bloodstone" => "Scored hearts have a one-in-two chance to multiply Mult by 1.5.",
         "j_arrowhead" => "Each scored spade adds 50 chips.",
         "j_onyx_agate" => "Each scored club adds 7 Mult.",
-        "j_wee" => "Permanently gains 8 chips for every scored two.",
+        "j_wee" => "Permanently gains 8 chips for every scored 2.",
         "j_matador" => "Earns $8 when a played hand triggers the boss ability.",
-        "j_hit_the_road" => "Gains a 0.5 Mult multiplier per jack discarded this round.",
+        "j_hit_the_road" => "Gains a 0.5 Mult multiplier per Jack discarded this round.",
         "j_duo" => "A hand containing a pair multiplies Mult by 2.",
         "j_trio" => "A hand containing three of a kind multiplies Mult by 3.",
         "j_family" => "A hand containing four of a kind multiplies Mult by 4.",
         "j_order" => "A hand containing a straight multiplies Mult by 3.",
         "j_tribe" => "A hand containing a flush multiplies Mult by 2.",
-        "j_shoot_the_moon" => "Each queen held in hand adds 13 Mult.",
-        "j_drivers_license" => "At least sixteen enhanced cards in the deck multiply Mult by 3.",
+        "j_shoot_the_moon" => "Each Queen held in hand adds 13 Mult.",
+        "j_drivers_license" => "At least 16 enhanced cards in the deck multiply Mult by 3.",
         "j_yorick" => "Gains a Mult multiplier after every 23 cards discarded.",
         "j_chicot" => "Disables boss blind abilities.",
         "j_misprint" => "Adds a random amount of Mult when scoring.",
         "j_golden" => "Earns money at the end of a round.",
         "j_ice_cream" => "Adds chips when scoring; decreases after each hand.",
+        "j_swashbuckler" => "Adds the sell value of every other owned joker to Mult.",
+        "j_square" => "Gains 4 chips when the played hand has exactly 4 cards.",
+        "j_runner" => "Gains 15 chips when the played hand contains a straight.",
+        "j_throwback" => "Gains a 0.25 Mult multiplier for each blind skipped this run.",
+        "j_fortune_teller" => "Adds 1 Mult for each Tarot card used this run.",
+        "j_flash" => "Gains 2 Mult each time the shop is rerolled.",
+        "j_red_card" => "Gains 3 Mult each time a Booster Pack is skipped.",
+        "j_constellation" => "Gains a 0.1 Mult multiplier each time a Planet card is used.",
+        "j_popcorn" => "Adds 20 Mult, 4 less after each round.",
+        "j_turtle_bean" => "Hand size is 5 larger, 1 less after each round.",
+        "j_ramen" => "Multiplies Mult by 2, 0.01 less for each card discarded.",
+        "j_lucky_cat" => "Gains a 0.25 Mult multiplier each time a Lucky card triggers.",
+        "j_glass" => "Gains a 0.75 Mult multiplier for each Glass card destroyed.",
+        "j_hiker" => "Every scored card permanently gains 5 chips.",
+        "j_oops" => "Doubles every listed probability.",
+        "j_chaos" => "One free reroll in each shop.",
+        "j_burglar" => "When a blind is selected, gain 3 hands and lose all discards.",
+        "j_juggler" => "Hand size is 1 larger.",
+        "j_drunkard" => "One more discard each round.",
+        "j_troubadour" => "Hand size is 2 larger; one less hand each round.",
+        "j_merry_andy" => "Three more discards each round; hand size is 1 smaller.",
+        "j_mr_bones" => "Prevents a loss if the chips scored are at least 25% of the blind; destroyed.",
+        "j_splash" => "Every played card counts in scoring.",
+        "j_four_fingers" => "Flushes and straights can be made with 4 cards.",
+        "j_8_ball" => "Each scored 8 has a 1 in 4 chance to create a Tarot card, if there is room.",
+        "j_superposition" => "A hand containing an Ace and a straight creates a Tarot card, if there is room.",
+        "j_seance" => "A hand containing a straight flush creates a Spectral card, if there is room.",
+        "j_vagabond" => "A hand played with $4 or less creates a Tarot card, if there is room.",
+        "j_loyalty_card" => "Multiplies Mult by 4 every 6 hands played.",
+        "j_diet_cola" => "Sell this joker to create a free Double Tag.",
+        "j_space" => "1 in 4 chance to upgrade the level of the played poker hand.",
+        "j_hallucination" => "1 in 2 chance to create a Tarot card when a Booster Pack is opened.",
+        "j_cartomancer" => "Creates a Tarot card when a blind is selected, if there is room.",
+        "j_riff_raff" => "Creates 2 Common jokers when a blind is selected, if there is room.",
+        "j_marble" => "Adds a Stone card to the deck when a blind is selected.",
+        "j_burnt" => "Upgrades the level of the first discarded poker hand each round.",
+        "j_shortcut" => "Straights can skip one rank between cards.",
+        "j_smeared" => "Hearts and diamonds count as the same suit, and so do spades and clubs.",
+        "j_delayed_grat" => "Earns $2 per discard left at the end of the round if no discard was used.",
+        "j_egg" => "Gains $3 of sell value at the end of each round.",
+        "j_todo_list" => "Earns $4 when the listed poker hand is played; the hand changes each round.",
+        "j_to_the_moon" => "Earns $1 more interest for every $5 you hold at the end of the round.",
+        "j_cloud_9" => "Earns $1 per 9 in your full deck at the end of the round.",
+        "j_rocket" => "Earns $1 at the end of the round; the payout grows by $2 per Boss Blind defeated.",
+        "j_satellite" => "Earns $1 per distinct Planet card used this run at the end of the round.",
+        "j_vampire" => {
+            "Gains a 0.1 Mult multiplier per scoring enhanced card, and removes the enhancement."
+        }
+        "j_selzer" => "Retriggers every played card for the next 10 hands.",
+        "j_hologram" => "Gains a 0.25 Mult multiplier each time a playing card is added to your deck.",
+        "j_campfire" => {
+            "Gains a 0.25 Mult multiplier per card sold; resets when a Boss Blind is defeated."
+        }
+        "j_ceremonial" => {
+            "When a blind is selected, destroys the joker to the right and gains twice its sell value as Mult."
+        }
+        "j_madness" => {
+            "When a Small or Big Blind is selected, gains a 0.5 Mult multiplier and destroys a random joker."
+        }
+        "j_blackboard" => "Multiplies Mult by 3 if every card held in hand is a spade or a club.",
+        "j_flower_pot" => {
+            "Multiplies Mult by 3 if the scoring hand holds a diamond, a club, a heart and a spade."
+        }
+        "j_seeing_double" => {
+            "Multiplies Mult by 2 if the scoring hand holds a club and a card of another suit."
+        }
+        "j_stuntman" => "Adds 250 chips; hand size is 2 smaller.",
+        "j_bootstraps" => "Adds 2 Mult for every $5 you hold.",
+        "j_gros_michel" => "Adds 15 Mult; 1 in 6 chance to go extinct at the end of the round.",
+        "j_cavendish" => "Multiplies Mult by 3; 1 in 1000 chance to be destroyed at the end of the round.",
+        "j_ancient" => "Each scored card of the current suit multiplies Mult by 1.5; suit changes each round.",
+        "j_idol" => "Each scored card of the current rank and suit multiplies Mult by 2; card changes each round.",
         _ => "Joker effect: see supported rules in the engine.",
     }
     .into()
@@ -213,6 +347,38 @@ pub(super) fn joker_current(
         "j_green_joker" => CurrentValue::Mult(counter),
         "j_ride_the_bus" => CurrentValue::Mult(game.consecutive_hands_without_face_card),
         "j_trousers" => CurrentValue::Mult(counter),
+        "j_swashbuckler" => CurrentValue::Mult(
+            game.jokers
+                .iter()
+                .filter(|other| other.instance_id() != joker.instance_id())
+                .map(|other| game.joker_sell_value(other))
+                .sum(),
+        ),
+        "j_bootstraps" => CurrentValue::Mult(2 * (game.money / 5)),
+        "j_square" | "j_runner" => CurrentValue::Chips(counter),
+        "j_flash" | "j_red_card" => CurrentValue::Mult(counter),
+        "j_fortune_teller" => CurrentValue::Mult(game.tarots_used()),
+        "j_throwback" => CurrentValue::XMult(100 + 25 * game.skipped_count()),
+        "j_constellation" | "j_lucky_cat" | "j_glass" => {
+            CurrentValue::XMult(hundredths(1.0 + f64::from(joker.state().counter)))
+        }
+        "j_ramen" => CurrentValue::XMult(hundredths(2.0 - f64::from(joker.state().counter))),
+        "j_popcorn" => CurrentValue::Mult(20usize.saturating_sub(counter)),
+        "j_vampire" | "j_hologram" | "j_campfire" | "j_madness" => {
+            CurrentValue::XMult(hundredths(1.0 + f64::from(joker.state().counter)))
+        }
+        "j_ceremonial" => CurrentValue::Mult(counter),
+        "j_loyalty_card" => CurrentValue::Count(5 - counter % 6),
+        "j_rocket" => CurrentValue::Money(1 + counter),
+        "j_satellite" => CurrentValue::Money(game.planets_used()),
+        "j_cloud_9" => CurrentValue::Money(
+            full_deck()
+                .iter()
+                .filter(|card| card.value == balatro_rs::card::Value::Nine)
+                .count(),
+        ),
+        "j_selzer" => CurrentValue::Count(10usize.saturating_sub(counter)),
+        "j_turtle_bean" => CurrentValue::Count(5usize.saturating_sub(counter)),
         "j_abstract" => CurrentValue::Mult(game.jokers.len() * 3),
         "j_erosion" => CurrentValue::Mult(52usize.saturating_sub(full_deck().len()) * 4),
         "j_blue_joker" => CurrentValue::Chips(game.deck.cards().len() * 2),

@@ -34,6 +34,11 @@ pub(super) fn popup_text(popup: Popup) -> (String, Color) {
                 MessageInk::Chips => POPUP_CHIPS,
                 MessageInk::Mult => POPUP_MULT,
                 MessageInk::Filter => POPUP_AGAIN,
+                MessageInk::Tarot => POPUP_TAROT,
+                MessageInk::Planet => POPUP_PLANET,
+                MessageInk::Money => POPUP_MONEY,
+                MessageInk::Spectral => POPUP_SPECTRAL,
+                MessageInk::Blue => POPUP_CHIPS,
             },
         ),
     }
@@ -52,6 +57,15 @@ pub(super) const POPUP_MONEY: Color = Color::srgb(0.953, 0.725, 0.357);
 pub(super) const POPUP_CHIPS: Color = Color::srgb(0.0, 0.616, 1.0);
 
 pub(super) const POPUP_MULT: Color = Color::srgb(0.996, 0.373, 0.333);
+
+/// `G.C.PURPLE`: `#8867a5`.
+pub(super) const POPUP_TAROT: Color = Color::srgb(0.533, 0.404, 0.647);
+
+/// `G.C.SECONDARY_SET.Spectral`: `#4584fa`.
+pub(super) const POPUP_SPECTRAL: Color = Color::srgb(0.271, 0.518, 0.98);
+
+/// `G.C.SECONDARY_SET.Planet`: `#13afce`.
+pub(super) const POPUP_PLANET: Color = Color::srgb(0.075, 0.686, 0.808);
 
 /// Original status text sits above played cards and below Jokers and consumables.
 #[derive(Clone, Copy)]
