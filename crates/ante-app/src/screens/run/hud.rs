@@ -151,6 +151,8 @@ pub(super) fn hand_area(
                     PixelBox::new(color).emboss(0.05),
                 ))
                 .with_children(|tile| {
+                    // The flame burns behind the number (`flame_chips`, `flame_mult`).
+                    tile.spawn(crate::components::flames::flame_layer(index == 0));
                     tiles[index] = value(tile, text_px(0.92), INK);
                 });
             }

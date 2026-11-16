@@ -145,38 +145,65 @@ pub(super) fn map_trace(trace: NativeTrace) -> ScoreTrace {
         trace
             .0
             .into_iter()
-            .map(|step| ScoreStep {
-                source: match step.source {
-                    NativeSource::PlayedCard(card) => trace_card(card, CardTrigger::Played),
-                    NativeSource::StoneKicker(card) => trace_card(card, CardTrigger::StoneKicker),
-                    NativeSource::HeldCard(card) => trace_card(card, CardTrigger::Held),
-                    NativeSource::HandLevel(rank) => ScoreSource::HandLevel(map_rank(rank)),
-                    NativeSource::Joker(joker) => ScoreSource::Joker {
-                        id: JokerKey(joker.instance_id()),
-                        kind: ContentId(joker.id()),
-                        name: joker.name(),
+            .filter_map(|step| {
+                Some(ScoreStep {
+                    source: match step.source {
+                        NativeSource::PlayedCard(card) => trace_card(card, CardTrigger::Played),
+                        NativeSource::StoneKicker(card) => {
+                            trace_card(card, CardTrigger::StoneKicker)
+                        }
+                        NativeSource::HeldCard(card) => trace_card(card, CardTrigger::Held),
+                        NativeSource::HandLevel(rank) => ScoreSource::HandLevel(map_rank(rank)),
+                        NativeSource::Joker(joker) => ScoreSource::Joker {
+                            id: JokerKey(joker.instance_id()),
+                            kind: ContentId(joker.id()),
+                            name: joker.name(),
+                        },
+                        NativeSource::JokerOnCard(joker, card) => ScoreSource::JokerOnCard {
+                            joker: JokerKey(joker.instance_id()),
+                            kind: ContentId(joker.id()),
+                            name: joker.name(),
+                            card: CardKey(card.id),
+                        },
+                        NativeSource::Voucher(voucher) => {
+                            ScoreSource::Voucher(ContentId(voucher.id()), voucher_name(voucher))
+                        }
+                        NativeSource::NotAllowed => ScoreSource::NotAllowed,
+                        // Only the Jokers whose growth the original announces keep the step.
+                        NativeSource::JokerUpgrade(joker) => {
+                            let (message, ink) = upgrade_message(joker.id())?;
+                            ScoreSource::JokerMessage {
+                                id: JokerKey(joker.instance_id()),
+                                kind: ContentId(joker.id()),
+                                name: joker.name(),
+                                message,
+                                ink,
+                            }
+                        }
                     },
-                    NativeSource::JokerOnCard(joker, card) => ScoreSource::JokerOnCard {
-                        joker: JokerKey(joker.instance_id()),
-                        kind: ContentId(joker.id()),
-                        name: joker.name(),
-                        card: CardKey(card.id),
-                    },
-                    NativeSource::Voucher(voucher) => {
-                        ScoreSource::Voucher(ContentId(voucher.id()), voucher_name(voucher))
-                    }
-                    NativeSource::NotAllowed => ScoreSource::NotAllowed,
-                },
-                chips_before: step.chips_before,
-                chips_after: step.chips_after,
-                mult_before: step.mult_before,
-                mult_after: step.mult_after,
-                retrigger: step.retrigger,
-                xmult: step.xmult.map(|factor| (factor * 100.0).round() as usize),
-                money: step.money,
+                    chips_before: step.chips_before,
+                    chips_after: step.chips_after,
+                    mult_before: step.mult_before,
+                    mult_after: step.mult_after,
+                    retrigger: step.retrigger,
+                    xmult: step.xmult.map(|factor| (factor * 100.0).round() as usize),
+                    money: step.money,
+                })
             })
             .collect(),
     )
+}
+
+/// What a Joker says when its value grows during a hand (`Card:calculate_joker`): Wee,
+/// Square Joker and Runner "Upgrade!" in the chips colour, Spare Trousers in the mult
+/// colour, Green Joker "+1 Mult" in the default colour.
+pub(super) fn upgrade_message(id: &str) -> Option<(&'static str, MessageInk)> {
+    Some(match id {
+        "j_wee" | "j_square" | "j_runner" => ("Upgrade!", MessageInk::Chips),
+        "j_trousers" => ("Upgrade!", MessageInk::Mult),
+        "j_green_joker" => ("+1 Mult", MessageInk::Filter),
+        _ => return None,
+    })
 }
 
 pub(super) fn tag_view(tag: balatro_rs::tag::Tag, name: String) -> TagView {

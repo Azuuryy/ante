@@ -27,8 +27,10 @@ pub const SOUND_FILES: &[&str] = &[
     "chips1",
     "chips2",
     "coin1",
+    "coin1",
     "coin2",
     "coin3",
+    "coin7",
     "crumple1",
     "crumple2",
     "crumple3",
@@ -40,6 +42,7 @@ pub const SOUND_FILES: &[&str] = &[
     "generic1",
     "highlight1",
     "highlight2",
+    "highlight2",
     "holo1",
     "multhit1",
     "multhit2",
@@ -48,6 +51,8 @@ pub const SOUND_FILES: &[&str] = &[
     "polychrome1",
     "tarot1",
     "tarot2",
+    "timpani",
+    "whoosh1",
     "whoosh2",
 ];
 

@@ -142,3 +142,37 @@ fn a_disabled_boss_allows_every_hand() {
     let one = cards(&[Value::Three]).best_hand().unwrap();
     assert!(g.calc_score(one) > 0);
 }
+
+#[test]
+fn a_growing_joker_records_its_upgrade_before_its_value() {
+    use crate::joker::WeeJoker;
+    use crate::score::ScoreSource;
+    let mut g = Game {
+        jokers: vec![Jokers::WeeJoker(WeeJoker::default())],
+        ..Default::default()
+    };
+    let two = SelectHand::new(vec![Card::new(Value::Two, Suit::Heart)])
+        .best_hand()
+        .unwrap();
+    let (_, trace) = g.calc_score_traced(two);
+    let upgrade = trace
+        .0
+        .iter()
+        .position(|step| matches!(step.source, ScoreSource::JokerUpgrade(_)))
+        .expect("an upgrade step");
+    let value = &trace.0[upgrade + 1];
+    assert!(matches!(value.source, ScoreSource::Joker(_)));
+    assert_eq!(value.chips_after - value.chips_before, 8);
+
+    let ace = SelectHand::new(vec![Card::new(Value::Ace, Suit::Heart)])
+        .best_hand()
+        .unwrap();
+    let (_, trace) = g.calc_score_traced(ace);
+    assert!(
+        !trace
+            .0
+            .iter()
+            .any(|step| matches!(step.source, ScoreSource::JokerUpgrade(_))),
+        "no upgrade without a 2"
+    );
+}

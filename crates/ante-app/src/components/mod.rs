@@ -5,6 +5,7 @@ pub(crate) mod card_row;
 pub(crate) mod cards;
 pub(crate) mod dissolve;
 pub(crate) mod edition;
+pub(crate) mod flames;
 pub(crate) mod info;
 pub(crate) mod pixel_rect;
 pub(crate) mod room;

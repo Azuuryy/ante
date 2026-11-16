@@ -216,3 +216,30 @@ fn a_refused_hand_shows_not_allowed_over_the_play_area() {
         vec![(Popup::NotAllowed, NOT_ALLOWED_POPUP)]
     );
 }
+
+#[test]
+fn a_joker_upgrade_is_one_joker_message() {
+    let step = ScoreStep {
+        source: ScoreSource::JokerMessage {
+            id: JokerKey(3),
+            kind: ContentId("j_wee"),
+            name: "Wee Joker",
+            message: "Upgrade!",
+            ink: ante_core::contract::MessageInk::Chips,
+        },
+        chips_before: 40,
+        chips_after: 40,
+        mult_before: 2.0,
+        mult_after: 2.0,
+        retrigger: false,
+        xmult: None,
+        money: 0,
+    };
+    assert_eq!(
+        popups(&step, None),
+        vec![(
+            Popup::Message("Upgrade!", ante_core::contract::MessageInk::Chips),
+            JOKER_POPUP
+        )]
+    );
+}

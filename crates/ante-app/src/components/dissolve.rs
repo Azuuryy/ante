@@ -155,12 +155,23 @@ pub(crate) fn detach_leaving(
 }
 
 fn burn(commands: &mut Commands, entity: Entity, colours: &[Color]) {
-    commands.entity(entity).remove::<ChildOf>().insert((
-        Dissolving::new(colours),
-        GlobalZIndex(400),
-        Pickable::IGNORE,
-    ));
+    // A burning card no longer tilts, so its sprites stay plain for the dissolve shader.
+    commands
+        .entity(entity)
+        .remove::<(ChildOf, crate::components::widgets::HoverMotion)>()
+        .insert((
+            Dissolving::new(colours),
+            GlobalZIndex(400),
+            Pickable::IGNORE,
+        ));
 }
+
+/// The tilted sprites of a card, to draw them plain again when it dissolves.
+type TiltedSprites<'w, 's> = (
+    Query<'w, 's, &'static MaterialNode<super::tilt::TiltImage>>,
+    Res<'w, Assets<super::tilt::TiltImage>>,
+    Res<'w, Assets<Image>>,
+);
 
 /// Drives the dissolve: shader overlays on every sprite, the shared `dissolve` value and
 /// burn colours on every shader of the card, then removal at 1.05 × the duration.
@@ -178,12 +189,32 @@ pub(crate) fn dissolve(
     ),
     mut materials: ResMut<Assets<LoveMaterial>>,
     mut sounds: MessageWriter<Sfx>,
+    (tilted, tilt_materials, textures): TiltedSprites,
 ) {
     let shader = shaders
         .as_ref()
         .is_some_and(|shaders| shaders.get("dissolve").is_some());
     for (entity, mut card, node) in &mut cards {
         if !card.started {
+            // A hovered card's sprites are tilt materials: turn them back into sprites
+            // first, and start the dissolve on the next frame.
+            let mut restored = false;
+            for child in children.iter_descendants(entity) {
+                if let Ok(node) = tilted.get(child)
+                    && let Some(sprite) = tilt_materials
+                        .get(&node.0)
+                        .and_then(|material| material.sprite(&textures))
+                {
+                    commands
+                        .entity(child)
+                        .remove::<(MaterialNode<super::tilt::TiltImage>, super::tilt::TiltRoot)>()
+                        .insert((sprite, super::tilt::NoTilt));
+                    restored = true;
+                }
+            }
+            if restored {
+                continue;
+            }
             card.started = true;
             sounds.write(Sfx::new("whoosh2", jitter(0.9, 0.2), 0.5));
             let crumple = ["crumple1", "crumple2", "crumple3", "crumple4", "crumple5"]

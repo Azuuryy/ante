@@ -18,15 +18,20 @@ use crate::{
         collection::show_collection, menu::main_menu, run as run_ui, settings::show_options,
     },
     services::{
-        assets::{catalog::Atlases, sounds::Sfx},
+        assets::{
+            catalog::Atlases,
+            sounds::{ScheduledSfx, Sfx},
+        },
         diagnostics::{self, FrameMetrics, FramePacing},
         profile::Profile,
     },
 };
 
+mod popup;
 mod score;
 mod text;
 
+pub(crate) use popup::*;
 pub(crate) use score::*;
 pub(crate) use text::*;
 #[derive(Component)]

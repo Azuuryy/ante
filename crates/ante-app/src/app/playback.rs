@@ -263,6 +263,7 @@ impl Playback {
             ScoreSource::JokerOnCard { name, .. } => format!("{name} on card"),
             ScoreSource::HandLevel(rank) => format!("{rank:?}"),
             ScoreSource::NotAllowed => "Not Allowed!".to_owned(),
+            ScoreSource::JokerMessage { name, message, .. } => format!("{name}: {message}"),
         };
         let effect = if step.retrigger {
             format!("{source} retrigger")
@@ -291,6 +292,8 @@ pub enum Popup {
     Money(i64),
     /// The boss refused the hand.
     NotAllowed,
+    /// A Joker's own message, such as "Upgrade!".
+    Message(&'static str, ante_core::contract::MessageInk),
 }
 
 /// Popups of a step and their delays in game seconds. Cards use the chips and mult
@@ -299,6 +302,9 @@ pub fn popups(step: &ScoreStep, previous: Option<&ScoreStep>) -> Vec<(Popup, f32
     let joker = match step.source {
         ScoreSource::HandLevel(_) => return Vec::new(),
         ScoreSource::NotAllowed => return vec![(Popup::NotAllowed, NOT_ALLOWED_POPUP)],
+        ScoreSource::JokerMessage { message, ink, .. } => {
+            return vec![(Popup::Message(message, ink), JOKER_POPUP)];
+        }
         ScoreSource::Joker { .. } | ScoreSource::Voucher(..) => true,
         ScoreSource::Card { .. } | ScoreSource::JokerOnCard { .. } => false,
     };

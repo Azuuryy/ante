@@ -16,11 +16,6 @@ impl Game {
         (score, recorder.trace)
     }
 
-    // Multiplicative steps note their factor so the trace can tell XMult from +Mult.
-    pub(crate) fn note_xmult(&mut self, factor: f64) {
-        self.trace_xmult = Some(self.trace_xmult.unwrap_or(1.0) * factor);
-    }
-
     /// Each Joker's per-card effect on `card`, in Joker order, like the
     /// `calculate_joker{individual = true}` loop of `evaluate_play`.
     fn joker_card_effects(
@@ -48,46 +43,6 @@ impl Game {
                     retrigger,
                 );
             }
-        }
-    }
-
-    pub(super) fn record_step(
-        &mut self,
-        trace: &mut Option<&mut TraceRecorder>,
-        source: ScoreSource,
-        chips_before: usize,
-        mult_before: f64,
-        retrigger: bool,
-    ) {
-        let xmult = self.trace_xmult.take();
-        let Some(t) = trace else {
-            return;
-        };
-        let money_before = t.money.replace(self.money).unwrap_or(self.money);
-        let money = self.money as i64 - money_before as i64;
-        // skip no-op checks (e.g. a Base-edition joker, a conditional
-        // effect that didn't fire); a refused hand's step changes nothing but is shown.
-        if chips_before == self.chips
-            && mult_before == self.mult
-            && money == 0
-            && source != ScoreSource::NotAllowed
-        {
-            return;
-        }
-        let xmult = xmult.filter(|_| mult_before != self.mult);
-        let start = t.profile.then(std::time::Instant::now);
-        t.trace.0.push(ScoreStep {
-            source,
-            chips_before,
-            chips_after: self.chips,
-            mult_before,
-            mult_after: self.mult,
-            retrigger,
-            xmult,
-            money,
-        });
-        if let Some(start) = start {
-            t.elapsed += start.elapsed();
         }
     }
 
@@ -331,7 +286,12 @@ impl Game {
                 if let Effects::OnScore(f) = e {
                     let chips_before = self.chips;
                     let mult_before = self.mult;
+                    let grown_from = self.joker_counter(&joker);
                     f.lock().unwrap()(self, hand.clone());
+                    // The upgrade message comes before the value it feeds.
+                    if self.joker_counter(&joker) > grown_from {
+                        self.record_upgrade(&mut trace, &joker);
+                    }
                     self.record_step(
                         &mut trace,
                         ScoreSource::Joker(joker.clone()),

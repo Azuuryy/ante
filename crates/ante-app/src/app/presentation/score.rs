@@ -47,10 +47,11 @@ pub(crate) fn animate(
     mut cards: Query<AnimatedCard>,
     (popups, mut jokers, parents): PopupTargets,
     (mut metrics, mut shown_popup): (ResMut<FrameMetrics>, Local<Option<(usize, usize)>>),
-    (mut sounds, mut room, mut shown_stage): (
+    (mut sounds, mut room, mut shown_stage, mut scheduled): (
         MessageWriter<Sfx>,
         ResMut<RoomShake>,
         Local<Option<PlaybackStage>>,
+        ResMut<ScheduledSfx>,
     ),
 ) {
     if session.navigation.screen != Page::Run {
@@ -95,7 +96,17 @@ pub(crate) fn animate(
         if *shown_stage != Some(stage) {
             *shown_stage = Some(stage);
             if stage == PlaybackStage::Total {
-                sounds.write(Sfx::new("chips2", 1.0, 1.0));
+                // `evaluate_play`: the total shows with the `button` sound 0.4 s after the
+                // last effect, then `ease_chips` adds it with `chips2` 0.8 s later.
+                use crate::app::playback::timing::{TOTAL_HOLD, TOTAL_SHOWN};
+                let now = time.elapsed_secs();
+                let rate = speed.factor();
+                scheduled.after(now, TOTAL_SHOWN / rate, Sfx::new("button", 0.9, 0.6));
+                scheduled.after(
+                    now,
+                    (TOTAL_SHOWN + TOTAL_HOLD) / rate,
+                    Sfx::new("chips2", 1.0, 1.0),
+                );
             }
         }
         let popup = current.filter(|_| new_popup).and_then(|(index, _, popup)| {
@@ -104,6 +115,7 @@ pub(crate) fn animate(
                 .filter(|(step, _)| *step == index)
                 .map(|(_, step)| (step.source, popup))
         });
+        let mut moved = 0;
         for (entity, card, _, motion, played, travel) in &mut cards {
             if discarding
                 && played
@@ -122,6 +134,7 @@ pub(crate) fn animate(
                 };
                 if motion.raise != raise {
                     motion.raise = raise;
+                    moved += 1;
                 }
             }
             if let Some((
@@ -131,11 +144,21 @@ pub(crate) fn animate(
                 && *id == card.id
             {
                 motion.juice_up(0.6, 0.1, rand::random());
-                let (label, color) = popup_text(*popup);
                 commands
                     .entity(entity)
-                    .with_child(score_popup(label, color, PopupSide::Above));
+                    .with_child(score_popup(*popup, PopupSide::Above));
             }
+        }
+        // `highlight_card` plays cardSlide1 for each scoring card that rises or falls, 0.1
+        // game seconds apart with a pitch climbing by 0.2 over the hand; at once, the five
+        // sounds saturated.
+        for (index, pitch) in highlight_pitches(moved).into_iter().enumerate() {
+            let delay = index as f32 * crate::app::playback::timing::HIGHLIGHT_PER_CARD;
+            scheduled.after(
+                time.elapsed_secs(),
+                delay / speed.factor(),
+                Sfx::new("cardSlide1", pitch, 1.0),
+            );
         }
         // A per-card Joker effect juices the Joker; its popup is on the card.
         if let Some((ScoreSource::JokerOnCard { joker: id, .. }, _)) = &popup {
@@ -147,7 +170,9 @@ pub(crate) fn animate(
                 }
             }
         }
-        if let Some((ScoreSource::Joker { id, .. }, popup)) = &popup {
+        if let Some((ScoreSource::Joker { id, .. } | ScoreSource::JokerMessage { id, .. }, popup)) =
+            &popup
+        {
             for (entity, joker, motion) in &mut jokers {
                 if joker.id != *id {
                     continue;
@@ -155,10 +180,9 @@ pub(crate) fn animate(
                 if let Some(mut motion) = motion {
                     motion.juice_up(0.6, 0.1, rand::random());
                 }
-                let (label, color) = popup_text(*popup);
                 commands
                     .entity(entity)
-                    .with_child(score_popup(label, color, PopupSide::Below));
+                    .with_child(score_popup(*popup, PopupSide::Below));
             }
         }
         // `play_area_status_text`: "Not Allowed!" over the middle of the play area.
@@ -207,107 +231,10 @@ pub(crate) fn animate(
     metrics.record_playback(start.elapsed());
 }
 
-/// Sound of a popup, as in `card_eval_status_text`: pitch 0.8 + 0.2 × (0.9 to 1.1).
-pub(super) fn popup_sound(popup: Popup) -> Sfx {
-    let pitch = 0.8 + 0.2 * (0.9 + 0.2 * rand::random::<f32>());
-    match popup {
-        Popup::Again => Sfx::new("generic1", pitch, 1.0),
-        Popup::Chips(_) => Sfx::new("chips1", pitch, 1.0),
-        Popup::Mult(_) => Sfx::new("multhit1", pitch, 1.0),
-        Popup::XMult(_) => Sfx::new("multhit2", pitch, 0.7),
-        Popup::Money(_) => Sfx::new("coin3", pitch, 1.0),
-        Popup::NotAllowed => Sfx::new("cardFan2", 1.0, 1.0),
-    }
-}
-
-/// Popup label and color, as in `card_eval_status_text`: chips blue, mult and xmult red,
-/// money yellow (red when lost), "Again!" in the filter orange.
-pub(super) fn popup_text(popup: Popup) -> (String, Color) {
-    match popup {
-        Popup::Again => ("Again!".into(), POPUP_AGAIN),
-        Popup::Chips(amount) => (format!("{amount:+}"), POPUP_CHIPS),
-        Popup::Mult(amount) => (format!("{amount:+} Mult"), POPUP_MULT),
-        Popup::XMult(hundredths) => (format!("X{} Mult", multiplier(hundredths)), POPUP_MULT),
-        Popup::Money(amount) if amount < 0 => (format!("-${}", -amount), POPUP_MULT),
-        Popup::Money(amount) => (format!("${amount}"), POPUP_MONEY),
-        Popup::NotAllowed => ("Not Allowed!".into(), Color::WHITE),
-    }
-}
-
-/// A factor in hundredths written like the original: X2, X1.5, X1.25.
-pub(super) fn multiplier(hundredths: usize) -> String {
-    let text = format!("{}.{:02}", hundredths / 100, hundredths % 100);
-    text.trim_end_matches('0').trim_end_matches('.').to_owned()
-}
-
-pub(super) const POPUP_AGAIN: Color = Color::srgb(1.0, 0.604, 0.0);
-
-pub(super) const POPUP_MONEY: Color = Color::srgb(0.953, 0.725, 0.357);
-
-pub(super) const POPUP_CHIPS: Color = Color::srgb(0.0, 0.616, 1.0);
-
-pub(super) const POPUP_MULT: Color = Color::srgb(0.996, 0.373, 0.333);
-
-/// Original status text sits above played cards and below Jokers and consumables.
-#[derive(Clone, Copy)]
-pub(super) enum PopupSide {
-    Above,
-    Below,
-}
-
-pub(super) fn score_popup(label: String, color: Color, side: PopupSide) -> impl Bundle {
-    let (top, bottom) = match side {
-        PopupSide::Above => (px(-34), Val::Auto),
-        PopupSide::Below => (Val::Auto, px(-34)),
-    };
-    (
-        ScorePopup,
-        Node {
-            position_type: PositionType::Absolute,
-            top,
-            bottom,
-            padding: UiRect::axes(px(8), px(2)),
-            border_radius: BorderRadius::all(px(6)),
-            ..default()
-        },
-        BackgroundColor(color),
-        GlobalZIndex(500),
-        Pickable::IGNORE,
-        children![(
-            Text::new(label),
-            TextFont {
-                font_size: bevy::text::FontSize::Px(22.0),
-                ..default()
-            },
-            TextColor(Color::WHITE),
-            Pickable::IGNORE,
-        )],
-    )
-}
-
-/// `attention_text` at scale 0.9, centred one unit above the play area.
-fn play_area_popup() -> impl Bundle {
-    (
-        ScorePopup,
-        Node {
-            position_type: PositionType::Absolute,
-            left: px(0),
-            right: px(0),
-            top: px(-menu_ui::TILE),
-            justify_content: JustifyContent::Center,
-            ..default()
-        },
-        GlobalZIndex(500),
-        Pickable::IGNORE,
-        children![(
-            Text::new("Not Allowed!"),
-            TextFont {
-                font_size: bevy::text::FontSize::Px(menu_ui::text_px(0.9)),
-                ..default()
-            },
-            TextColor(Color::WHITE),
-            crate::components::widgets::text_shadow(),
-            Pickable::IGNORE,
-        )],
-    )
+/// Pitch of each `highlight_card` sound for `count` cards: `0.85 + percent × 0.2`, with
+/// `percent` from 0 to 1 over the hand like the original's `(i - 0.999) / 5`.
+pub(super) fn highlight_pitches(count: usize) -> Vec<f32> {
+    (0..count)
+        .map(|index| 0.85 + 0.2 * index as f32 / count.max(5) as f32)
+        .collect()
 }

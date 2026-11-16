@@ -138,9 +138,13 @@ pub(super) fn pack_title(family: Option<ante_core::contract::PackFamily>) -> &'s
     }
 }
 
+/// Layer of the pack box: above the hand cards (their positions) and below the selected
+/// inventory card (100) and the overlays (150 and more).
+const PACK_LAYER: i32 = 20;
+
 /// `create_UIBox_arcana_pack` and its siblings: the pack box rises from below the hand; for
-/// Arcana and Spectral packs the drawn hand stays under it, as `draw_from_deck_to_hand` deals
-/// it, and target cards are picked in that hand.
+/// Arcana and Spectral packs the drawn hand stays above it, as `draw_from_deck_to_hand`
+/// deals it, and target cards are picked in that hand.
 pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases: &Atlases) {
     ui.spawn((
         Node {
@@ -153,6 +157,11 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
         Pickable::IGNORE,
     ))
     .with_children(|area| {
+        // The drawn hand of an Arcana or Spectral pack sits above the pack cards, which
+        // are drawn over it, as in `G.STATES.TAROT_PACK`.
+        if !view.cards.is_empty() {
+            crate::screens::hand::hand_rows(area, view, atlases, false);
+        }
         area.spawn((
             Node {
                 padding: UiRect::all(menu_ui::tiles(0.1)),
@@ -163,6 +172,7 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
             },
             PixelBox::new(menu_ui::TRANSPARENT_DARK),
             UiTransform::IDENTITY,
+            GlobalZIndex(PACK_LAYER),
             crate::components::sparkles::PackRise,
         ))
         .with_children(|pack| {
@@ -200,6 +210,10 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
                         },
                     ));
                     card_hover(&mut card);
+                    let left = pack_card_left(index, count, area);
+                    card.insert(crate::components::widgets::HoverMotion::fanned(
+                        crate::components::widgets::Fan::bob(left / menu_ui::TILE),
+                    ));
                     click_target(
                         &mut card,
                         Click::SelectOffer {
@@ -283,9 +297,6 @@ pub(crate) fn pack_board(ui: &mut ChildSpawnerCommands, view: &RunView, atlases:
                 }
             });
         });
-        if !view.cards.is_empty() {
-            crate::screens::hand::hand_rows(area, view, atlases, false);
-        }
     });
 }
 

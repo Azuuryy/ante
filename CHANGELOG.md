@@ -4,6 +4,11 @@
 
 ### Added
 
+- Score popups look like `attention_text` with a `backdrop_colour`: white text with a shadow over a square of the popup colour that turns slowly and grows (one `Particles` square, 0.96 units a second), chips and money at text scale 1 and the others at 0.7.
+- Jokers announce their growth during a hand: Wee Joker, Square Joker and Runner show "Upgrade!" in blue, Spare Trousers in red, Green Joker "+1 Mult", before the value they add. The engine records a `JokerUpgrade` step when a Joker's value grows, and the adapter keeps the Jokers whose original text announces it (`ScoreSource::JokerMessage`).
+- Score flames: the original `flame` shader burns behind the Chips and Mult boxes once a hand's Chips × Mult reaches the blind's score, at `log₅(score) − 2` with the easing of `G.FUNCS.flame_handler`, and none while a pack is open. The fire and organ ambience (`ambientFire1` to `3`, `ambientOrgan1`) follows it like `modulate_sound`.
+- More original sounds: `coin7` on Cash Out, `coin1` when money changes, `chips2` when hands or discards change, `highlight2` and `generic1` on a new ante, `timpani` and `generic1` on a new round, `cardSlide1` as scoring cards rise and fall, the `button` sound when the total shows (then `chips2` as it is added), and `whoosh1` with a `crumple` when shop, reroll and pack cards materialize. The importer copies `coin1`, `coin7`, `highlight2`, `timpani`, `whoosh1` and the four ambient loops.
+- Open pack cards bob like the original `consumeable` area (`0.05 × sin(3.332·t + x)` units) until one is selected, and the drawn hand of an Arcana or Spectral pack sits above the pack cards, which are drawn over it.
 - The Ox, The Hook and The Tooth: the Ox empties your money when you play your most played hand, the Hook discards two random held cards with each hand played, the Tooth costs $1 per card played. Each pays Matador. Runs that meet The Hook draw two more random numbers per hand, so their seeds play out differently from earlier versions.
 - A hand the boss refuses shows "Not Allowed!" above the play area, as `play_area_status_text` does, with the `cardFan2` and `tarot2` sounds and a room shake; the engine marks it with a `NotAllowed` score step. `tarot2` joins the imported sounds.
 - Music: the five original tracks loop together like `RESTART_MUSIC` (pitch 0.7, volume 0.6) and crossfade at `3·dt` toward the track `modulate_sound` picks: music1 in menus and blinds, music5 on a boss blind, music4 in the shop, music2 in Arcana, Spectral, Buffoon and Standard packs, music3 in Celestial packs. A game over slows them toward half pitch. The tracks load from the local installation; the importer copies `music1` to `music5`, and without them the game stays silent.
@@ -141,6 +146,8 @@
 
 ### Fixed
 
+- Selling or using a selected Joker or consumable dissolves it again: a selected card now keeps its hover tilt, whose material replaced the sprites the dissolve shader draws over, so the burning card gets plain sprites back first.
+- Playing a hand no longer saturates: the scoring cards' `cardSlide1` sounds follow `highlight_card`, 0.1 game seconds apart with a rising pitch, instead of five at once when the cards rise and fall.
 - Tooltip and interface text no longer loses a column of a letter or shows an edge of another letter: Bevy placed antialiased glyphs at fractional positions, which the nearest sampling of the font atlas cut, so `snap_glyphs` puts each glyph's corner on a whole physical pixel after layout. The text keeps its antialiased look.
 - Whole test runs against the bosses (`game/tests/boss_runs.rs`) found two engine faults, now fixed: the "Not Allowed!" step was dropped from the trace because it changes no value, and The Ox never recorded the most played hand because the beaten boss's blind was forgotten first.
 - Pack cards show the same popup as in the shop: a Joker carries its rarity badge, edition and side boxes, a Tarot, Planet or Spectral its set badge (`ShopItem.joker` and `ShopItem.consumable`). Consumable set badges also read "Tarot", "Planet" and "Spectral" with their colour instead of lower-case text.

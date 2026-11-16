@@ -58,6 +58,23 @@ pub enum ScoreSource {
     /// The boss refused the hand: "Not Allowed!" over the play area, like
     /// `play_area_status_text` in `evaluate_play`. The hand scores nothing.
     NotAllowed,
+    /// A Joker's message as its own value grows during the hand, such as "Upgrade!" on
+    /// Wee Joker, shown on the Joker like `card_eval_status_text(card, 'extra')`.
+    JokerMessage {
+        id: JokerKey,
+        kind: ContentId,
+        name: &'static str,
+        message: &'static str,
+        ink: MessageInk,
+    },
+}
+
+/// Colour of a Joker message: `G.C.CHIPS`, `G.C.MULT` or the default `G.C.FILTER`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MessageInk {
+    Chips,
+    Mult,
+    Filter,
 }
 
 #[derive(Clone, Debug, PartialEq)]

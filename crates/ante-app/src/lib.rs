@@ -126,6 +126,7 @@ pub fn run(backend: impl GameBackend) {
             components::pixel_rect::PixelRectPlugin,
             components::tilt::TiltPlugin,
             components::background::BackgroundPlugin,
+            components::flames::FlamesPlugin,
         ))
         .add_systems(
             Update,
@@ -136,12 +137,13 @@ pub fn run(backend: impl GameBackend) {
                 components::dissolve::move_particles,
                 components::widgets::hide_debuff_fallback,
                 (
-                    app::cues::pack_open_sounds,
+                    app::cues::run_sounds,
                     services::assets::sounds::release_scheduled,
                     services::assets::sounds::play,
                 )
                     .chain(),
                 services::assets::music::modulate_music,
+                services::assets::ambient::modulate_ambient,
             ),
         )
         .add_systems(
@@ -154,6 +156,7 @@ pub fn run(backend: impl GameBackend) {
                 services::assets::shaders::load,
                 services::assets::sounds::load,
                 services::assets::music::load,
+                services::assets::ambient::load,
                 services::assets::ui_text::load,
             ),
         )
@@ -165,6 +168,7 @@ pub fn run(backend: impl GameBackend) {
                 screens::run::fill_local_text,
                 screens::run::reveal_round_eval,
                 screens::hand::paint_hand_actions,
+                app::presentation::animate_popup_backdrops,
                 components::tiles::drag_sliders,
             ),
         )

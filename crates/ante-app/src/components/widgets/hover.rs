@@ -84,6 +84,8 @@ pub(crate) struct Fan {
     pub(super) rotation: f32,
     pub(super) drop: f32,
     pub(super) phase: f32,
+    /// The `consumeable` area's bob instead of the fan sway.
+    pub(super) bob: bool,
 }
 
 impl Fan {
@@ -98,6 +100,7 @@ impl Fan {
             rotation: slot.rotation,
             drop: slot.drop * menu_ui::TILE,
             phase: HAND_X + width * (k - 1.0) / (n - 1.0).max(1.0),
+            bob: false,
         }
     }
 
@@ -108,6 +111,17 @@ impl Fan {
             rotation: slot.rotation,
             drop: slot.drop * menu_ui::TILE,
             phase: x,
+            bob: false,
+        }
+    }
+
+    /// A card of a `consumeable` area, such as an open pack: it bobs by
+    /// `0.05 × sin(2 × 1.666 × t + x)` units while it is not highlighted.
+    pub(crate) fn bob(x: f32) -> Self {
+        Self {
+            phase: x,
+            bob: true,
+            ..Self::default()
         }
     }
 
@@ -125,6 +139,12 @@ impl Fan {
     pub(super) fn at(self, t: f32) -> (f32, f32) {
         if self == Self::default() {
             return (0.0, 0.0);
+        }
+        if self.bob {
+            return (
+                0.0,
+                0.05 * menu_ui::TILE * (2.0 * 1.666 * t + self.phase).sin(),
+            );
         }
         (
             self.rotation + 0.02 * (2.0 * t + self.phase).sin(),
@@ -223,7 +243,12 @@ impl HoverMotion {
     pub(super) fn step(&mut self, dt: f32, now: f32) -> (f32, f32, f32) {
         let scale_k = 1.0 - (-dt * SCALE_RATE).exp();
         let position_k = 1.0 - (-dt * POSITION_RATE).exp();
-        let (tilt, drop) = self.fan.at(now);
+        // A highlighted card stops bobbing, as `align_cards` only moves the others.
+        let (tilt, drop) = if self.fan.bob && self.raise > 0.0 {
+            (0.0, 0.0)
+        } else {
+            self.fan.at(now)
+        };
         self.tilt += (tilt - self.tilt) * (1.0 - (-dt * ROTATION_RATE).exp());
         self.drop += (drop - self.drop) * position_k;
         let target = if self.hovered { HOVER_SCALE } else { 1.0 };

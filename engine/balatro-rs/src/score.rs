@@ -21,6 +21,9 @@ pub enum ScoreSource {
     /// The boss refused the hand (`Blind:debuff_hand`): the "Not Allowed!" text, before
     /// the Jokers that act on a refused hand.
     NotAllowed,
+    /// A Joker's own value grew while the hand scored (Wee Joker, Spare Trousers, ...):
+    /// the original shows a message such as "Upgrade!" on it.
+    JokerUpgrade(Jokers),
 }
 
 /// One step in a scoring pass
@@ -59,6 +62,7 @@ impl ScoreStep {
             ScoreSource::JokerOnCard(j, c) => format!("{} on {c}", j.name()),
             ScoreSource::Voucher(v) => v.name().to_string(),
             ScoreSource::NotAllowed => "Not Allowed!".to_string(),
+            ScoreSource::JokerUpgrade(j) => format!("{} upgrade", j.name()),
         };
 
         let mut parts = Vec::new();

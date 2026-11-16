@@ -67,6 +67,23 @@ impl UiMaterial for TiltImage {
     }
 }
 
+impl TiltImage {
+    /// The plain sprite this material replaced, so a card leaving the board (a dissolve)
+    /// can draw it again with its own shaders.
+    pub(crate) fn sprite(&self, images: &Assets<Image>) -> Option<ImageNode> {
+        let size = images.get(&self.image)?.size_f32();
+        let rect = self.face.rect;
+        let min = Vec2::new(rect.x, rect.y) * size;
+        let extent = Vec2::new(rect.z, rect.w) * size;
+        Some(ImageNode {
+            image: self.image.clone(),
+            rect: Some(Rect::from_corners(min, min + extent)),
+            color: Color::LinearRgba(LinearRgba::from_vec4(self.face.tint)),
+            ..default()
+        })
+    }
+}
+
 /// The card whose hover drives this node's tilt.
 #[derive(Component)]
 pub(crate) struct TiltRoot(Entity);

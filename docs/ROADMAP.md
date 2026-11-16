@@ -48,7 +48,7 @@ The common acceptance check compares a capture at equal client size and walks th
 | Held tags | In progress | Compare stack, acquisition and removal. |
 | Hand and actions | In progress | The Play Hand / Sort / Discard row stays in place when the selection changes, and a disabled button stays grey on hover. Compare size, selection and overlap. Check drag and drop and Rank/Suit sorting. |
 | Chips × Mult preview | In progress | Check level, empty selection and score readout. |
-| Score resolution | In progress | Check the trace and interactions. Animated effects come with the VFX milestone. |
+| Score resolution | In progress | Popups with the turning colour square of `attention_text`, Joker "Upgrade!" messages, score flames and their fire and organ ambience. Check the trace and interactions against the reference. |
 | Cash out | In progress | Rows and dollars of `add_round_eval_row` at the original pace, then Cash Out. The panel does not rise from the bottom yet. |
 | Shop / cards | In progress | Top at 3.587 units, `UIBox_dyn_container` frame down to the bottom, atomic Buy & Use. Choosing an offer no longer rebuilds the shop. Compare variable offers and controls. |
 | Shop / vouchers | In progress | Test multiple purchases, prices and prerequisites. |
@@ -56,7 +56,7 @@ The common acceptance check compares a capture at equal client size and walks th
 | Packs / Standard | In progress | Compare card choice and return. |
 | Packs / Buffoon | In progress | Pack Jokers have the shop popup (rarity, edition). Compare joker choice and capacity limits. |
 | Packs / Celestial | In progress | Check the level gained and closing. |
-| Packs / Arcana | In progress | Check target selection and return. |
+| Packs / Arcana | In progress | The hand sits above the bobbing pack cards. Check target selection and return. |
 | Packs / Spectral | In progress | Check target selection and return. |
 | Inventory / jokers | In progress | Compare layout, sell panel and capacities. Check the trigger order after a drop. |
 | Inventory / consumables | In progress | Compare drag and drop, the action panel and capacities. |

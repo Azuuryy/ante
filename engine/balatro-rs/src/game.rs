@@ -39,6 +39,7 @@ mod scoring;
 #[cfg(feature = "serde")]
 mod snapshot;
 mod tags;
+mod trace_steps;
 
 #[cfg(feature = "serde")]
 fn default_backend() -> Backend {
