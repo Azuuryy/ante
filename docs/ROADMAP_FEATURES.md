@@ -1,140 +1,138 @@
-# Roadmap des fonctionnalités
+# Feature roadmap
 
-Cette roadmap suit les comportements détaillés, surface par surface. La roadmap macro reste dans [ROADMAP.md](ROADMAP.md); cette liste sert à découper les mécaniques du [dossier de logique](GAME_LOGIC_WIKI.md) en travail vérifiable.
+This roadmap tracks detailed behaviour, surface by surface. The high-level roadmap stays in [ROADMAP.md](ROADMAP.md); this list splits the mechanics of the [game logic notes](GAME_LOGIC_WIKI.md) into verifiable work.
 
-## Statuts
+## Statuses
 
-- **À cartographier** : règles et cas limites à relever.
-- **À faire** : absence confirmée dans le client ou le moteur ciblé.
-- **En cours** : une partie est présente, la recette n'est pas terminée.
-- **À vérifier** : code présent, comportement ou rendu non attesté.
-- **Terminé** : critères et cas limites vérifiés.
+- **To map**: rules and edge cases still to record.
+- **To do**: confirmed missing from the client or the target engine.
+- **In progress**: part of it is present, acceptance is not finished.
+- **To verify**: code present, behaviour or rendering not confirmed.
+- **Done**: criteria and edge cases verified.
 
-## Main, cartes et score
+## Hand, cards and score
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Sélection et désélection des cartes de la main | En cours | Vérifier souris, sélection maximale et maintien de sélection après actions. |
-| Tri automatique par rang / couleur | En cours | Commandes présentes; vérifier l'ordre et la sélection conservée sur les deux moteurs. |
-| Réordonnancement manuel de la main | En cours | La carte suit le point saisi et change de position au relâchement. Vérifier l'ordre de score et le comportement après tirage. |
-| Détection et priorité des combinaisons | En cours | Comparer toutes les combinaisons et cartes améliorées à la référence. |
-| Aperçu Chips × Mult et résolution | En cours | Valider chaque contribution et l'ordre des étapes dans la trace. |
-| Améliorations et éditions | En cours | Couvrir effets, cumul, déclencheurs et interaction avec débuff. |
-| Jokers à valeur évolutive | Fait pour les jokers relevés, à valider en jeu | Le patch moteur `joker-rules` aligne Green Joker, Castle, Obelisk, Yorick et Joker Stencil sur l'original, avec leur état porté par le Joker (`JokerState.counter`). Hit the Road et Steel Joker étaient déjà conformes. La ligne « Currently » lit cet état. Reste : les sauvegardes moteur antérieures n'ont pas ces compteurs (ils repartent de zéro). |
+| Selecting and deselecting hand cards | In progress | Check the mouse, the maximum selection and the selection kept after actions. |
+| Automatic sort by rank / suit | In progress | Commands present; check the order and the kept selection on both engines. |
+| Manual hand reordering | In progress | The card follows the grab point and changes position on release. Check the scoring order and the behaviour after a draw. |
+| Hand detection and priority | In progress | Compare every hand type and enhanced card with the reference. |
+| Chips × Mult preview and resolution | In progress | Validate each contribution and the order of steps in the trace. |
+| Enhancements and editions | In progress | Cover effects, stacking, triggers and the interaction with debuffs. |
+| Jokers with evolving values | Done for the jokers recorded, to validate in game | The `joker-rules` engine patch aligns Green Joker, Castle, Obelisk, Yorick and Joker Stencil with the original, their state carried by the Joker (`JokerState.counter`). Hit the Road and Steel Joker already matched. The "Currently" line reads this state. Left: older engine saves lack these counters (they restart from zero). |
 
-## Inventaires et ordonnancement
+## Inventories and ordering
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Réordonnancement manuel des Jokers | En cours | Le dépôt modifie l'ordre de la simulation et réenregistre les effets. Vérifier les fenêtres de score et les copies. |
-| Ordre des effets Joker | En cours | Vérifier les fenêtres d'activation, éditions, copies et répétitions avec traces. |
-| Réordonnancement des consommables | En cours | Le dépôt déplace les instances. Vérifier les usages, les ventes et la reprise. |
-| Vente et utilisation des consommables/Jokers | En cours | Boutons Sell (vert) et Use (rouge) d'origine, carte sélectionnée au premier plan. L'Empereur crée un Tarot depuis des emplacements pleins. Vérifier en jeu le rendu à 1920 × 1056. |
-| Tags détenus et déclenchement | En cours | Vérifier ordre, suppression et empilement de tags de fin de manche. |
+| Manual Joker reordering | In progress | The drop changes the simulation order and re-registers the effects. Check the scoring windows and copies. |
+| Joker effect order | In progress | Check trigger windows, editions, copies and retriggers with traces. |
+| Consumable reordering | In progress | The drop moves the instances. Check uses, sales and resumes. |
+| Selling and using consumables/Jokers | In progress | Original Sell (green) and Use (red) buttons, selected card in front. The Emperor creates a Tarot from full slots. Check the rendering in game at 1920 × 1056. |
+| Held tags and triggering | In progress | Check the order, removal and stacking of end-of-round tags. |
 
-## Packs, boutique et économie
+## Packs, shop and economy
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Achat et relance de boutique | En cours | Panneau ancré comme l'original (−5,3 sous la main, jusqu'en bas), boîtes pixelisées, couleurs dynamiques ; « DEFEAT / BOSS BLIND / TO RESTOCK » dans la zone de vouchers vide ; Buy orange, Buy & Use rouge (`Command::BuyAndUseConsumable`). Vérifier en jeu les proportions, les offres supplémentaires et les transitions. |
-| Packs Standard / Buffoon / Arcana / Celestial / Spectral | En cours | Vérifier contenus, quantité de choix, limites et retour à la phase appelante. |
-| Description des cartes d'un pack | À vérifier | Le code attache déjà `item.description`; vérifier qu'aucun état de sélection ne la remplace par une consigne générique. |
-| Ciblage depuis un pack | Fait, à valider en jeu | Sélection libre dans la main du pack, carte mise en avant puis USE ou SELECT, Skip inchangé. |
-| Vouchers et prérequis | En cours | Éligibilité, remise, effets immédiats et avantages persistants. |
-| Récompense, cash out et intérêts | En cours, à valider en jeu | Le moteur garde les lignes d'`evaluate_round` (Blind, mains restantes, bonus de Jokers, tags, intérêts) jusqu'au cash out; `RunView.reward_rows` les expose. L'écran d'origine les révèle au rythme d'`add_round_eval_row`, avec ses sons, puis affiche Cash Out. |
+| Shop purchase and reroll | In progress | Panel anchored like the original (−5.3 below the hand, down to the bottom), pixel boxes, dynamic colours; "DEFEAT / BOSS BLIND / TO RESTOCK" in the empty voucher area; orange Buy, red Buy & Use (`Command::BuyAndUseConsumable`). Check proportions, extra offers and transitions in game. |
+| Standard / Buffoon / Arcana / Celestial / Spectral packs | In progress | Check contents, number of choices, limits and return to the calling phase. |
+| Pack card descriptions | To verify | The code already attaches `item.description`; check that no selection state replaces it with a generic hint. |
+| Targeting from a pack | Done, to validate in game | Free selection in the pack's hand, card brought forward then USE or SELECT, Skip unchanged. |
+| Vouchers and prerequisites | In progress | Eligibility, discount, immediate effects and persistent perks. |
+| Reward, cash out and interest | In progress, to validate in game | The engine keeps the `evaluate_round` rows (Blind, remaining hands, Joker bonuses, tags, interest) until cash out; `RunView.reward_rows` exposes them. The original screen reveals them at the pace of `add_round_eval_row`, with its sounds, then shows Cash Out. |
 
-## Cartes à jouer : état et effets
+## Playing cards: state and effects
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Sceau Or | À vérifier | Vérifier attribution, gain lors du score et répétitions. |
-| Sceau Rouge | À vérifier | Vérifier attribution et répétition de l'activation, avec autres sources de répétition. |
-| Sceau Bleu | À vérifier | Vérifier création conditionnelle de Planète en fin de manche et capacité. |
-| Sceau Violet | À vérifier | Vérifier Tarot lors d'une défausse et espace consommable. |
-| Attribution des sceaux | En cours | Tester cartes Spectrales, effets de cartes et remplacement/exclusivité du sceau. |
-| Débuff moteur | En cours | Comparer les règles par blind et Joker; vérifier quelles contributions sont annulées. |
-| Débuff visuel | En cours | Main et cartes du Deck affichent une croix rouge et une teinte rouge; comparer opacité et étendre aux autres surfaces si elles peuvent porter l'état. |
-| Sceaux visuels | En cours | La main et le Deck affichent un seul sceau à gauche, sous le coin du rang. Vérifier la lisibilité en jeu. |
+| Gold Seal | To verify | Check assignment, the payout on scoring and retriggers. |
+| Red Seal | To verify | Check assignment and the retriggered activation, with other retrigger sources. |
+| Blue Seal | To verify | Check the conditional Planet creation at end of round and capacity. |
+| Purple Seal | To verify | Check the Tarot on discard and consumable space. |
+| Seal assignment | In progress | Test Spectral cards, card effects and seal replacement/exclusivity. |
+| Engine debuff | In progress | Compare the rules per blind and Joker; check which contributions are cancelled. |
+| Debuff visuals | In progress | Hand and Deck cards show a red cross and a red tint; compare opacity and extend to other surfaces if they can carry the state. |
+| Seal visuals | In progress | The hand and the Deck show a single seal on the left, under the rank corner. Check readability in game. |
 
-## Mouvement, survol et infobulles
+## Motion, hover and tooltips
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Hover/élévation des cartes en main | En cours | Composant `HoverMotion` : échelle +0,05 sur la base 0,95 lissée par `exp(-60·dt)`, position par `exp(-50·dt)`, juice au survol (0,05 / 0,03) sur 0,4 s, sans lift vertical au survol comme l'original. Une carte tenue par le drag garde sa transformation. Sélection : lift de 0,2 × hauteur de carte. À comparer en jeu avec `run_hand-1-selected`. Inclinaison selon le curseur : à faire. |
-| Hover des Jokers et consommables détenus | En cours | Mouvement partagé sur cartes et zone d'actions; vérifier sans masquer les actions. |
-| Hover des cartes de packs et offres | En cours | Mouvement partagé sur les offres et cartes choisies; vérifier chaque type. |
-| Hover dans Full Deck et Remaining | En cours | Mouvement et tooltip présents; vérifier ordre de pioche non révélé et hitbox après zoom. |
-| Infobulles contextualisées | En cours | Ancrage d'origine : au-dessus de la carte, en dessous si son haut est à moins de 0,8 hauteur de carte du haut de la salle, à gauche pour les offres de boutique et la vue Deck, puis bornage à la fenêtre. Ligne « (Currently …) » structurée (`CurrentValue`) pour 17 jokers, colorée comme l'original. Vue Deck : seuls les attributs présents. Encarts latéraux (`info_queue`) à gauche du popup, centrés sur lui : références de l'effet (Marble Joker → Stone Card, The Chariot → Steel Card, Wheel of Fortune → éditions, sceaux des Spectrales, éditions des tags), puis édition, sceau et stickers. Textes rédigés par Ante. Reste : références des Jokers non couverts (Diet Cola, Perkeo…), boosters des tags, Planète citée par le Blue Seal. |
-| Animation de sélection | À vérifier | Appliquer uniformément aux catégories énumérées et garder les contrôles accessibles. Aucun tween pour l'instant. |
-| Panneau debug des infobulles | Fait, à valider en jeu | Build Dev uniquement : panneau gris clair séparé sous l'infobulle (id et instance, état moteur, valeur courante brute, prix et revente, édition et stickers, coordonnées d'atlas). Couvre jokers, consommables, cartes de main, offres, packs et vue Deck. Dos de deck sur le plateau : pas d'infobulle (aperçu de pioche). |
-| Outils debug en jeu | Fait, à valider en jeu | Build Dev : run à 1000 $, panneau Tab (+10 $, +100 $, +1 main, +1 défausse, +1 manche, +1 ante, +100 score, gagner le blind, perdre la run) via `Command::Debug`. La run est marquée `debug`. F6 enregistre une capture dans `%LOCALAPPDATA%\Ante\captures\`. |
+| Hover/lift of hand cards | In progress | `HoverMotion` component: scale +0.05 on the 0.95 base smoothed by `exp(-60·dt)`, position by `exp(-50·dt)`, hover juice (0.05 / 0.03) over 0.4 s, no vertical lift on hover as in the original. A card held by a drag keeps its transform. Selection: lift of 0.2 × card height. To compare in game with `run_hand-1-selected`. Cursor tilt: to do. |
+| Hover of held Jokers and consumables | In progress | Shared motion on cards and the action area; check it does not hide the actions. |
+| Hover of pack cards and offers | In progress | Shared motion on offers and chosen cards; check each type. |
+| Hover in Full Deck and Remaining | In progress | Motion and tooltip present; check that the draw order is not revealed and the hitbox after zoom. |
+| Contextual tooltips | In progress | Original anchoring: above the card, below it if its top is within 0.8 card heights of the room's top, on the left for shop offers and the Deck view, then clamped to the window. Structured "(Currently …)" line (`CurrentValue`) for 17 jokers, coloured like the original. Deck view: only the attributes present. Side boxes (`info_queue`) left of the popup, centred on it: the effect's references (Marble Joker → Stone Card, The Chariot → Steel Card, Wheel of Fortune → editions, Spectral seals, tag editions), then edition, seal and stickers. Texts written by Ante. Left: references of uncovered Jokers (Diet Cola, Perkeo…), tag boosters, the Planet named by the Blue Seal. |
+| Selection animation | To verify | Apply uniformly to the listed categories and keep controls reachable. No tween for now. |
+| Tooltip debug panel | Done, to validate in game | Dev build only: separate light grey panel under the tooltip (id and instance, engine state, raw current value, price and sell value, edition and stickers, atlas coordinates). Covers jokers, consumables, hand cards, offers, packs and the Deck view. Deck back on the board: no tooltip (draw preview). |
+| In-game debug tools | Done, to validate in game | Dev build: run with $1000, Tab panel (+$10, +$100, +1 hand, +1 discard, +1 round, +1 ante, +100 score, win the blind, lose the run) through `Command::Debug`. The run is flagged `debug`. F6 saves a capture to `%LOCALAPPDATA%\Ante\captures\`. |
 
-## Collection et progression
+## Collection and progression
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Collection jokers, vouchers, tags | En cours | Pagination et découverte présentes; les objets à condition de déblocage affichent un cadenas, un tooltip « Locked » et leur condition. Vérifier chaque condition et le rendu du cadenas à taille réelle. |
-| Collection cartes, boosters, améliorations, éditions, sceaux, blinds | Fait, à comparer | Pages d'après `create_UIBox_your_collection_*` : zones de cartes, cycle de pages, grilles Tags et Blinds, table des antes. |
-| Déblocages et carrière | En cours | Profil JSON v2 : `version`, `discovered`, `all_unlocked`, avec migration v1. Le bouton debug « Unlock all » est dans Settings > GAME (`dev-tools`). La découverte sert encore de substitut au déblocage réel; compter les statistiques de carrière reste à faire. |
-| Decks, stakes et challenges | À cartographier | Les 15 decks ont un identifiant et une condition de déblocage affichée en Collection. Les règles de stake, la sélection verrouillée et les challenges ne sont pas branchés. |
+| Joker, voucher and tag collection | In progress | Paging and discovery present; items with an unlock condition show a padlock, a "Locked" tooltip and their condition. Check each condition and the padlock rendering at real size. |
+| Card, booster, enhancement, edition, seal and blind collection | Done, to compare | Pages after `create_UIBox_your_collection_*`: card areas, page cycle, Tag and Blind grids, ante table. |
+| Unlocks and career | In progress | Profile JSON: `version`, `discovered`, `all_unlocked`, with migration from older versions. The "Unlock all" debug button is in Settings > GAME (`dev-tools`). Discovery still stands in for real unlocks; counting career statistics is still to do. |
+| Decks, stakes and challenges | To map | The 15 decks have an id and an unlock condition shown in the Collection. Stake rules, locked selection and challenges are not wired. |
 
-## Consommables, ciblage et conditions
+## Consumables, targeting and conditions
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Règle de disponibilité unique | Fait | Une seule fonction (`consumable_usable`) décide du Use, pour le générateur comme pour l'application. La vérification a lieu avant le retrait de la carte. En Shop, les Spectrales qui touchent la main restent bloquées (main vide). |
-| Planètes et Tarots sans cible | En cours | Utilisables en PreBlind, Blind, PostBlind, Shop et pendant un pack ouvert, comme `can_use_consumeable`. Couvert par `consumable_use_availability_follows_targets_and_stage`. |
-| Tarots à cible (1 à 3 cartes) | En cours | Utilisables pendant un Blind ou un pack Arcana/Spectral ouvert, quand le nombre de cartes sélectionnées est dans `min_targets..=max_targets`. Le bouton « Use » n'apparaît qu'une fois la sélection valide; la référence ouvre d'abord un mode de ciblage. |
-| Spectres sans cible | En cours | Même fenêtre que les Planètes, pack ouvert compris. |
-| Spectres qui touchent la main | Fait, à valider en jeu | Familiar, Grim, Incantation, Sigil, Ouija et Immolate sont utilisables en Blind dès que la main a plus d'une carte, sans sélection, comme dans la référence. Ils restent refusés hors Blind, où la main est vide. |
-| Ciblage depuis un pack | Fait, à valider en jeu | La main d'un pack Arcana ou Spectral se sélectionne d'abord; un clic met la carte du pack en avant, son bouton USE (rouge si la sélection convient) l'utilise aussitôt avec ces cibles. Les étapes `TarotHand`/`SpectralHand` n'existent plus. |
-| « Use » manquant et cartes perdues | Corrigé, à valider en jeu | Cause : règles de disponibilité dupliquées et vérifiées après retrait de la carte. Familiar, Grim, Incantation, Immolate, Sigil et Ouija deviennent utilisables en Blind dès que la main a plus d'une carte, sans tenir compte de la sélection. Judgement, Wraith et Soul exigent une place de joker ; Ankh, Hex, Ectoplasm et Wheel of Fortune exigent un joker ; The Fool exige un dernier consommable utilisé différent de lui-même ; Aura exige une carte sans édition. Hex et Ectoplasm ne ciblent que les jokers sans édition. Patch `balatro-rs-consumable-use.patch`, 16 tests dédiés (`consumable_use_tests.rs`). |
-| Description et état des consommables | En cours | Description, catégorie et champs techniques dev-tools présents; vérifier les textes de chaque Tarot/Spectre. |
+| Single availability rule | Done | A single function (`consumable_usable`) decides Use, for the generator as for the application. The check happens before the card is removed. In the Shop, Spectrals that touch the hand stay blocked (empty hand). |
+| Planets and Tarots without a target | In progress | Usable in PreBlind, Blind, PostBlind, Shop and while a pack is open, like `can_use_consumeable`. Covered by `consumable_use_availability_follows_targets_and_stage`. |
+| Targeted Tarots (1 to 3 cards) | In progress | Usable during a Blind or an open Arcana/Spectral pack, when the number of selected cards is within `min_targets..=max_targets`. The "Use" button only appears once the selection is valid; the reference first enters a targeting mode. |
+| Spectrals without a target | In progress | Same window as Planets, open pack included. |
+| Spectrals that touch the hand | Done, to validate in game | Familiar, Grim, Incantation, Sigil, Ouija and Immolate are usable in a Blind as soon as the hand has more than one card, without a selection, as in the reference. They stay refused outside a Blind, where the hand is empty. |
+| Targeting from a pack | Done, to validate in game | The hand of an Arcana or Spectral pack is selected first; a click brings the pack card forward, and its USE button (red if the selection fits) uses it at once with those targets. The `TarotHand`/`SpectralHand` stages no longer exist. |
+| Missing "Use" and lost cards | Fixed, to validate in game | Cause: duplicated availability rules, checked after the card was removed. Familiar, Grim, Incantation, Immolate, Sigil and Ouija become usable in a Blind as soon as the hand has more than one card, regardless of the selection. Judgement, Wraith and Soul need a joker slot; Ankh, Hex, Ectoplasm and Wheel of Fortune need a joker; The Fool needs a last used consumable other than itself; Aura needs a card without an edition. Hex and Ectoplasm only target jokers without an edition. Patch `balatro-rs-consumable-use.patch`, 16 dedicated tests (`consumable_use_tests.rs`). |
+| Consumable description and state | In progress | Description, category and dev-tools technical fields present; check the text of each Tarot/Spectral. |
 
-## Profil, déblocages et collection
+## Profile, unlocks and collection
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Format du profil | En cours | `profile.json` version 2, lecture de la version 1, écriture atomique. Champs : `discovered` (ensemble trié) et `all_unlocked` (booléen). |
-| Unlock All debug | Fait | Couvre toutes les catégories et reste disponible après un premier déblocage, pour les catégories ajoutées ensuite. |
-| Verrou de collection | En cours | `Content.unlock` porte la condition; les entrées verrouillées affichent un cadenas, un tooltip « Locked » et la condition. Les Jokers légendaires indiquent le pack Spectral. |
-| Déblocages par achievement | À faire | Les conditions sont descriptives et ne sont pas évaluées. Il manque un ensemble `unlocked` distinct de `discovered`, des statistiques de carrière et les contrôles de condition (Royal Flush défaussé, 5 Jacks, etc.). |
-| Compteurs de collection | Fait | Chaque bouton du hub affiche découverts / total. Le pourcentage global n'est pas affiché. |
-| Autres catégories | Fait, à comparer | Tarot, Planète, Spectrale, cartes améliorées, sceaux, éditions, boosters et blinds sont actifs, avec leurs visuels d'origine. Les consommables, packs et boss rencontrés sont découverts en jeu ; améliorations, éditions et sceaux seulement par Unlock All pour l'instant. Défaut connu : en 1920×1057, la flèche « > » des pages manque. |
+| Profile format | In progress | `profile.json` version 4, reads versions 1 to 3, atomic write. Fields: `discovered` (sorted set), `all_unlocked` (boolean), `game_speed` and the `volume`, `music_volume` and `game_volume` settings. |
+| Debug Unlock All | Done | Covers every category and stays available after a first unlock, for categories added later. |
+| Collection lock | In progress | `Content.unlock` carries the condition; locked entries show a padlock, a "Locked" tooltip and the condition. Legendary Jokers point to the Spectral pack. |
+| Achievement unlocks | To do | Conditions are descriptive and not evaluated. Missing: an `unlocked` set distinct from `discovered`, career statistics and the condition checks (discarded Royal Flush, 5 Jacks, etc.). |
+| Collection counters | Done | Each hub button shows discovered / total. The overall percentage is not shown. |
+| Other categories | Done, to compare | Tarot, Planet, Spectral, enhanced cards, seals, editions, boosters and blinds are active, with their original visuals. Consumables, packs and bosses met are discovered in game; enhancements, editions and seals only through Unlock All for now. Known defect: at 1920×1057, the pages' ">" arrow is missing. |
 
-## Shaders et VFX
+## Shaders and VFX
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Stratégie | Décidée | Les shaders d'origine sont réutilisés depuis l'installation de l'utilisateur, jamais commités ni livrés. L'import Local Assets copie les `.fs` autorisés dans `%LOCALAPPDATA%\Ante\local-assets\shaders\`. Au chargement, un prélude de compatibilité LÖVE écrit par Ante (`extern`, `Image`, `Texel`, `effect` → `main`) est ajouté, puis naga convertit le GLSL en WGSL pour un `UiMaterial`. Repli sans effet si le fichier manque ou si la conversion échoue. |
-| Chargement des `.fs` | Fait, rendu à valider | Les 19 fichiers de `resources/shaders` sont du GLSL LÖVE 11 (`effect`/`position`, `extern`, `number`, `Image`, `Texel`, `love_ScreenSize`). Bevy 0.20 charge `wgsl` ; la conversion passe par le frontend GLSL de naga après le prélude. 17 shaders sur 19 convertis et validés par naga sur l'installation locale ; `skew` et `vortex` sont vertex seulement. |
-| Uniforms et ordre de dessin | Fait | Relevés dans le [guide legacy](UI_LEGACY_GUIDE.md#shaders) : `time`, `dissolve`, `texture_details`, `image_details`, `burn_colour_*`, `shadow`, paramètre nommé comme le shader, et ordre `Card:draw` / `Sprite:draw_shader`. |
-| Éditions Foil / Holo / Poly / Negative | En cours, rendu à valider | Shaders d'origine en surcouche sur les Jokers (détenus, boutique) et les cartes jouables (main, zone de jeu, vue Deck), sur la base et la face comme `Card:draw`. Reste : `negative` qui remplace la base au lieu de la recouvrir, inclinaison et juice dans le paramètre du shader, consommables. |
-| Dissolve, flame, played, debuff, booster, voucher | En cours | `dissolve` : un Joker ou consommable qui quitte l'inventaire brûle en 0,7 s comme `Card:start_dissolve` (or à la vente, sinon noir et orange), avec particules et sons ; vérifié en jeu. `debuff` sur les cartes débuffées (repli croix rouge sans shader), `booster` et `voucher` en boutique et dans Run Info. Reste : `played`, `flame`, dissolution des cartes détruites en main. |
-| Skew / vortex / CRT / splash / background | En cours | `background` (runs) et `splash` (menu principal, sans le flash de l'écran de démarrage) sont portés. Reste skew, vortex et CRT, même pipeline. Les warps de sommet supposent des coordonnées écran LÖVE à reproduire ; le CRT est un post-process multi-passes. |
-| Effets hors shader | En cours | Secousse de la salle d'origine (`update_canvas_juice` : +0,7 par popup, amortie en (1 − 5·dt), dérive lente et attrait du curseur), particules de dissolution. La légère rotation permanente de la salle est omise : avec des bords pixel nets elle crée une marche qui rampe. L'inclinaison en perspective au survol demande une déformation de sommets que l'interface Bevy ne permet pas pour l'instant. |
+| Strategy | Decided | The original shaders are reused from the user's installation, never committed or shipped. The Local Assets import copies the allowlisted `.fs` files to `%LOCALAPPDATA%\Ante\local-assets\shaders\`. On load, a LÖVE compatibility prelude written by Ante (`extern`, `Image`, `Texel`, `effect` → `main`) is added, then naga converts the GLSL to WGSL for a `UiMaterial`. Falls back to no effect if the file is missing or the conversion fails. |
+| Loading the `.fs` files | Done, rendering to validate | The 19 files of `resources/shaders` are LÖVE 11 GLSL (`effect`/`position`, `extern`, `number`, `Image`, `Texel`, `love_ScreenSize`). Bevy 0.20 loads `wgsl`; the conversion goes through naga's GLSL frontend after the prelude. 17 of 19 shaders converted and validated by naga on the local installation; `skew` and `vortex` are vertex only. |
+| Uniforms and draw order | Done | Recorded in the [legacy guide](UI_LEGACY_GUIDE.md#shaders): `time`, `dissolve`, `texture_details`, `image_details`, `burn_colour_*`, `shadow`, a parameter named like the shader, and the `Card:draw` / `Sprite:draw_shader` order. |
+| Foil / Holo / Poly / Negative editions | In progress, rendering to validate | Original shaders overlaid on Jokers (held, shop) and playable cards (hand, play area, Deck view), on the base and the face like `Card:draw`. Left: `negative` replacing the base instead of covering it, tilt and juice in the shader parameter, consumables. |
+| Dissolve, flame, played, debuff, booster, voucher | In progress | `dissolve`: a Joker or consumable leaving the inventory burns over 0.7 s like `Card:start_dissolve` (gold when sold, otherwise black and orange), with particles and sounds; verified in game. `debuff` on debuffed cards (red cross fallback without the shader), `booster` and `voucher` in the shop and in Run Info. Left: `played`, `flame`, dissolving cards destroyed in hand. |
+| Skew / vortex / CRT / splash / background | In progress | `background` (runs) and `splash` (main menu, without the splash screen's flash) are ported. Left: skew, vortex and CRT, same pipeline. The vertex warps assume LÖVE screen coordinates to reproduce; the CRT is a multi-pass post-process. |
+| Non-shader effects | In progress | The original room shake (`update_canvas_juice`: +0.7 per popup, damped by (1 − 5·dt), slow drift and cursor pull), dissolve particles. The room's slight permanent rotation is left out: with crisp pixel edges it creates a crawling step. |
 
-## Animations et audio
+## Animation and audio
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Lecture du score | En cours | Timeline en secondes de jeu avec les délais d'origine (entrée 0,4 + 0,1/carte + 0,2 + 0,1/carte + 0,4 ; popups chips 0,75, mult 0,8125, joker 0,9375, retrigger en plus ; fin 0,1/carte + 0,4 + 0,8 + 0,5 + 0,3 ; défausse 0,1/carte). Vitesses x0,5 à x128 par doublement, accélération automatique d'origine (+0,2·vitesse/s, plafond 16, effet au-delà de 2), vitesse enregistrée dans le profil. Instant retiré, Skip conservé. Chaque pas affiche ses popups l'un après l'autre comme `card_eval_status_text` : « Again! », chips, +Mult, XMult (« X1.5 Mult ») puis argent (« $3 »), avec juice de la source, au-dessus des cartes et sous les Jokers. Le patch moteur `trace-effects` note le facteur XMult et l'argent de chaque pas. Le Mult est décimal comme dans l'original (patch `fractional-mult`) et s'affiche avec les règles de `number_format`. Reste : chronométrer contre l'original. |
-| Survol | En cours, à valider en jeu | Lissage d'origine (voir Hover), éventail de la main, inclinaison vers le curseur (`tilt.wgsl`, d'après `position()` des shaders de carte) et inclinaison pendant les trajets (`Moveable:move_r`). |
-| Déplacement des cartes | En cours, à comparer | Zone de jeu 3,6 unités au-dessus de la main. Trajet animé avec le modèle de vitesse de `Moveable:move_xy` (gain 35, lissage `exp(-50·dt)`, plafond 70 unités/s) : pioche depuis le deck, main → zone de jeu, puis zone de jeu → défausse hors écran à droite, une carte toutes les 0,1 s de jeu. Une carte qui attend sa pioche reste cachée dans le deck. Sélection, tri et dépôt d'un drag glissent aussi. Les cartes défaussées avec le bouton Discard partent une à une vers la défausse, puis la pioche commence, comme `discard_cards_from_highlighted` suivi de `draw_from_deck_to_hand`. La main ne s'étale que sur les cartes arrivées : elle se resserre pendant une défausse puis s'élargit à chaque carte piochée. Une carte piochée quitte le deck face cachée et se retourne en entrant dans la main (pincement de `Moveable:move_wh`, 0,125 s pour se fermer puis 0,125 s pour se rouvrir). L'éventail suit le nombre de cartes présentes. Reste : son `card1`, flip des cartes retournées par les boss. |
-| Juice des scores | En cours | Popups, juice de la source, impulsion des valeurs Chips et Mult et secousse de la salle en place. Reste : particules et flammes des gros scores. |
-| VFX d'édition et de destruction | En cours | Éditions et dissolution : voir la section Shaders et VFX. Les shaders LÖVE calculent en espace gamma ; Ante convertit l'entrée et la sortie, et les calques d'édition sont dessinés après le sprite. |
-| Audio | En cours | Effets sonores d'origine lus depuis l'installation locale (30 effets et 5 musiques `.ogg` de la liste autorisée, copiés par l'import Local Assets) : survol, sélection, départ des cartes, popups de score, total, achats et ventes, boutons, dissolution. Explosion d'ouverture de pack. Volume `vol × général/100 × sons/100`. Musique : cinq pistes en fondu selon l'écran, `vol × 0,6 × général/100 × musique/100`, hauteur 0,7 ralentie en défaite. Réglages général (50), musique (100) et sons (100) dans Options > AUDIO, enregistrés dans le profil. Reste : ambiances (feu, orgue) et variation de hauteur des effets. |
+| Score playback | In progress | Timeline in game seconds with the original delays (entry 0.4 + 0.1/card + 0.2 + 0.1/card + 0.4; chip popups 0.75, mult 0.8125, joker 0.9375, retriggers extra; end 0.1/card + 0.4 + 0.8 + 0.5 + 0.3; discard 0.1/card). Speeds x0.5 to x128 by doubling, the original automatic acceleration (+0.2·speed/s, capped at 16, effective above 2), speed saved in the profile. Instant removed, Skip kept. Each step shows its popups one after another like `card_eval_status_text`: "Again!", chips, +Mult, XMult ("X1.5 Mult") then money ("$3"), with the source's juice, above the cards and below the Jokers. The `trace-effects` engine patch records the XMult factor and the money of each step. Mult is fractional as in the original (`fractional-mult` patch) and printed with the `number_format` rules. Left: time it against the original. |
+| Hover | In progress, to validate in game | Original smoothing (see Hover), hand fan, tilt toward the cursor (`tilt.wgsl`, after the card shaders' `position()`) and lean while travelling (`Moveable:move_r`). |
+| Card movement | In progress, to compare | Play area 3.6 units above the hand. Travel animated with the `Moveable:move_xy` speed model (gain 35, `exp(-50·dt)` smoothing, cap 70 units/s): draw from the deck, hand → play area, then play area → discard off screen on the right, one card every 0.1 game seconds. A card waiting to be drawn stays hidden in the deck. Selection, sorting and drag drops glide too. Cards discarded with the Discard button leave one by one for the discard pile, then the draw starts, like `discard_cards_from_highlighted` followed by `draw_from_deck_to_hand`. The hand only spreads over the cards that arrived: it tightens during a discard and widens with each card drawn. A drawn card leaves the deck face down and flips as it enters the hand (`Moveable:move_wh` pinch, 0.125 s to close then 0.125 s to reopen). The fan follows the number of cards present. Left: the `card1` sound, flipping cards turned over by bosses. |
+| Score juice | In progress | Popups, source juice, Chips and Mult value pulses and room shake in place. Left: particles and flames on big scores. |
+| Edition and destruction VFX | In progress | Editions and dissolve: see the Shaders and VFX section. LÖVE shaders compute in gamma space; Ante converts input and output, and edition layers are drawn after the sprite. |
+| Audio | In progress | Original sound effects read from the local installation (30 effects and 5 music `.ogg` files from the allowlist, copied by the Local Assets import): hover, selection, cards leaving, score popups, total, purchases and sales, buttons, dissolve. Pack opening explosion. Volume `vol × master/100 × sounds/100`. Music: five tracks crossfaded by screen, `vol × 0.6 × master/100 × music/100`, pitch 0.7 slowed on a game over. Master (50), music (100) and sound (100) settings in Options > AUDIO, saved in the profile. Left: ambience (fire, organ) and pitch variation of the effects. |
 
-## Interfaces, sauvegarde et compatibilité
+## Interfaces, saves and compatibility
 
-| Fonctionnalité | État actuel | Travail / critère de sortie |
+| Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Modaux Run Info, Deck et Pause | En cours | Vérifier retour à la phase et conservation des sélections. |
-| Sauvegarde / reprise | À vérifier | Comparer snapshot/reprise sur pack, boutique, trace et ordre manuel. |
-| RNG et graines | À cartographier | Documenter flux par système avant toute promesse de compatibilité de graine. |
-| Victoire, défaite et Endless | En cours | Vérifier transitions, ante 8 et représentation des scores élevés. |
-| Comparaison visuelle multi-format | À vérifier | Captures de référence et client à taille égale; documenter les écarts et VFX séparément. |
+| Run Info, Deck and Pause modals | In progress | Check the return to the phase and that selections are kept. |
+| Save / resume | To verify | Compare snapshot/resume on pack, shop, trace and manual order. |
+| RNG and seeds | To map | Document the streams per system before any promise of seed compatibility. |
+| Win, loss and Endless | In progress | Check transitions, ante 8 and the representation of large scores. |
+| Multi-size visual comparison | To verify | Reference and client captures at equal size; document gaps and VFX separately. |
 
-Mettre à jour les états après chaque tranche de travail avec le chemin du code ou de la recette qui justifie l'avancement. Ne passer à **Terminé** qu'après vérification fonctionnelle et, pour les surfaces visuelles, comparaison de captures.
-
-
+Update the statuses after each piece of work with the code path or acceptance check that justifies the progress. Only move to **Done** after functional verification and, for visual surfaces, a capture comparison.

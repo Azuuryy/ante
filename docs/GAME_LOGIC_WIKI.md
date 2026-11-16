@@ -1,60 +1,60 @@
-# Logique de jeu — synthèse du wiki
+# Game logic — wiki summary
 
-Ce document rassemble les règles de référence utiles à Ante et sert de point d'entrée vers les fiches de la [roadmap fonctionnelle](ROADMAP_FEATURES.md). La cible de comparaison actuelle est Balatro 1.0.1o, conformément au guide d'interface. Cette synthèse est volontairement orientée implémentation : elle ne remplace pas les pages détaillées du wiki.
+This document gathers the reference rules useful to Ante and is the entry point to the entries of the [feature roadmap](ROADMAP_FEATURES.md). The current comparison target is Balatro 1.0.1o, as in the interface guide. This summary is deliberately implementation-oriented: it does not replace the wiki's detailed pages.
 
-## Boucle d'une run
+## Run loop
 
-Une run progresse par antes et blinds. La petite blind, la grande blind et la blind Boss ont chacune un objectif de score; gagner une blind ouvre l'encaissement et la boutique, puis la prochaine étape. La boutique permet d'acheter ou vendre, d'utiliser des consommables, de relancer les offres et d'ouvrir des boosters. Les packs proposent un nombre limité de choix, parfois suivis du ciblage de cartes. Une run se termine par une victoire ou une défaite, avec poursuite éventuelle en Endless.
+A run progresses through antes and blinds. The small blind, the big blind and the Boss blind each have a score target; beating a blind opens the cash out and the shop, then the next step. The shop lets the player buy or sell, use consumables, reroll the offers and open boosters. Packs offer a limited number of choices, sometimes followed by card targeting. A run ends in a win or a loss, possibly continued in Endless.
 
-## Main, cartes et score
+## Hand, cards and score
 
-Les cartes sélectionnées déterminent une main de poker selon la priorité des combinaisons reconnues. Les cartes qui contribuent au score sont résolues de gauche à droite. Les effets propres aux cartes et les effets Joker se déclenchent pendant cette résolution; la position des cartes et des Jokers peut donc changer le résultat. Le score est construit par additions de Chips et Mult puis multiplications, dans l'ordre d'activation. Les cartes en main peuvent aussi déclencher des effets distincts.
+The selected cards make a poker hand according to the priority of the recognised hands. The cards that contribute to the score resolve from left to right. Card effects and Joker effects trigger during this resolution, so the position of cards and Jokers can change the result. The score is built from additions to Chips and Mult, then multiplications, in trigger order. Cards held in hand can also trigger separate effects.
 
-Le tri automatique par rang et par couleur existe déjà pour la main. Il ne remplace pas le déplacement manuel. Le tri manuel de la main doit modifier l'ordre visuel utilisé lors de la résolution, sans modifier les identifiants des cartes ni consommer du hasard.
+Automatic sorting by rank and by suit already exists for the hand. It does not replace manual moves. Manually sorting the hand must change the visual order used during resolution, without changing card ids or consuming randomness.
 
-## Jokers et ordre d'activation
+## Jokers and trigger order
 
-Les Jokers déclenchent leurs effets dans l'ordre gauche-à-droite de leur zone, au sein de chaque fenêtre d'activation. Les effets qui se déclenchent à des moments différents conservent leurs fenêtres propres; déplacer un Joker ne change pas leur priorité de phase, mais ordonne les effets qui s'exécutent dans la même fenêtre. Les effets de répétition peuvent relancer des activations de cartes.
+Jokers trigger their effects in the left-to-right order of their area, within each trigger window. Effects that trigger at different moments keep their own windows; moving a Joker does not change their phase priority, but it orders the effects that run in the same window. Retrigger effects can repeat card activations.
 
-Le client doit permettre de réordonner les Jokers détenus. La simulation reste seule propriétaire de l'ordre et la trace de score doit refléter cet ordre. Le déplacement doit préserver l'objet et ses états (édition, autocollants, valeurs cumulées).
+The client must let the player reorder held Jokers. The simulation alone owns the order, and the score trace must reflect it. A move must preserve the object and its state (edition, stickers, accumulated values).
 
-## Valeurs courantes des Jokers
+## Current Joker values
 
-L'infobulle d'un Joker qui évolue se termine par une ligne grise « (Currently …) ». La valeur y est colorée selon son effet : +Mult en rouge, +Chips en bleu, XMult dans une pastille rouge, argent en jaune, compteur en orange. Dans l'original, cette ligne existe pour Abstract Joker, Bootstraps, Ceremonial Dagger, Erosion, Flash Card, Green Joker, Red Card, Ride the Bus, Spare Trousers et Swashbuckler (+Mult). Elle existe aussi pour Blue Joker, Bull, Castle, Runner, Square Joker, Stone Joker et Wee Joker (+Chips). Côté XMult : Canio, Campfire, Constellation, Glass Joker, Hit the Road, Hologram, Lucky Cat, Madness, Obelisk, Throwback, Vampire, Steel Joker, Yorick et Joker Stencil. Côté argent : Cloud 9 et Satellite. Fortune Teller, Driver's License et Invisible Joker affichent un compteur. Ice Cream, Popcorn, Ramen et Turtle Bean montrent leur valeur dans la ligne principale.
+The tooltip of an evolving Joker ends with a grey "(Currently …)" line. The value is coloured by its effect: +Mult in red, +Chips in blue, XMult in a red pill, money in yellow, a counter in orange. In the original, this line exists for Abstract Joker, Bootstraps, Ceremonial Dagger, Erosion, Flash Card, Green Joker, Red Card, Ride the Bus, Spare Trousers and Swashbuckler (+Mult). It also exists for Blue Joker, Bull, Castle, Runner, Square Joker, Stone Joker and Wee Joker (+Chips). For XMult: Canio, Campfire, Constellation, Glass Joker, Hit the Road, Hologram, Lucky Cat, Madness, Obelisk, Throwback, Vampire, Steel Joker, Yorick and Joker Stencil. For money: Cloud 9 and Satellite. Fortune Teller, Driver's License and Invisible Joker show a counter. Ice Cream, Popcorn, Ramen and Turtle Bean show their value in the main line.
 
-Ante calcule la valeur côté simulation (`CurrentValue`) et la met en forme côté client. Comme dans l'original, Green Joker, Castle, Obelisk et Yorick gardent leur valeur sur la carte elle-même : Green Joker et Castle la conservent toute la run, Obelisk revient à X1 quand la main jouée est strictement la plus jouée, Yorick compte les cartes défaussées depuis son acquisition. Joker Stencil vaut X(cases vides + Stencils détenus) et ne s'applique que s'il reste une case vide ; Hit the Road repart à X1 à chaque manche. Seuls les Jokers implémentés par le moteur sont couverts ; les écarts de règle du moteur sont suivis dans [la roadmap des fonctionnalités](ROADMAP_FEATURES.md).
+Ante computes the value in the simulation (`CurrentValue`) and formats it in the client. As in the original, Green Joker, Castle, Obelisk and Yorick keep their value on the card itself: Green Joker and Castle keep it for the whole run, Obelisk returns to X1 when the hand played is strictly the most played one, Yorick counts the cards discarded since it was acquired. Joker Stencil is worth X(empty slots + Stencils held) and only applies while a slot is empty; Hit the Road resets to X1 every round. Only the Jokers implemented by the engine are covered; the engine's rule gaps are tracked in [the feature roadmap](ROADMAP_FEATURES.md).
 
-## Rythme du score
+## Score pacing
 
-Les délais de l'original sont exprimés en secondes de jeu. L'horloge avance `vitesse` fois plus vite que le temps réel, et s'accélère encore sur les longues séquences. Pour une main de cinq cartes qui ne donnent que des chips, sans Joker, la séquence dure environ 8,75 s à 1x. Le détail des délais est dans [le guide legacy](UI_LEGACY_GUIDE.md#rythme-du-score-et-vitesse).
+The original's delays are in game seconds. The game clock runs `speed` times faster than real time, and speeds up further on long sequences. For a five-card hand that only gives chips, without Jokers, the sequence lasts about 8.75 s at 1x. The delays are detailed in [the legacy guide](UI_LEGACY_GUIDE.md#score-pacing-and-speed).
 
-## Améliorations, éditions et sceaux
+## Enhancements, editions and seals
 
-Les améliorations modifient le comportement de la carte (par exemple Chips, Mult, verre, acier, pierre, or ou chance). Les éditions ajoutent leurs propres bonus. Les sceaux sont un modificateur séparé :
+Enhancements change how the card behaves (for example Chips, Mult, glass, steel, stone, gold or lucky). Editions add their own bonuses. Seals are a separate modifier:
 
-| Sceau | Règle résumée |
+| Seal | Rule in short |
 | --- | --- |
-| Or | Donne de l'argent lorsque la carte est marquée. |
-| Rouge | Répète l'activation de la carte marquée. |
-| Bleu | Peut créer une carte Planète à la fin de la manche si elle reste en main. |
-| Violet | Crée une carte Tarot lorsque la carte marquée est défaussée, si une place est disponible. |
+| Gold | Gives money when the card scores. |
+| Red | Retriggers the scoring card. |
+| Blue | May create a Planet card at end of round if the card stays in hand. |
+| Purple | Creates a Tarot card when the card is discarded, if there is room. |
 
-Le moteur expérimental transporte déjà le sceau dans la projection et affiche un résumé d'effet. La couverture d'attribution et les déclenchements réels doivent être vérifiés séparément avant de considérer la mécanique terminée.
+The experimental engine already carries the seal in the projection and shows a summary of its effect. Assignment coverage and the actual triggers must be verified separately before the mechanic is considered done.
 
-## Débuff
+## Debuff
 
-Une carte débuffée conserve son identité et son emplacement, mais ses effets affectés ne contribuent pas comme une carte active. Le client actuel applique une désaturation grise à certains rendus de cartes. Le rendu de référence à reproduire ajoute des flèches rouges marquées et une teinte rouge subtile. Les cartes dans le deck, la main, les packs et les autres surfaces doivent partager le même état visuel lorsqu'elles affichent une carte débuffée.
+A debuffed card keeps its identity and its slot, but its affected effects do not contribute like an active card. The rendering to reproduce adds a red cross and a subtle red tint. Cards in the deck, the hand, packs and other surfaces must share the same visual state when they show a debuffed card.
 
-## Présentation et interaction
+## Presentation and interaction
 
-Le survol d'une carte présente son identité, sa description et ses modificateurs. Une carte de pack doit donc montrer la description de l'objet choisi; l'instruction « Choose this card from the pack » appartient au contexte de choix, pas à l'infobulle de la carte. Le mouvement de survol et l'élévation de sélection doivent être communs aux types de cartes interactifs et aux rendus du deck.
+Hovering a card shows its identity, its description and its modifiers. A pack card must therefore show the description of the chosen object; the instruction "Choose this card from the pack" belongs to the choice context, not to the card's tooltip. The hover motion and the selection lift must be shared by every interactive card type and by the deck views.
 
-## Sources et vérification
+## Sources and verification
 
-- [Balatro Wiki](https://balatrowiki.org/) — source principale demandée; la consultation directe automatisée est bloquée par robots.txt. Les faits ci-dessus sont à valider contre le jeu de référence et le guide local.
-- [Guide de séquence d'activation](https://balatrogame.fandom.com/wiki/Guide%3A_Activation_Sequence) — ordre de résolution et répétitions.
-- [Types d'activation Joker](https://balatrogame.fandom.com/wiki/Activation_Type) — fenêtres et ordre des effets.
-- [Guide d'interface legacy d'Ante](UI_LEGACY_GUIDE.md) — observations locales de Balatro 1.0.1o et points d'entrée.
-- [Guide d'interface Bevy d'Ante](UI_BEVY_GUIDE.md) — correspondance vers le client et écarts connus.
+- [Balatro Wiki](https://balatrowiki.org/) — the main source requested; direct automated access is blocked by robots.txt. The facts above are to be validated against the reference game and the local guide.
+- [Activation sequence guide](https://balatrogame.fandom.com/wiki/Guide%3A_Activation_Sequence) — resolution order and retriggers.
+- [Joker activation types](https://balatrogame.fandom.com/wiki/Activation_Type) — windows and effect order.
+- [Ante's legacy interface guide](UI_LEGACY_GUIDE.md) — local observations of Balatro 1.0.1o and entry points.
+- [Ante's Bevy interface guide](UI_BEVY_GUIDE.md) — mapping to the client and known gaps.
 
-Cette synthèse ne constitue pas une autorisation de recopier le code, les textes ou les ressources du jeu. Implémenter les règles indépendamment et relever explicitement les divergences encore non vérifiées.
+This summary is not permission to copy the game's code, text or resources. Implement the rules independently and explicitly record the divergences not yet verified.

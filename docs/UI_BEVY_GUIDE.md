@@ -1,169 +1,167 @@
-# Ante — guide de conversion des interfaces
+# Ante — interface conversion guide
 
-Ce guide relie les comportements relevés dans [la bibliothèque legacy](UI_LEGACY_GUIDE.md) aux responsabilités du moteur et aux composants Bevy du client expérimental. Lire les deux sections pertinentes avant d'implémenter une interaction. La version de référence locale est Balatro 1.0.1o.
+This guide links the behaviours recorded in [the legacy library](UI_LEGACY_GUIDE.md) to the engine's responsibilities and to the Bevy components of the experimental client. Read both relevant sections before implementing an interaction. The local reference version is Balatro 1.0.1o.
 
-## Couches et données
+## Layers and data
 
 ```mermaid
 flowchart TB
-    V[Zone cliente principale] --> B[Fond plein viewport]
-    V --> R[Plateau redimensionnable]
-    R --> HUD[HUD permanent]
-    R --> I[Inventaires et deck permanents]
-    R --> C[Centre selon la phase]
-    V --> M[Voile et modal]
-    M --> T[Infobulles positionnées dans la fenêtre]
+    V[Main client area] --> B[Full-viewport background]
+    V --> R[Resizable board]
+    R --> HUD[Permanent HUD]
+    R --> I[Permanent inventories and deck]
+    R --> C[Centre by phase]
+    V --> M[Shade and modal]
+    M --> T[Tooltips placed in the window]
 ```
 
 ```mermaid
 sequenceDiagram
-    participant Input as Entrée Bevy
-    participant UI as Session et navigation
-    participant M as Adaptateur
-    participant E as Moteur
-    Input->>UI: Click typé
-    alt Action de jeu
-        UI->>M: Command et révision si nécessaire
-        M->>E: Action validée
-        E-->>M: État et trace
-        M-->>UI: RunView et résultat
-    else Consultation
-        UI->>UI: Ouvrir un modal sur la projection
+    participant Input as Bevy input
+    participant UI as Session and navigation
+    participant M as Adapter
+    participant E as Engine
+    Input->>UI: Typed Click
+    alt Game action
+        UI->>M: Command and revision if needed
+        M->>E: Validated action
+        E-->>M: State and trace
+        M-->>UI: RunView and result
+    else Inspection
+        UI->>UI: Open a modal over the projection
     end
-    UI-->>Input: Géométrie, état et infobulle
+    UI-->>Input: Geometry, state and tooltip
 ```
 
-Le moteur possède la partie, le hasard, les actions légales, les capacités et les objectifs. `EngineRun` traduit `Command`, journalise via le client et fournit une projection `RunView` sans tirage aléatoire. Les actions indexées vérifient la révision. `Playback` lit une trace déjà calculée, avec la projection avant action tant que l'animation la représente. La navigation, les modaux et l'onglet du deck appartiennent à la présentation. Ouvrir le deck ou les réglages suspend la présentation et n'exécute aucune action de jeu.
+The engine owns the game, randomness, legal actions, capacities and targets. `EngineRun` translates `Command`, logs through the client and provides a `RunView` projection without drawing randomness. Indexed actions check the revision. `Playback` reads an already computed trace, with the projection from before the action while the animation shows it. Navigation, modals and the deck tab belong to presentation. Opening the deck or the settings pauses presentation and runs no game action.
 
-## Contrat visuel
+## Visual contract
 
-Comparer à largeur et hauteur clientes identiques. Mesurer les positions et les tailles en fractions de la zone cliente. Dans les captures 1920×1080, le HUD commence près de 5 % de la largeur et occupe environ 22 %. Les inventaires s'alignent à sa droite, en haut. Le centre reste libre jusqu'au contenu de phase et le deck s'ancre en bas à droite, avec les tags à sa droite. La vue Full Deck occupe environ 83 % de la largeur et 84 % de la hauteur cliente. Utiliser des tuiles et une échelle uniforme pour les cartes et textes. Les ancres des régions peuvent absorber l'écart de format. Les fonds et voiles couvrent les bords du viewport.
+Compare at identical client width and height. Measure positions and sizes as fractions of the client area. In the 1920×1080 captures, the HUD starts near 5 % of the width and takes about 22 %. The inventories line up to its right, at the top. The centre stays free down to the phase content and the deck is anchored bottom right, with the tags to its right. The Full Deck view takes about 83 % of the client width and 84 % of its height. Use tiles and a uniform scale for cards and text. Region anchors may absorb the aspect ratio difference. Backgrounds and shades cover the viewport edges.
 
-Les contrôles partagent la palette et des hitboxes stables. Pour cette adaptation, l'assombrissement indique le survol et l'appui sans déplacer ni redimensionner le bouton. Les panneaux gardent leurs contours utiles. Les zones d'inventaire présentent les cartes détenues sur un fond translucide. Leur capacité est une donnée, jamais un nombre de cases décoratives. Le modal intercepte les clics du plateau. L'infobulle est bornée à la fenêtre et ne capte pas les clics. Les atlas sont facultatifs et chargés localement. Le profiler F3 conserve sa propre fenêtre.
+Controls share the palette and stable hitboxes. In this adaptation, darkening shows hover and press without moving or resizing the button. Panels keep their useful outlines. Inventory areas show the held cards on a translucent background. Their capacity is data, never a number of decorative slots. The modal intercepts board clicks. The tooltip is clamped to the window and does not take clicks. Atlases are optional and loaded locally. The F3 profiler keeps its own window.
 
-## Matrice de conversion
+## Conversion matrix
 
-| Référence | Composition et entrée Ante | Données et action | Recette et écart |
+| Reference | Ante composition and input | Data and action | Acceptance and gap |
 | --- | --- | --- | --- |
-| Menu / profils | `main_menu`, navigation principale et profil local | Graine, run en mémoire, découvertes | Play, Options, Collection, Quit. Les profils multiples et les déblocages complets restent à cartographier. |
-| Run Setup / challenges | Modal `deck_select`, sélecteurs, bouton Seeded Run | `RunConfig`, saisie et presse-papiers, decks Rouge/Bleu et White Stake | Tester seed vide, numérique, alphanumérique, Paste, annulation et Continue. Les autres decks, stakes et challenges sont des écarts. |
-| Réglages / pause | Voile, pages de réglages, pause, Run Info | Navigation, vitesse, VSync, sauvegarde des paramètres du client selon support | Échap et Back ramènent au bon écran. La pause conserve la partie et le score animé. |
-| Choix de blind | Centre du plateau, jetons et aperçu de tag | `RunView.blinds`, Select, Skip validé et révision | Small puis Big puis Boss. Vérifier objectifs et resets de skip par ante. |
-| Main / score | Centre et actions Play Hand, Rank/Suit, Discard. HUD et animation de trace | Main, sélection, tri moteur, score, compteurs | Vérifier sélection après tri et lecture du score aux trois vitesses. Le drag reste distinct. |
-| Récompense / boutique | Centre remplacé, inventaires visibles | Cash Out, offres, achats, ventes, usages, reroll, Next Blind | Vérifier l'encaissement unique et la transition. Redeem, achat de carte à jouer, ouverture de pack et choix de cible sont branchés sur les actions légales. |
-| Possessions / tags | Deux zones d'inventaire et pile à droite du deck | Cartes détenues, capacités, tags du moteur en ordre d'acquisition | Tester capacités variables et deux skips. Les tags en attente restent visibles jusqu’à leur déclenchement. |
-| Deck / infobulles | Overlay Full Deck et Remaining, rangées et compteurs | Pioche, main et défausse en lecture seule. Type, édition, amélioration, sceau | La vue restante ne révèle pas l'ordre de pioche. Back restaure la sélection. Tester atlas absent. |
-| Collection | Hub et sous-vues paginées | Catalogue et découvertes du profil | Les entrées non découvertes gardent leur anonymat. Étendre chaque catégorie avec son contrat. |
-| Victoire / défaite | Modal sur le plateau. Résultat, graine et stats disponibles | Victoire à l'ante 8, résultat courant, mode Endless et limite | Main Menu, New Run, Endless Mode. Annuler New Run revient au résultat. La défaite en Endless garde la victoire de l'ante 8. |
+| Menu / profiles | `main_menu`, main navigation and local profile | Seed, run in memory, discoveries | Play, Options, Collection, Quit. Multiple profiles and full unlocks remain to be mapped. |
+| Run Setup / challenges | `deck_select` modal, selectors, Seeded Run button | `RunConfig`, input and clipboard, Red/Blue decks and White Stake | Test an empty, numeric and alphanumeric seed, Paste, cancel and Continue. Other decks, stakes and challenges are gaps. |
+| Settings / pause | Shade, settings pages, pause, Run Info | Navigation, speed, VSync, saving the client settings where supported | Escape and Back return to the right screen. Pause keeps the game and the animated score. |
+| Blind choice | Board centre, chips and tag preview | `RunView.blinds`, Select, validated Skip and revision | Small, then Big, then Boss. Check targets and skip resets per ante. |
+| Hand / score | Centre and Play Hand, Rank/Suit, Discard actions. HUD and trace animation | Hand, selection, engine sort, score, counters | Check the selection after a sort and score playback at the three speeds. Dragging stays separate. |
+| Reward / shop | Centre replaced, inventories visible | Cash Out, offers, purchases, sales, uses, reroll, Next Blind | Check the single cash out and the transition. Redeem, playing card purchase, pack opening and target choice are wired to the legal actions. |
+| Possessions / tags | Two inventory areas and a stack right of the deck | Held cards, capacities, engine tags in acquisition order | Test variable capacities and two skips. Pending tags stay visible until they trigger. |
+| Deck / tooltips | Full Deck and Remaining overlay, rows and counters | Draw pile, hand and discard read-only. Type, edition, enhancement, seal | The remaining view does not reveal the draw order. Back restores the selection. Test a missing atlas. |
+| Collection | Hub and paged sub-views | Catalogue and profile discoveries | Undiscovered entries stay anonymous. Extend each category with its contract. |
+| Win / loss | Modal over the board. Result, seed and available stats | Win at ante 8, current result, Endless mode and limit | Main Menu, New Run, Endless Mode. Cancelling New Run returns to the result. A loss in Endless keeps the ante 8 win. |
 
-## Recette Windows
+## Windows acceptance
 
-Lancer la version Release avec puis sans `--steam-textures`. Comparer à résolution égale les captures de sélection, main, shop, Full Deck et victoire. Ensuite tester 1920×1080, une fenêtre étroite, un format ultralarge et le DPI à 125 %. Relever pour chaque phase les écarts de position, taille, palette, focus, interaction et comportement à la souris. Vérifier qu'un modal couvre le viewport et que le profiler reste indépendant. Les effets de fond et le CRT de la référence restent des écarts visuels.
+Run the Release build with and then without `--steam-textures`. Compare the selection, hand, shop, Full Deck and win captures at equal resolution. Then test 1920×1080, a narrow window, an ultrawide size and 125 % DPI. For each phase, record the gaps in position, size, palette, focus, interaction and mouse behaviour. Check that a modal covers the viewport and that the profiler stays independent. The reference's background effects and CRT remain visual gaps.
 
-La suite automatisée couvre les états moteur et client, le déterminisme, les contrôles et la projection. Une comparaison visuelle réelle reste une vérification distincte. Pour appliquer le processus, lire [ante-legacy-to-bevy](../.skills/ante-legacy-to-bevy/SKILL.md) puis [ante-ui-parity](../.skills/ante-ui-parity/SKILL.md).
+The automated suite covers engine and client states, determinism, controls and the projection. A real visual comparison remains a separate check. To apply the process, read [ante-legacy-to-bevy](../.skills/ante-legacy-to-bevy/SKILL.md) then [ante-ui-parity](../.skills/ante-ui-parity/SKILL.md).
 
-## Application au plateau partagé
+## Applying it to the shared board
 
-1. **Relier le centre à la phase.** `render` conserve un `RunBoard` pour l'identifiant de run actif. Le fond et les entités d'ancrage sont stables. La phase change le contenu central. Le HUD met à jour ses entités texte, les zones de possession réaffichent leur contenu selon les cartes et les commandes légales, et la pile de tags ne change que quand la liste moteur change. Le changement de seed ou de run crée un nouveau plateau.
-2. **Utiliser la projection visible.** Durant la trace, les régions lisent la projection précédente. Chips et Mult lisent le pas courant. Une fois la trace terminée, elles lisent le nouvel état. Le calcul et les sorties aléatoires restent dans le moteur. Le tri Rank/Suit est une commande moteur qui conserve les cartes sélectionnées.
-3. **Brancher les modaux sur la couche d'overlay.** Deck Inspect choisit Remaining au départ pendant le jeu de la main et Full Deck ailleurs. Full Deck regroupe pioche, main et défausse. Remaining lit les cartes en pioche et les trie pour l'affichage. Le tri des lignes n'expose pas leur ordre de tirage. Les comptes de base proviennent de la projection. Les comptes effectifs de modifications complexes restent à rapprocher de la référence.
-4. **Traiter les cas terminaux au-dessus du plateau.** Le modal lit le statut de victoire enregistré par le moteur. New Run conserve le résultat comme écran de retour. Endless poursuit la run à l'encaissement. Au-delà de la capacité de score, le dernier résultat reste lisible et garde la victoire de l'ante 8. La commande historique `--one-ante` conserve la recette de la graine `0`.
+1. **Tie the centre to the phase.** `render` keeps one `RunBoard` for the active run id. The background and anchor entities are stable. The phase changes the centre content. The HUD updates its text entities, the possession areas redraw their content from the cards and legal commands, and the tag stack only changes when the engine's list changes. A new seed or run creates a new board.
+2. **Use the visible projection.** During a trace, the regions read the previous projection. Chips and Mult read the current step. Once the trace ends, they read the new state. Computation and random outcomes stay in the engine. Rank/Suit sorting is an engine command that keeps the selected cards.
+3. **Wire the modals to the overlay layer.** Deck Inspect starts on Remaining while a hand is being played and on Full Deck elsewhere. Full Deck gathers the draw pile, hand and discard. Remaining reads the cards in the draw pile and sorts them for display. Sorting the rows does not expose their draw order. Base counts come from the projection. Effective counts for complex modifications remain to be reconciled with the reference.
+4. **Handle terminal cases above the board.** The modal reads the win status recorded by the engine. New Run keeps the result as its return screen. Endless continues the run at cash out. Beyond the score capacity, the last result stays readable and keeps the ante 8 win. The legacy `--one-ante` flag keeps the acceptance check of seed `0`.
 
-## Écarts à vérifier sur les captures
+## Gaps to check on captures
 
-| Surface | Points de comparaison | Écarts connus ou validation à faire |
+| Surface | Comparison points | Known gaps or validation to do |
 | --- | --- | --- |
-| Choix de blind / main / boutique | Alignement du HUD et des zones, hauteur des jetons, largeur du centre, deck et tags | Proportions comparées au relevé. Le fond est statique et les captures du rendu final restent à prendre. |
-| Full Deck | Enveloppe du modal, compteurs, ordre couleur/rang, rangées et back | L'affichage adapte le recouvrement au nombre de cartes. Vérifier plusieurs copies d'un même rang et les infobulles à droite. |
-| Victoire | Titre, lignes de statistiques, deux actions sur une rangée, Endless en dessous | Les stats affichées sont celles que l'adaptateur collecte. L'animation et les éléments décoratifs du modal legacy restent des écarts. |
-| Multiformat | Bords de la zone cliente et voile, hauteur et police, zones de clics | La géométrie plein viewport est testée. La recette visuelle et les entrées réelles restent à vérifier à taille et DPI correspondants. |
+| Blind choice / hand / shop | HUD and area alignment, chip height, centre width, deck and tags | Proportions compared with the measurements. Final rendering captures remain to be taken. |
+| Full Deck | Modal frame, counters, suit/rank order, rows and back | The display adapts the overlap to the number of cards. Check several copies of a rank and the tooltips on the right. |
+| Win | Title, stat lines, two actions on a row, Endless below | The stats shown are those the adapter collects. The legacy modal's animation and decorations remain gaps. |
+| Multi-size | Client area edges and shade, height and font, click areas | Full-viewport geometry is tested. Visual acceptance and real input remain to be checked at matching size and DPI. |
 
+## Contracts to reuse
 
-## Contrats à réutiliser
-
-| Besoin | Point d'entrée Bevy | Vérification |
+| Need | Bevy entry point | Check |
 | --- | --- | --- |
-| Bouton et panneau | `components::tiles::tile_button`, `tile_optional`, `menu_button`, `panel` | Un bouton inactif n'émet aucun `Click`. Survol et appui laissent le `Node` et le `UiTransform` stables. |
-| Navigation et focus | `Navigation`, `Page` et `process_clicks` | Revenir à la phase appelante. À l'ouverture d'un modal, le voile intercepte les clics et la navigation filtre les actions de partie. |
-| Mesures et ancres | `components::tiles::viewport_fit`, `fit_room`, `RunBoard` | Le canvas couvre la fenêtre à échelle uniforme. Comparer les centres et bords des zones après redimensionnement. |
-| Images et police | `Atlases` et `services::assets::catalog::load` | Charger depuis le chemin local validé. Les silhouettes, libellés et textes de secours permettent d'utiliser le même contrôle sans atlas. Les vouchers, les packs et l’enseigne statique utilisent les atlas locaux. |
-| Métadonnées contextuelles | `tooltip::attach`, `Tip::currently` et projection du moteur | À partir du même type de carte, vérifier une offre, un objet détenu et une entrée inconnue. Comparer les couleurs Balatro (chance en vert, argent en jaune, valeurs et comptes en orange) et les lignes « Currently ». Tester près des quatre bords et après fermeture d'un modal. |
-| Trace et résultat | `EngineRun::apply_traced`, `Playback` et tuiles de score | Les trois vitesses, Passer et la consultation du deck conservent l'état confirmé et la suite aléatoire. |
+| Button and panel | `components::tiles::tile_button`, `tile_optional`, `menu_button`, `panel` | An inactive button emits no `Click`. Hover and press leave the `Node` and `UiTransform` unchanged. |
+| Navigation and focus | `Navigation`, `Page` and `process_clicks` | Return to the calling phase. When a modal opens, the shade intercepts clicks and navigation filters game actions. |
+| Measurements and anchors | `components::tiles::viewport_fit`, `fit_room`, `RunBoard` | The canvas covers the window at a uniform scale. Compare area centres and edges after a resize. |
+| Images and font | `Atlases` and `services::assets::catalog::load` | Load from the validated local path. Fallback silhouettes, labels and texts let the same control work without an atlas. Vouchers, packs and the static sign use the local atlases. |
+| Contextual metadata | `tooltip::attach`, `Tip::currently` and the engine projection | For the same card type, check an offer, a held object and an unknown entry. Compare the Balatro colours (chance in green, money in yellow, values and counts in orange) and the "Currently" lines. Test near the four edges and after closing a modal. |
+| Trace and result | `EngineRun::apply_traced`, `Playback` and score tiles | The three speeds, Skip and deck inspection keep the confirmed state and the random sequence. |
 
+## Preview and shop contents
 
-## Aperçu et contenus de boutique
+The HUD reads `RunView.selected_hand` for the name, level and base Chips × Mult. The trace takes over for resolution values. Poker Hands reads levels and counts from the same planetarium. Royal Flush is a recognition label and shares the Straight Flush level. Advanced hands appear in the list once they have been played.
 
-Le HUD lit `RunView.selected_hand` pour le nom, le niveau et la base Chips × Mult. La trace prend le relais pour les valeurs de résolution. Poker Hands lit les niveaux et compteurs depuis le même planétarium. Royal Flush est un libellé de reconnaissance et partage le niveau de Straight Flush. Les mains avancées apparaissent dans la liste après avoir été jouées.
+Redeem pairs a voucher id with the view's revision. Prices of free offers come from the engine's shop. A purchase removes only that offer. Current offers, owned vouchers and prices are read separately. The collection pages through the 150 jokers, 32 vouchers and 24 tags and keeps discovery in the local profile. Career unlock progression remains a gap.
 
-Redeem associe un identifiant de voucher à la révision de la vue. Les prix des offres gratuites viennent de la boutique du moteur. L’achat retire uniquement l’offre concernée. Les offres courantes, vouchers possédés et prix se consultent séparément. La collection pagine les 150 jokers, 32 vouchers et 24 tags et garde la découverte dans le profil local. La progression de carrière des déblocages reste un écart.
+Bought packs return to the shop. A free pack opened by a tag hands control back to the blind choice or to the next free pack. Check the choice, applying a target, Skip, the remaining tag stack and resuming after a snapshot. Pack choices use the same card scale as the shop and build their tooltip from the object's description; check the rendering in game. Buying playing cards still uses a provisional text control. Check the shop space first when several vouchers and extra cards are offered.
 
-Les packs achetés reviennent à la boutique. Un pack gratuit ouvert par un tag rend la main au choix de blind ou au pack gratuit suivant. Vérifier le choix, l’application d’une cible, Skip, la pile de tags restante et la reprise après snapshot. Les choix de packs utilisent la même échelle de carte que la boutique et construisent leur infobulle à partir de la description de l'objet; vérifier le rendu en jeu. L'achat de cartes à jouer utilise encore un contrôle textuel provisoire. Vérifier en priorité l'espace de boutique quand plusieurs vouchers et des cartes supplémentaires sont proposés.
+The hover motion is shared by the hand, the shop, packs, possessions and the deck inspector's cards. Debuffed cards in the hand and deck get a red cross and a translucent red tint. Hand and deck cards also show a seal badge. Seal effects come from the experimental engine, but their detailed in-game validation remains to do. A left click on a possession selects it and shows its action buttons. Moving while pressed drags the card along its row. Dropping a Joker re-registers the effects in the order confirmed by the simulation.
 
-Le mouvement de survol est partagé entre la main, la boutique, les packs, les possessions et les cartes de l'inspecteur de deck. Les cartes débuffées de la main et du deck reçoivent une croix rouge et une teinte rouge translucide. Les cartes de la main et du deck affichent aussi un badge de sceau. Les effets des sceaux sont fournis par le moteur expérimental, mais leur validation détaillée en jeu reste à faire. Le clic gauche sur une possession ouvre son panneau d'actions. Un déplacement pendant l'appui glisse la carte dans sa rangée. Le dépôt d'un Joker réenregistre les effets dans l'ordre confirmé par la simulation.
+## Modular client and offer acceptance
 
+Under `crates/ante-app/src`, `main.rs` and `lib.rs` are the entry points. `app/` holds the session, navigation, presentation and score playback. `screens/` holds screen composition. `components/` gathers reusable controls, cards, the theme and tooltips. `services/` holds visual resources, the profile, storage and diagnostics.
 
-## Client modulaire et recette des offres
+The session system alone applies commands to the driver. Screens read `RunView`, and score playback receives a trace from the same engine pass. The draw preview and offer selection stay on the presentation side.
 
-Sous `crates/ante-app/src`, `main.rs` et `lib.rs` sont les points d'entrée. `app/` regroupe la session, la navigation, la présentation et la lecture du score. `screens/` contient la composition des écrans. `components/` rassemble les contrôles réutilisables, les cartes, le thème et les infobulles. `services/` contient les ressources visuelles, le profil, le stockage et les diagnostics.
+`components/tiles.rs` fits the 22 × 12.9 unit canvas (`CANVAS`) and centres the room in every screen (`presentation::room_node`). `CARD_WIDTH`, `CARD_HEIGHT` and `card_px()` give the drawn size of a card (0.95 × `CARD_W`, `CARD_H`); `spread_x` follows `align_cards` for Jokers, consumables and offers. `screens/run/` (`board.rs`, `hud.rs`, `blind.rs`, `deck.rs`) places the HUD, the Joker and consumable areas, the deck (a stack of backs following the remaining cards) and the shop panel in units. `screens/shop/offer.rs` follows `G.UIDEF.shop` (`shop_box`, `offer_area`, `price_tag`, `offer_buttons`) and `components/cards.rs` the Sell and Use buttons (`tiles::card_button`, in `components/tiles/buttons.rs`). Shop, pack and inventory cards are spawned once; `components/selection.rs` raises the selected one, brings it in front (an inventory card takes `GlobalZIndex(100)`, below the overlays at 150 and above) and shows its buttons, without rebuilding the board. The sign's line is Ante's own wording, since the original text is localization.
 
-Le système de session applique seul les commandes au pilote. Les écrans lisent `RunView` et la lecture de score reçoit une trace du même passage moteur. L'aperçu de pioche et la sélection d'une offre restent côté présentation.
+`components/pixel_rect.rs` provides `PixelBox`: a `UiMaterial` with a WGSL shader written for Ante (`pixel_rect.wgsl`) that reproduces the stepped corners, emboss and shadow. It also provides `DynUi` and `DynRole`, which follow the `G.C.DYN_UI` colours by phase and blind. `tile_button`, `card_button`, the HUD, the shop, price tags and card areas use it. Button observers colour the box on hover and press; a disabled hand action takes `ButtonTheme::inactive()` so it stays grey.
 
-`components/tiles.rs` ajuste le canevas de 22 × 12,9 unités (`CANVAS`) et centre la salle dans chaque écran (`presentation::room_node`). `CARD_WIDTH`, `CARD_HEIGHT` et `card_px()` donnent la taille dessinée d'une carte (0,95 × `CARD_W`, `CARD_H`) ; `spread_x` reprend `align_cards` pour les Jokers, les consommables et les offres. `screens/run/` (`board.rs`, `hud.rs`, `blind.rs`, `deck.rs`) place le HUD, les zones Jokers et consommables, le deck (pile de dos selon les cartes restantes) et le panneau de boutique en unités. `screens/shop/offer.rs` suit `G.UIDEF.shop` (`shop_box`, `offer_area`, `price_tag`, `offer_buttons`) et `components/cards.rs` les boutons Sell et Use (`tiles::card_button`, dans `components/tiles/buttons.rs`). La carte d'inventaire sélectionnée reçoit `GlobalZIndex(100)` tant qu'elle l'est, sous les overlays (150 et plus) ; l'offre sélectionnée passe devant ses voisines. La ligne de l'enseigne est une formulation propre à Ante, le texte d'origine étant de la localisation.
+`components/background.rs` puts the imported `background` shader on a full-canvas layer behind the room during a run, and the `splash` shader behind the main menu. Without these shaders, the run layer stays a flat fill of colour C and the menu draws its still swirl.
 
-`components/pixel_rect.rs` fournit `PixelBox` : un `UiMaterial` avec un WGSL écrit pour Ante (`pixel_rect.wgsl`) qui reproduit les coins en escalier, le relief et l'ombre. Il fournit aussi `DynUi` et `DynRole`, qui suivent les couleurs `G.C.DYN_UI` selon la phase et le blind. `tile_button`, `card_button`, le HUD, la boutique, les étiquettes de prix et les zones de cartes l'utilisent. Les observateurs de bouton colorent la boîte au survol et à la pression.
+`services/assets/ui_text.rs` reads a closed list of keys (`ph_improve_run`, `ante_x_voucher`) from `localization/en-us.lua`, by pattern and without running Lua, with Ante's own fallback wording.
 
-`components/background.rs` branche le shader `background` importé sur un calque plein canevas derrière la salle. Sans ce shader, le calque reste un aplat de la couleur C.
+Settings to tune in game:
+- `LOVE_GAMMA` (`services/assets/shaders.rs`): gamma of the converted original shaders (background, editions); higher darkens.
+- `UI_GAMMA` (`components/pixel_rect.rs`): gamma of the boxes' flat colours; higher darkens.
+- `DECK_STACK_SCALE` and `DECK_UNDER_SHADE` (`screens/run/board.rs`): spread of the deck stack and grey of the backs under the top card.
+- `SHOP_ROW_GAP` and `PRICE_TAG_OVERLAP` (`screens/shop.rs`): gap between the shop's two rows and how far the price tag sinks behind the card.
 
-`services/assets/ui_text.rs` lit dans `localization/en-us.lua` une liste fermée de clés (`ph_improve_run`, `ante_x_voucher`), par motif et sans exécuter de Lua, avec une formulation de secours propre à Ante.
+During a blind, `row_blind` shows the `create_UIBox_HUD_blind` box (name, rule, blind chip, target and reward). The hand buttons follow `create_UIBox_buttons`, with the outlined Sort Hand box (`PixelBox::outline`). Since the emboss and shadow are drawn inside the box, their height is added to the bottom padding so the text stays centred. While a hand is steady, the action row stays in place and only the hand is rebuilt (`hand::HandSlots`).
 
-Réglages à tester en jeu :
-- `LOVE_GAMMA` (`services/assets/shaders.rs`) : gamma des shaders d'origine convertis (fond, éditions) ; plus haut assombrit.
-- `UI_GAMMA` (`components/pixel_rect.rs`) : gamma des couleurs plates des boîtes ; plus haut assombrit.
-- `DECK_STACK_SCALE` et `DECK_UNDER_SHADE` (`screens/run/board.rs`) : étalement de la pile du deck et gris des dos sous la carte du dessus.
-- `SHOP_ROW_GAP` et `PRICE_TAG_OVERLAP` (`screens/shop.rs`) : écart entre les deux rangées de la boutique et descente de l'étiquette de prix derrière la carte.
+Buttons, panels and modals have `flex_shrink: 0`: an overflowing column no longer squashes them. The collection grid no longer wraps. Font sizes are rounded to a whole physical pixel (`snap_font_size`) and readjusted on resize; the old snapping to the glyph grid shrank small text by a third at 1080p. Tooltips are placed on whole physical pixels, with 12 px of side padding (`PANEL_SIDE_PADDING`) so line wrapping does not change as they move. F5 no longer exists: VSync is set in the Settings.
 
-Pendant un blind, `row_blind` affiche la boîte de `create_UIBox_HUD_blind` (nom, règle, jeton du blind, cible et récompense). Les boutons de main suivent `create_UIBox_buttons`, avec la boîte Sort Hand contournée (`PixelBox::outline`). Le relief et l'ombre étant dessinés dans la boîte, leur hauteur est ajoutée au padding bas pour que le texte reste centré.
+`text_px` uses a one-unit em (73 px) at scale 1; `shadowed_label` and `text_shadow` give the original text shadow.
 
-Les boutons, panneaux et modales ont `flex_shrink: 0` : une colonne qui déborde ne les écrase plus. La grille de la collection ne passe plus à la ligne. Les tailles de police sont arrondies au pixel physique entier (`snap_font_size`) et réajustées au redimensionnement ; l'ancien calage sur la grille de glyphes réduisait d'un tiers le petit texte à 1080p. Les infobulles sont placées au pixel physique entier, avec 12 px de marge latérale (`PANEL_SIDE_PADDING`) pour que le retour à la ligne ne change pas quand elles bougent. F5 n'existe plus : le VSync se règle dans les Settings.
+The shop uses one area per group, one price per object and a contextual purchase control. Test rerolls, free offers, extra batches and refusals on both builds. The tooltip is composed near the source entity and recomputes its position from the measured size. Technical metadata, the raw edition and jokers' internal state belong to the Dev build and appear in a separate light grey panel under the tooltip. The "Currently" line comes from `JokerView.current` (`CurrentValue`), computed by the simulation for implemented jokers and formatted by `tooltip::currently_text`.
 
-`text_px` utilise un em d'une unité (73 px) à l'échelle 1 ; `shadowed_label` et `text_shadow` donnent l'ombre de texte d'origine.
+Compare sprite proportions, panel height, areas and interactions with captures at equal client size. Repeat on a narrow and an ultrawide window. Joker editions are drawn as overlays with the converted original shaders (see below); without a local shader, the base sprite stays alone. The draw grid exposes the visible counts available in the projection. Check effective counts and the exceptions tied to hidden cards separately before claiming parity.
 
-La boutique utilise une zone par groupe, un prix par objet et un contrôle d'achat contextuel. Tester les relances, offres gratuites, lots supplémentaires et refus sur les deux builds. L'infobulle se compose près de l'entité source et recalcule sa position à partir de la taille mesurée. Les métadonnées techniques, l'édition brute et l'état interne des jokers sont propres au build Dev et s'affichent dans un panneau gris clair séparé, sous l'infobulle. La ligne « Currently » vient de `JokerView.current` (`CurrentValue`), calculée par la simulation pour les jokers implémentés et mise en forme par `tooltip::currently_text`.
+## Pacing, placement and effects
 
-Comparer les proportions des sprites, la hauteur du panneau, les zones et les interactions aux captures à taille cliente égale. Répéter sur fenêtre étroite et ultralarge. Les éditions des jokers sont dessinées en surcouche avec les shaders d'origine convertis (voir ci-dessous) ; sans shader local, le sprite de base reste seul. La grille de pioche expose les comptes visibles disponibles dans la projection. Vérifier séparément les comptes effectifs et les exceptions liées aux cartes masquées avant de déclarer la parité.
+- **Score playback**: `app/playback.rs` builds a timeline in game seconds from the trace and the number of cards played. The `timing` module takes the delays of the [legacy guide](UI_LEGACY_GUIDE.md#score-pacing-and-speed). `Speed` steps through x0.5 to x128 by doubling; the clock applies the original acceleration. `Stage` (`Intro`, `Scoring`, `Total`, `Discard`) drives the lift of the played cards. The chosen speed is saved in the profile (`game_speed`, since version 3), like `GAMESPEED` in the original.
+- **Play area**: the played row is separated from the hand by `PLAY_AREA_RISE − CARD_HEIGHT` (top to top: 3.6 units). Scoring cards get `HoverMotion.raise = HIGHLIGHT_LIFT` during `Scoring`.
+- **Card travel**: `components/travel.rs`. The client rebuilds the hand on every view change, so a card does not keep its entity from one screen to the next. `CardTrail` remembers the last on-screen position of each `CardKey`. Before `UiSystems::Layout`, `travel::prepare` picks the starting point (remembered position or `DeckPile`), computes the delays and folds to zero width a drawn card waiting for its turn, so the hand only spreads over the cards that arrived. Right after layout, `travel::place` starts the new card from its starting point by offsetting its `UiGlobalTransform` and its children's, without a frame of lag; when layout moves under a card already in place, it compensates the offset so the card glides instead of jumping. `CardTrail` also keeps each card's velocity and `Pose` (scale, lift, fan tilt and drop): a rebuilt card, for example after a selection, resumes exactly its look and motion instead of straightening. `ease_hover` then applies the original speed model. Cards that change area leave 0.1 game seconds apart; during the `Discard` stage, `animate` sends the played cards to the off-screen discard. After a Discard click, `travel::detach_discards` (between `process_clicks` and `render`) detaches the cards that left the hand: they become absolutely positioned root nodes (`DiscardedCard`), survive the rebuild and are removed by `retire_discards` on arrival. The following draw waits for them to leave.
+- **Flip**: `travel::prepare` gives a drawn card a `CardBack` child (the back read from the `DeckPile`). As it leaves the deck, `Travel` pinches its width to zero then reopens it; `turn_card_backs` hides the back halfway through the flip.
+- **Fan**: `widgets::Fan::hand` takes the tilt, drop and sway of `CardArea:align_cards`. `HoverMotion` smooths them like the original (`exp(-190·dt)` for rotation, `exp(-50·dt)` for position). `widgets::fan_hand` recomputes it every frame over the cards present: a drawn card counts from the moment it leaves, a discarded card no longer counts.
+- **Hover**: `widgets::card_hover` adds `HoverMotion`; `ease_hover` applies scale, lift and juice every frame, except to the card held by a drag.
+- **Hover tilt**: `components/tilt.rs` replaces the `ImageNode`s inside a card (an entity with `HoverMotion`) with a `TiltImage`, whose `tilt.wgsl` vertex shader follows the `position()` stage of the original shaders (`hovering`, `mouse_screen_pos`, `screen_scale`). Edition overlays (`LoveMaterial`) share this vertex shader, and `update_tilt` only sends the cursor to the hovered card. The depth stays fixed during the tilt so a card never falls behind the UI's far plane.
+- **Card areas**: `components/card_area.rs` gives the position, drop and rotation of each `CardArea:align_cards` area type (`hand`, `play`, `title`, `joker`, `consumeable`, `voucher`), in room units. The sway over time stays in `HoverMotion`.
+- **Card rows and frames**: `components/card_row.rs` draws a card area as a row (position, tilt and drop of each slot, hover like the hand) for the Deck view and the Collection. `tiles::generic_options` reproduces `create_UIBox_generic_options` (JOKER_GREY frame, L_BLACK body, full-width Back) and `tiles::option_cycle` the red page cycle.
+- **Drag and drop**: `card_drag` records the centre of each slot of the row when the move starts. The held card takes the slot of every card whose centre it passes, and those cards glide to the freed slot through `HoverMotion::shift_target`, smoothed like positions (`exp(-50·dt)`). The command is sent on release. Each card of a row has its own `GlobalZIndex` (its position): Bevy brings to the front a node whose z-index is rewritten to a tie.
+- **Popups**: `presentation::animate` adds a coloured `ScorePopup` child to the step's source and triggers its juice. It sits above the cards (`ScoredCard`) and below the held Jokers (`ScoredJoker`), like `card_eval_status_text`. `playback::popups` splits a step into timed popups (`Popup::Again`, `Chips`, `Mult`, `XMult`, `Money`) from `ScoreStep.xmult` and `ScoreStep.money`; `Playback::current_popup` gives the one to show.
+- **Tooltips**: `tooltip::attach` anchors above or below (`TipAnchor::Auto`), `attach_anchored(..., TipAnchor::Left)` on the left for the shop and the Deck view. `Tip::info` adds the side boxes of `components/info.rs` (references, edition, seal, stickers); they sit left of the main popup and are centred on it, while the debug panel stays under the popup. A parent's popup observer overrides its children's, so a panel holding a tag must not carry its own popup.
+- **Debug (Dev build)**: Tab shows `screens/debug.rs`, whose buttons send `Command::Debug(DebugCommand)` through the session command. F6 saves a capture (`app/capture.rs`, [capture library](CAPTURES.md)).
 
-## Rythme, placement et effets
+## Original shaders
 
-- **Lecture du score** : `app/playback.rs` construit une timeline en secondes de jeu à partir de la trace et du nombre de cartes jouées. Le module `timing` reprend les délais du [guide legacy](UI_LEGACY_GUIDE.md#rythme-du-score-et-vitesse). `Speed` parcourt x0,5 à x128 par doublement ; l'horloge applique l'accélération d'origine. `Stage` (`Intro`, `Scoring`, `Total`, `Discard`) pilote le soulèvement des cartes jouées. La vitesse choisie est enregistrée dans le profil (`game_speed`, version 3), comme `GAMESPEED` dans l'original.
-- **Zone de jeu** : la rangée jouée est séparée de la main par `PLAY_AREA_RISE − CARD_HEIGHT` (haut à haut : 3,6 unités). Les cartes qui scorent reçoivent `HoverMotion.raise = HIGHLIGHT_LIFT` pendant `Scoring`. Les tailles de carte d'Ante (120 × 159) diffèrent encore de l'original : à mesurer sur les captures.
-- **Trajet des cartes** : `components/travel.rs`. Le client reconstruit la main à chaque changement de vue, donc une carte ne garde pas son entité d'un écran à l'autre. `CardTrail` retient la dernière position à l'écran de chaque `CardKey`. Avant `UiSystems::Layout`, `travel::prepare` choisit le point de départ (position retenue ou `DeckPile`), calcule les délais et replie à largeur nulle une carte piochée qui attend son tour, pour que la main ne s'étale que sur les cartes arrivées. Juste après la mise en page, `travel::place` fait partir la nouvelle carte de son point de départ en décalant son `UiGlobalTransform` et ceux de ses enfants, sans image de retard ; quand la mise en page bouge sous une carte déjà posée, il compense le décalage pour qu'elle glisse au lieu de sauter. `CardTrail` garde aussi la vitesse et le `Pose` de chaque carte (échelle, montée, inclinaison et chute de l'éventail) : une carte reconstruite, par exemple après une sélection, reprend exactement son aspect et son mouvement au lieu de se redresser. `ease_hover` applique ensuite le modèle de vitesse d'origine. Les cartes qui changent de zone partent à 0,1 s de jeu d'intervalle ; pendant l'étape `Discard`, `animate` envoie les cartes jouées vers la défausse hors écran. Après un clic Discard, `travel::detach_discards` (entre `process_clicks` et `render`) détache les cartes qui ont quitté la main : elles deviennent des nœuds racines en position absolue (`DiscardedCard`), survivent à la reconstruction et sont retirées par `retire_discards` à l'arrivée. La pioche qui suit attend leur départ.
-- **Flip** : `travel::prepare` pose sur une carte piochée un enfant `CardBack` (le dos lu sur le `DeckPile`). À son départ du deck, `Travel` pince sa largeur jusqu'à zéro puis la rouvre ; `turn_card_backs` masque le dos au milieu du flip.
-- **Éventail** : `widgets::Fan::hand` reprend l'inclinaison, la chute et le balancement de `CardArea:align_cards`. `HoverMotion` les lisse comme l'original (`exp(-190·dt)` pour la rotation, `exp(-50·dt)` pour la position). `widgets::fan_hand` le recalcule chaque image sur les cartes présentes : une carte piochée compte dès son départ, une carte défaussée ne compte plus.
-- **Survol** : `widgets::card_hover` ajoute `HoverMotion` ; `ease_hover` applique échelle, lift et juice chaque frame, sauf à la carte tenue par le drag.
-- **Inclinaison au survol** : `components/tilt.rs` remplace les `ImageNode` situés dans une carte (une entité avec `HoverMotion`) par un `TiltImage`, dont le vertex shader `tilt.wgsl` reprend `position()` des shaders d'origine (`hovering`, `mouse_screen_pos`, `screen_scale`). Les overlays d'édition (`LoveMaterial`) partagent ce vertex shader, et `update_tilt` envoie le curseur à la carte survolée seulement.
-- **Zones de cartes** : `components/card_area.rs` donne la position, la chute et la rotation de chaque type de zone de `CardArea:align_cards` (`hand`, `play`, `title`, `joker`, `consumeable`, `voucher`), en unités de salle. Le balancement dans le temps reste dans `HoverMotion`.
-- **Rangées de cartes et cadres** : `components/card_row.rs` dessine une zone de cartes en rangée (position, inclinaison et chute de chaque emplacement, survol comme la main) pour la vue Deck et la Collection. `tiles::generic_options` reproduit `create_UIBox_generic_options` (cadre JOKER_GREY, corps L_BLACK, Back sur toute la largeur) et `tiles::option_cycle` le cycle de pages rouge.
-- **Glisser-déposer** : `card_drag` relève le centre de chaque emplacement de la rangée au début du déplacement. La carte tenue prend l'emplacement de chaque carte dont elle dépasse le centre, et ces cartes glissent vers l'emplacement libéré via `HoverMotion::shift_target`, lissé comme les positions (`exp(-50·dt)`). La commande part au relâchement. Chaque carte d'une rangée a son propre `GlobalZIndex` (sa position) : Bevy remonte au premier plan un nœud dont le z-index est réécrit à égalité.
-- **Popups** : `presentation::animate` ajoute un enfant `ScorePopup` coloré à la source du pas et déclenche son juice. Il est au-dessus des cartes (`ScoredCard`) et sous les Jokers détenus (`ScoredJoker`), comme `card_eval_status_text`. `playback::popups` découpe un pas en popups minutés (`Popup::Again`, `Chips`, `Mult`, `XMult`, `Money`) à partir de `ScoreStep.xmult` et `ScoreStep.money` ; `Playback::current_popup` donne celui à afficher.
-- **Infobulles** : `tooltip::attach` ancre au-dessus ou en dessous (`TipAnchor::Auto`), `attach_anchored(..., TipAnchor::Left)` à gauche pour la boutique et la vue Deck. `Tip::info` ajoute les encarts latéraux de `components/info.rs` (références, édition, sceau, stickers) ; ils sont placés à gauche du popup principal et centrés sur lui, le panneau debug restant sous le popup.
-- **Debug (build Dev)** : Tab affiche `screens/debug.rs`, dont les boutons envoient `Command::Debug(DebugCommand)` par la commande de session. F6 enregistre une capture (`app/capture.rs`, [bibliothèque de captures](CAPTURES.md)).
+The Local Assets import copies the `.fs` files of `services::assets::shaders::SHADER_FILES` if they convert. At startup, `shaders::load` reads each file from the local copy or `--steam-textures`, rewrites it to GLSL 450 (`extern` uniforms in a block of 16 `vec4`, `number`, `Image`, `Texel`, vertex part removed, a `fragment` entry point that computes the atlas coordinates like `Sprite:draw_shader`), then naga validates it and produces the WGSL. `components::edition::LoveMaterial` is a `UiMaterial` specialised per shader; `edition::overlay` puts one node per edition shader above the sprite. Jokers (held and in the shop) and playable cards (hand, play area, Deck view) get the edition on the base and on the face, under the seal. A missing or rejected shader leaves the sprite alone and writes it to the Dev log. The ignored test `local_installation_shaders_convert` lists the conversion of the local installation.
 
-## Shaders d'origine
+The named parameter receives `min(3·rotation, 1) + time/28 + tilt_var.amt` (`edition::tilt_amount`): the cursor's offset from the corner of a hovered card, otherwise each card's ambient tilt (`EditionSeed`). The `mouse_screen_pos`, `hovering` and `screen_scale` uniforms only serve the vertex part, which is removed. The Gold seal gets `voucher` and Spectral cards `booster` (`edition::consumable_look`). Enhancement backgrounds come from `Atlases::card_base_for` and `widgets::playing_card_face`; a Stone card has no face. Still to do: `hologram` on the floating sprite of legendaries and The Soul, `voucher` on Invisible Joker, the parameter's `juice` component.
 
-L'import Local Assets copie les `.fs` de `services::assets::shaders::SHADER_FILES` s'ils se convertissent. Au démarrage, `shaders::load` lit chaque fichier depuis le lot local ou `--steam-textures`, le réécrit en GLSL 450 (uniforms `extern` dans un bloc de 16 `vec4`, `number`, `Image`, `Texel`, partie vertex retirée, point d'entrée `fragment` qui calcule les coordonnées d'atlas comme `Sprite:draw_shader`), puis naga valide et produit le WGSL. `components::edition::LoveMaterial` est un `UiMaterial` spécialisé par shader ; `edition::overlay` pose un nœud par shader d'édition au-dessus du sprite. Les Jokers (détenus et en boutique) et les cartes jouables (main, zone de jeu, vue Deck) reçoivent l'édition sur la base et sur la face, sous le sceau. Un shader absent ou refusé laisse le sprite seul et l'écrit dans le journal Dev. Le test ignoré `local_installation_shaders_convert` liste la conversion de l'installation locale.
+## Tooltips, HUD and packs
 
-Le paramètre nommé reçoit `min(3·rotation, 1) + temps/28 + tilt_var.amt` (`edition::tilt_amount`) : l'écart du curseur au coin d'une carte survolée, sinon l'inclinaison ambiante par carte (`EditionSeed`). Les uniformes `mouse_screen_pos`, `hovering` et `screen_scale` ne servent qu'à la partie vertex, retirée. Le sceau Gold reçoit `voucher` et les Spectral `booster` (`edition::consumable_look`). Les fonds d'amélioration viennent de `Atlases::card_base_for` et `widgets::playing_card_face` ; une carte Stone n'a pas de face. Restent à faire : `hologram` sur le sprite flottant des légendaires et de The Soul, `voucher` sur Invisible Joker, la composante `juice` du paramètre.
+- `tooltip::playing_card` builds a playable card's popup like `generate_card_ui`; sizes follow the original in tiles (name `0.55 − 0.004 × length`, description 0.32, badge 0.33, ×1.2 for the type) and the width stays fixed (4.2 tiles) so the text does not change lines.
+- Text sizes changed after creation go through `presentation::TextSize`; never reinsert `TextFont`, which would reset the default font.
+- The HUD body extends 9.25 tiles past the room at the top and bottom and centres its content; the `hud_column_fits_the_window` test checks it.
+- `pack_board` places the pack box (`sparkles::PackRise`, a 0.45 s rise from `ROOM.y + 9`) above `hand::hand_rows`; `sparkles::update` carries `Particles` (fill, timer, scale, lifespan, speed, colours) for Arcana and Spectral, with a one-second fade. The particles use the presentation RNG.
 
-## Infobulles, HUD et packs
+## Audio, room and dissolve
 
-- `tooltip::playing_card` construit la bulle d'une carte jouable comme `generate_card_ui` ; les tailles suivent l'original en tuiles (nom `0.55 − 0.004 × longueur`, description 0.32, badge 0.33, ×1.2 pour le type) et la largeur reste fixe (4,2 tuiles) pour que le texte ne change pas de ligne.
-- Les tailles de texte modifiées après création passent par `presentation::TextSize` ; ne jamais réinsérer `TextFont`, qui remettrait la police par défaut.
-- Le corps du HUD dépasse la salle de 9,25 tuiles en haut et en bas et centre son contenu ; le test `hud_column_fits_the_window` le vérifie.
-- `pack_board` pose la boîte du pack (`sparkles::PackRise`, montée de 0,45 s depuis `ROOM.y + 9`) au-dessus de `hand::hand_rows` ; `sparkles::update` porte `Particles` (fill, timer, scale, lifespan, speed, couleurs) pour Arcana et Spectral, fondu d'une seconde. Le RNG des particules est celui de la présentation.
-
-## Audio, salle et dissolution
-
-- **Sons** : `services/assets/sounds.rs` charge les effets autorisés (`SOUND_FILES`) depuis le lot local ou `--steam-textures` et joue les messages `Sfx { name, pitch, volume }` avec les volumes du profil. `app/cues.rs` associe les clics aux sons d'origine (`button`, `cardSlide1/2`, `coin2`, `tarot1`) ; le survol, le départ des cartes, les popups et la dissolution émettent leurs propres `Sfx`.
-- **Salle** : `components/room.rs` applique la dérive et la secousse au nœud `Screen`. `travel::place` travaille dans le repère de la salle (`room_frame`), si bien que la secousse ne déclenche aucun trajet de carte.
-- **Dissolution** : `components/dissolve.rs` détache les Jokers et consommables qui quittent l'inventaire (`detach_leaving`), pose un calque `dissolve` sur chaque sprite, pilote l'uniform `dissolve` et les couleurs de brûlure, lance les particules puis retire la carte. `advance_time` ne touche pas l'uniform `dissolve`, qui n'est pas un paramètre d'animation.
-- **Collection** : `CollectionView::Items(ContentGroup)` couvre toutes les catégories ; `collection_sprite` et `collection_art` choisissent le visuel (atlas, carte de base avec édition ou sceau, jeton de blind).
+- **Sounds**: `services/assets/sounds.rs` loads the allowlisted effects (`SOUND_FILES`) from the local copy or `--steam-textures` and plays `Sfx { name, pitch, volume }` messages with the profile's volumes. `ScheduledSfx` plays a sound after a delay, as a `play_sound` inside a delayed event does. `app/cues.rs` maps clicks to the original sounds (`button`, `cardSlide1/2`, `coin2`, `tarot1`) and schedules the pack opening explosion; hover, cards leaving, popups and dissolve emit their own `Sfx`.
+- **Music**: `services/assets/music.rs` loops the five tracks (`MUSIC_FILES`) together and crossfades them toward the track `modulate_sound` picks for the screen (`desired_track`), at the original pitch and volume.
+- **Room**: `components/room.rs` applies the drift and shake to the `Screen` node. `travel::place` works in the room's frame (`room_frame`), so the shake triggers no card travel.
+- **Dissolve**: `components/dissolve.rs` detaches the Jokers and consumables leaving the inventory (`detach_leaving`), puts a `dissolve` layer on each sprite, drives the `dissolve` uniform and burn colours, starts the particles, then removes the card. `advance_time` does not touch the `dissolve` uniform, which is not an animation parameter.
+- **Collection**: `CollectionView::Items(ContentGroup)` covers every category; `collection_sprite` and `collection_art` pick the visual (atlas, base card with an edition or seal, blind chip).

@@ -1,85 +1,85 @@
-# Bibliothèque de captures
+# Capture library
 
-Les captures servent à reproduire l'interface 1:1 : placement, tailles, couleurs et états des composants. Les captures du jeu d'origine sont des images du jeu. Elles restent hors Git (`/captures/` est ignoré) et ne sont jamais livrées.
+Captures are used to reproduce the interface 1:1: placement, sizes, colours and component states. Captures of the original game are images of the game. They stay out of Git (`/captures/` is ignored) and are never shipped.
 
-## Dossiers
+## Folders
 
-| Dossier | Contenu |
+| Folder | Content |
 |---|---|
-| `captures/reference/` | Captures du jeu d'origine, prises par l'utilisateur |
-| `captures/ante/` | Captures d'Ante au même état, copiées depuis `%LOCALAPPDATA%\Ante\captures\` |
+| `captures/reference/` | Captures of the original game, taken by the user |
+| `captures/ante/` | Captures of Ante in the same state, copied from `%LOCALAPPDATA%\Ante\captures\` |
 
-Dans le build Dev, **F6** enregistre la fenêtre dans `%LOCALAPPDATA%\Ante\captures\` sous le nom `<surface>_<horodatage>_<L>x<H>.png`. La surface est la phase courante (`blind-select`, `playing`, `shop`, etc.). Renommer ensuite avec l'état comparé.
+In the Dev build, **F6** saves the window to `%LOCALAPPDATA%\Ante\captures\` as `<surface>_<timestamp>_<W>x<H>.png`. The surface is the current phase (`blind-select`, `playing`, `shop`, etc.). Then rename it after the state being compared.
 
-## Règles de prise
+## Capture rules
 
-- Fenêtré, zone cliente 1920×1080, même résolution pour les deux jeux. Un format large (2560×1080) et un étroit (1280×1024) en second temps.
-- Vitesse de jeu 1x, effets d'écran (CRT) au réglage par défaut, textures d'origine dans Ante (`--steam-textures`).
-- Pour une animation, capturer l'instant indiqué. Une courte vidéo à 60 i/s (OBS, Xbox Game Bar) est utile pour mesurer les durées : nommer `<surface>_<etat>_<L>x<H>.mp4`.
+- Windowed, 1920×1080 client area, the same resolution for both games. A wide (2560×1080) and a narrow (1280×1024) size come second.
+- Game speed 1x, screen effects (CRT) at their default setting, original textures in Ante (`--steam-textures`).
+- For an animation, capture the stated moment. A short 60 fps video (OBS, Xbox Game Bar) helps measure durations: name it `<surface>_<state>_<W>x<H>.mp4`.
 
-## Nommage
+## Naming
 
-`<surface>_<etat>_<L>x<H>.png`, en minuscules, mots séparés par des tirets. Exemple : `run_hand-5-selected_1920x1080.png`.
+`<surface>_<state>_<W>x<H>.png`, lower case, words separated by hyphens. Example: `run_hand-5-selected_1920x1080.png`.
 
 ## Checklist
 
-### Menus et run
+### Menus and run
 
-| Fichier | État |
+| File | State |
 |---|---|
-| `menu_main` | Menu principal |
-| `menu_profile` | Choix du profil |
-| `run-setup_deck` | Nouvelle run, choix du deck |
-| `blind-select_small` | Choix du blind, Small sélectionnable |
-| `blind-select_boss` | Choix du blind, Boss sélectionnable |
+| `menu_main` | Main menu |
+| `menu_profile` | Profile choice |
+| `run-setup_deck` | New run, deck choice |
+| `blind-select_small` | Blind choice, Small selectable |
+| `blind-select_boss` | Blind choice, Boss selectable |
 
-### Plateau
+### Board
 
-| Fichier | État |
+| File | State |
 |---|---|
-| `run_hand-idle` | Main de 8 cartes, rien de sélectionné, 2 jokers et 1 consommable |
-| `run_hand-1-selected` | Une carte sélectionnée |
-| `run_hand-5-selected` | Cinq cartes sélectionnées |
-| `run_play-moved` | Cartes jouées arrivées dans la zone de jeu, avant le premier popup |
-| `run_play-first-card` | Popup de la première carte qui score |
-| `run_play-joker` | Popup d'un joker pendant le score |
-| `run_play-total` | Total chips × mult affiché, avant la défausse |
-| `run_deck-hover` | Survol du deck |
+| `run_hand-idle` | Hand of 8 cards, nothing selected, 2 jokers and 1 consumable |
+| `run_hand-1-selected` | One card selected |
+| `run_hand-5-selected` | Five cards selected |
+| `run_play-moved` | Played cards arrived in the play area, before the first popup |
+| `run_play-first-card` | Popup of the first scoring card |
+| `run_play-joker` | Popup of a joker during scoring |
+| `run_play-total` | Chips × mult total shown, before the discard |
+| `run_deck-hover` | Deck hover |
 
-### Infobulles
+### Tooltips
 
-| Fichier | État |
+| File | State |
 |---|---|
-| `tip_joker-held` | Joker possédé, avec une ligne « Currently » (Green Joker après quelques mains) |
-| `tip_joker-shop` | Joker en boutique |
-| `tip_consumable` | Tarot ou planète possédé |
-| `tip_playing-card` | Carte de la main avec amélioration ou sceau |
-| `tip_voucher` | Voucher en boutique |
-| `tip_tag` | Tag au choix du blind |
-| `tip_pack` | Booster en boutique, puis une carte dans le pack ouvert |
-| `tip_edition` | Joker foil, holo ou polychrome avec le tooltip latéral |
+| `tip_joker-held` | Held joker with a "Currently" line (Green Joker after a few hands) |
+| `tip_joker-shop` | Joker in the shop |
+| `tip_consumable` | Held Tarot or planet |
+| `tip_playing-card` | Hand card with an enhancement or a seal |
+| `tip_voucher` | Voucher in the shop |
+| `tip_tag` | Tag at the blind choice |
+| `tip_pack` | Booster in the shop, then a card in the open pack |
+| `tip_edition` | Foil, holo or polychrome joker with the side tooltip |
 
-### Boutique et fin de manche
+### Shop and end of round
 
-| Fichier | État |
+| File | State |
 |---|---|
-| `cash-out` | Écran de gains |
-| `shop_idle` | Boutique au repos |
-| `shop_pack-open` | Pack ouvert |
-| `run-info` | Run Info, onglet mains |
-| `collection_jokers` | Collection, page des jokers |
-| `options_game` | Options, onglet jeu |
-| `end_win` | Victoire |
-| `end_lose` | Défaite |
+| `cash-out` | Earnings screen |
+| `shop_idle` | Shop at rest |
+| `shop_pack-open` | Open pack |
+| `run-info` | Run Info, hands tab |
+| `collection_jokers` | Collection, jokers page |
+| `options_game` | Options, game tab |
+| `end_win` | Win |
+| `end_lose` | Loss |
 
-### Effets visuels
+### Visual effects
 
-| Fichier | État |
+| File | State |
 |---|---|
-| `vfx_foil`, `vfx_holo`, `vfx_polychrome`, `vfx_negative` | Un joker de chaque édition, au repos et au survol |
-| `vfx_dissolve` | Vente d'un joker, milieu de l'effet |
-| `vfx_debuff` | Carte débuffée par un boss |
+| `vfx_foil`, `vfx_holo`, `vfx_polychrome`, `vfx_negative` | One joker of each edition, at rest and hovered |
+| `vfx_dissolve` | Selling a joker, middle of the effect |
+| `vfx_debuff` | Card debuffed by a boss |
 
-## Après comparaison
+## After comparing
 
-Reporter les écarts et le statut dans la matrice de [la roadmap](ROADMAP.md). Les mesures (positions, tailles) se notent en fractions de la zone cliente, comme dans [le guide Bevy](UI_BEVY_GUIDE.md).
+Report the gaps and the status in the matrix of [the roadmap](ROADMAP.md). Measurements (positions, sizes) are noted as fractions of the client area, as in [the Bevy guide](UI_BEVY_GUIDE.md).

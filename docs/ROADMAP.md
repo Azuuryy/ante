@@ -1,83 +1,83 @@
 # Ante — roadmap
 
-## Jalons
+## Milestones
 
-1. **Parité fonctionnelle et composition statique.** Stabiliser le contrat de simulation, réutiliser les composants du client et terminer les parcours jouables. Le moteur vendoré dans `engine/` (mode Fast) alimente le client.
-2. **Moteur intégré.** Étendre les règles du moteur vendoré (boutiques, packs, campagnes et effets) directement dans `engine/`, avec des tests sur les transitions, scores, traces et reprises. Mesurer la représentation des très grands scores avant d'étendre Endless. Auditer séparément le RNG et l'ordre des tirages avant d'engager la compatibilité des graines Balatro.
-3. **Effets visuels.** Relever les animations, transitions, mouvements, parallaxes et shaders de fond ou d'édition. Concevoir leur adaptation Bevy et vérifier la provenance avant toute réutilisation.
-4. **Polish 1:1.** Vérifier la fidélité par état et par format de fenêtre, puis corriger les écarts de rendu, de mouvement et de timing.
+1. **Functional parity and static layout.** Stabilise the simulation contract, reuse the client components and finish the playable flows. The engine vendored in `engine/` (Fast mode) drives the client.
+2. **Integrated engine.** Extend the rules of the vendored engine (shops, packs, campaigns and effects) directly in `engine/`, with tests on transitions, scores, traces and resumes. Measure how very large scores are represented before extending Endless. Audit the RNG and the draw order separately before committing to Balatro seed compatibility.
+3. **Visual effects.** Record the animations, transitions, movements, parallax and background or edition shaders. Design their Bevy adaptation and check provenance before any reuse.
+4. **1:1 polish.** Check fidelity per state and per window size, then fix the rendering, motion and timing gaps.
 
-Le suivi détaillé des mécaniques et surfaces du wiki est dans [la roadmap des fonctionnalités](ROADMAP_FEATURES.md). Les règles de jeu retenues et leur état d'implémentation sont synthétisés dans [le dossier de logique](GAME_LOGIC_WIKI.md).
+Detailed tracking of the wiki's mechanics and surfaces lives in [the feature roadmap](ROADMAP_FEATURES.md). The game rules adopted and their implementation status are summarised in [the game logic notes](GAME_LOGIC_WIKI.md).
 
-## Statuts
+## Statuses
 
-**Not implemented** surface absente. **MVP** parcours minimal. **In progress** surface jouable avec écarts identifiés. **Done** équivalence fonctionnelle et composition statique proche, comparée à la référence. **Done + VFX** effets de la référence reproduits. **Exactly 1:1** fidélité finale vérifiée.
+**Not implemented** surface missing. **MVP** minimal flow. **In progress** playable surface with known gaps. **Done** functional equivalence and close static layout, compared with the reference. **Done + VFX** the reference's effects reproduced. **Exactly 1:1** final fidelity verified.
 
 ## Interfaces
 
-La recette commune compare une capture à taille cliente égale et vérifie le parcours décrit dans les [guides legacy](UI_LEGACY_GUIDE.md) et [Bevy](UI_BEVY_GUIDE.md).
+The common acceptance check compares a capture at equal client size and walks the flow described in the [legacy](UI_LEGACY_GUIDE.md) and [Bevy](UI_BEVY_GUIDE.md) guides.
 
-| Surface | Statut | Écart ou recette suivante |
+| Surface | Status | Gap or next check |
 | --- | --- | --- |
-| Menu principal | In progress | Fond `splash` d'origine sur toute la fenêtre (RED et BLUE), musique music1. Comparer logo, boutons et retours avec et sans atlas. Le flash d'ouverture (`mid_flash`) attend l'écran de démarrage. |
-| Profils et records | MVP | Vérifier découvertes persistantes. Ajouter profils multiples et records. |
-| Démarrage / graine | In progress | Comparer carrousel et saisie. Étendre les decks et stakes. |
-| Pause | In progress | Comparer reprise, redémarrage et retour à la run. |
-| Options de jeu | MVP | Vérifier la vitesse et inventorier les autres réglages. |
-| Options vidéo | MVP | Vérifier VSync, résolution et modes d'affichage. |
-| Options graphiques / ressources | In progress | Recetter import, remplacement et secours. |
-| Options audio | In progress | Trois curseurs `create_slider` (Master, Music, Game) enregistrés au relâchement. Comparer taille et rendu des curseurs. |
-| Collection / accueil | In progress | Disposition de `create_UIBox_your_collection` (groupe Consumables, compteurs). À comparer à taille égale. |
-| Collection / jokers | In progress | 3 zones `title` de 5, cycle « Page n/N », centre non découvert et « ? ». Popups de partie (badge de rareté) dans toutes les catégories. Le « ? » ne se balance pas encore. |
-| Collection / vouchers | In progress | 2 zones `voucher` de 4 (paires superposées). Comparer prérequis. |
-| Collection / tags | In progress | Grille de 6 par rangée, tag « ? » pour les non découverts. |
-| Collection / decks | In progress | Carrousel avec pastilles, nom et description sur blanc. La pile reste l'aperçu d'Ante. |
-| Collection / tarots | In progress | Zones de 5 et 6, 2 pages. À comparer. |
-| Collection / planètes | In progress | 6 + 6 de Mercure à Éris, sans cycle. À comparer. |
-| Collection / spectraux | In progress | Zones de 4 et 5, 2 pages. À comparer. |
-| Collection / boosters | In progress | 2 × 4 à 1,27 carte dans des zones de 1,3 carte. À comparer. |
-| Collection / améliorations | In progress | 2 × 4. Le texte d'information est une formulation d'Ante. |
-| Collection / éditions | In progress | Base puis 4 éditions sur le Joker, avec leur shader. |
-| Collection / sceaux | In progress | 1 × 4 sur une carte vierge. |
-| Collection / blinds | In progress | Grille de 5 dans l'ordre d'origine et table ANTE / BASE (antes 1 à 16). L'ante la plus haute n'est pas enregistrée : tous les montants restent gris. |
-| Customize Deck | Not implemented | Choix des faces de cartes (`G.UIDEF.customize_deck`) chargées depuis l'import local, avec secours sur les faces par défaut. |
-| Mods | Not implemented | À concevoir : API de mods d'Ante (données puis scripts), chargée avant la run et inscrite dans les journaux de run. Pas d'exécution directe des mods Steamodded. |
-| Challenges | Not implemented | Inventorier conditions, sélection et sortie. |
-| HUD et compteurs | In progress | Reconstruit d'après `create_UIBox_HUD` : boîtes intérieures, jeton de mise, Chips × Mult côte à côte, enseigne animée, couleurs dynamiques et coins pixelisés. À comparer à 1920 × 1056 ; l'ombre portée ne suit pas encore la parallaxe horizontale. |
-| Choix des blinds | In progress | Les panneaux n'ont pas de popup, comme l'original ; le tag à côté de Skip Blind a le sien. Vérifier les trois états et l’objectif du boss. Un boss qui voudrait sa propre popup (modding) n'a pas encore de champ pour la fournir. |
-| Tags détenus | In progress | Comparer pile, acquisition et disparition. |
-| Main et actions | In progress | La rangée Play Hand / Sort / Discard reste en place quand la sélection change, et un bouton désactivé reste gris au survol. Comparer taille, sélection et recouvrement. Vérifier le glisser-déposer et le tri Rank/Suit. |
-| Aperçu Chips × Mult | In progress | Vérifier niveau, sélection vide et lecture du score. |
-| Résolution du score | In progress | Vérifier la trace et les interactions. Les effets animés viendront au jalon VFX. |
-| Encaissement | In progress | Lignes et dollars d'`add_round_eval_row` au rythme d'origine, puis Cash Out. Le panneau ne monte pas encore depuis le bas. |
-| Boutique / cartes | In progress | Haut à 3,587 unités, cadre `UIBox_dyn_container` jusqu'en bas, Buy & Use atomique. Choisir une offre ne reconstruit plus la boutique. Comparer offres variables et contrôles. |
-| Boutique / vouchers | In progress | Recetter achats multiples, prix et prérequis. |
-| Boutique / boosters | In progress | Comparer atlas, tailles, prix et ouverture. |
-| Packs / Standard | In progress | Comparer choix de cartes et retour. |
-| Packs / Buffoon | In progress | Comparer choix de jokers et contraintes de capacité. |
-| Packs / Celestial | In progress | Vérifier le niveau obtenu et la fermeture. |
-| Packs / Arcana | In progress | Vérifier la sélection des cibles et le retour. |
-| Packs / Spectral | In progress | Vérifier la sélection des cibles et le retour. |
-| Inventaire / jokers | In progress | Comparer disposition, panneau de vente et capacités. Vérifier l'ordre d'activation après dépôt. |
-| Inventaire / consommables | In progress | Comparer le glisser-déposer, le panneau d'actions et les capacités. |
-| Deck / Full Deck | In progress | Disposition de `G.UIDEF.view_deck` : boîte du deck, décomptes, colonne des rangs, une zone `title` par couleur. Le DynaText qui alterne base et effectif est remplacé par les deux nombres côte à côte. |
-| Deck / Remaining | In progress | Les cartes déjà piochées restent affichées, grisées par le shader `played`. |
-| Deck / grille au survol | In progress | Vérifier comptes, cartes masquées et valeurs effectives. |
-| Infobulle / carte à jouer | In progress | Nom centré sur boîte blanche, chips et règle d'amélioration, badges et boîtes latérales d'édition et de sceau (`card_h_popup`). À comparer à taille égale : largeur fixe de 4,2 tuiles contre la largeur au contenu de l'original. |
-| Infobulle / joker | In progress | Comparer rareté, état et valeurs dynamiques. Le « Currently » n'est calculé que pour les jokers observables; vérifier chaque valeur suivie et ne pas exposer l'état brut hors build Dev. |
-| Infobulle / consommable | In progress | Comparer badges et valeurs. |
-| Infobulle / voucher | In progress | Comparer description et états de découverte. |
-| Infobulle / booster | In progress | Texte `p_<famille>_<taille>` local avec « choisir N parmi M ». Ouverture Arcana/Spectral : main visible, montée de la boîte et particules ; ordre choix puis cibles du moteur (écart documenté). |
-| Infobulle / tag | In progress | Vérifier effet et cible Orbital. |
-| Infobulle / blind | MVP | Vérifier les données et conditions de focus. |
-| Run Info / Poker Hands | In progress | Comparer niveaux et nombres de mains. |
-| Run Info / Blinds | In progress | Panneaux du choix des blinds (`G.UIDEF.current_blinds`) avec leur état coloré et « Skip Reward » sans bouton. Comparer taille et états à la référence. |
-| Run Info / Vouchers | In progress | Vérifier l'état détenu et la navigation. |
-| Victoire, défaite et Endless | In progress | Comparer les trois résultats et la limite numérique. |
-| Survol et sélection des cartes | In progress | Le zoom au survol (+5 %) est partagé par la main, la boutique, les packs, les inventaires et les vues Deck. Reste : lissage `exp(-60·dt)`, juice, soulèvement de sélection de 0,2·hauteur de carte et inclinaison selon le curseur. |
-| Débuff visuel | MVP | Croix rouge et teinte rouge en place sur la main, le deck et les packs. Reste : comparer avec la capture `vfx_debuff` et porter le shader de débuff d'origine. |
-| Sceaux | In progress | Le moteur expérimental projette les quatre sceaux et leurs descriptions. Recetter et compléter attribution, effets de scoring/défausse/fin de manche et rendu. |
+| Main menu | In progress | Original `splash` background over the whole window (RED and BLUE), music1. Compare logo, buttons and returns with and without the atlas. The opening flash (`mid_flash`) waits for the splash screen. |
+| Profiles and records | MVP | Check persistent discoveries. Add multiple profiles and records. |
+| Run setup / seed | In progress | Compare carousel and input. Extend decks and stakes. |
+| Pause | In progress | Compare resume, restart and return to the run. |
+| Game options | MVP | Check the speed and list the other settings. |
+| Video options | MVP | Check VSync, resolution and display modes. |
+| Graphics / resources options | In progress | Test import, replacement and fallback. |
+| Audio options | In progress | Three `create_slider` sliders (Master, Music, Game) saved on release. Compare slider size and rendering. |
+| Collection / hub | In progress | `create_UIBox_your_collection` layout (Consumables group, counters). To compare at equal size. |
+| Collection / jokers | In progress | 3 `title` areas of 5, "Page n/N" cycle, undiscovered centre and "?". In-run popups (rarity badge) in every category. The "?" does not sway yet. |
+| Collection / vouchers | In progress | 2 `voucher` areas of 4 (stacked pairs). Compare prerequisites. |
+| Collection / tags | In progress | Grid of 6 per row, "?" tag for undiscovered ones. |
+| Collection / decks | In progress | Carousel with dots, name and description on white. The stack remains Ante's preview. |
+| Collection / tarots | In progress | Areas of 5 and 6, 2 pages. To compare. |
+| Collection / planets | In progress | 6 + 6 from Mercury to Eris, no cycle. To compare. |
+| Collection / spectrals | In progress | Areas of 4 and 5, 2 pages. To compare. |
+| Collection / boosters | In progress | 2 × 4 at 1.27 cards in areas of 1.3 cards. To compare. |
+| Collection / enhancements | In progress | 2 × 4. The info text is Ante's wording. |
+| Collection / editions | In progress | Base then 4 editions on the Joker, with their shader. |
+| Collection / seals | In progress | 1 × 4 on a blank card. |
+| Collection / blinds | In progress | Grid of 5 in the original order and ANTE / BASE table (antes 1 to 16). The highest ante is not recorded: every amount stays grey. |
+| Customize Deck | Not implemented | Card face choice (`G.UIDEF.customize_deck`) loaded from the local import, falling back on the default faces. |
+| Mods | Not implemented | To design: Ante's mod API (data, then scripts), loaded before the run and recorded in the run logs. No direct execution of Steamodded mods. |
+| Challenges | Not implemented | List conditions, selection and exit. |
+| HUD and counters | In progress | Rebuilt after `create_UIBox_HUD`: inner boxes, stake chip, Chips × Mult side by side, animated sign, dynamic colours and pixel corners. To compare at 1920 × 1056; the drop shadow does not follow the horizontal parallax yet. |
+| Blind choice | In progress | The panels have no popup, as in the original; the tag next to Skip Blind has its own. Check the three states and the boss objective. A boss that wants its own popup (modding) has no field to provide it yet. |
+| Held tags | In progress | Compare stack, acquisition and removal. |
+| Hand and actions | In progress | The Play Hand / Sort / Discard row stays in place when the selection changes, and a disabled button stays grey on hover. Compare size, selection and overlap. Check drag and drop and Rank/Suit sorting. |
+| Chips × Mult preview | In progress | Check level, empty selection and score readout. |
+| Score resolution | In progress | Check the trace and interactions. Animated effects come with the VFX milestone. |
+| Cash out | In progress | Rows and dollars of `add_round_eval_row` at the original pace, then Cash Out. The panel does not rise from the bottom yet. |
+| Shop / cards | In progress | Top at 3.587 units, `UIBox_dyn_container` frame down to the bottom, atomic Buy & Use. Choosing an offer no longer rebuilds the shop. Compare variable offers and controls. |
+| Shop / vouchers | In progress | Test multiple purchases, prices and prerequisites. |
+| Shop / boosters | In progress | Compare atlas, sizes, prices and opening. |
+| Packs / Standard | In progress | Compare card choice and return. |
+| Packs / Buffoon | In progress | Compare joker choice and capacity limits. |
+| Packs / Celestial | In progress | Check the level gained and closing. |
+| Packs / Arcana | In progress | Check target selection and return. |
+| Packs / Spectral | In progress | Check target selection and return. |
+| Inventory / jokers | In progress | Compare layout, sell panel and capacities. Check the trigger order after a drop. |
+| Inventory / consumables | In progress | Compare drag and drop, the action panel and capacities. |
+| Deck / Full Deck | In progress | `G.UIDEF.view_deck` layout: deck box, tallies, rank column, one `title` area per suit. The DynaText that alternates base and effective counts is replaced by both numbers side by side. |
+| Deck / Remaining | In progress | Cards already drawn stay displayed, greyed by the `played` shader. |
+| Deck / hover grid | In progress | Check counts, hidden cards and effective values. |
+| Tooltip / playing card | In progress | Name centred on a white box, chips and enhancement rule, badges and side boxes for edition and seal (`card_h_popup`). To compare at equal size: fixed width of 4.2 tiles against the original's content width. |
+| Tooltip / joker | In progress | Compare rarity, state and dynamic values. "Currently" is only computed for observable jokers; check every tracked value and do not expose raw state outside the Dev build. |
+| Tooltip / consumable | In progress | Compare badges and values. |
+| Tooltip / voucher | In progress | Compare description and discovery states. |
+| Tooltip / booster | In progress | Local `p_<family>_<size>` text with "choose N of M". Arcana/Spectral opening: hand visible, box rise and particles; the engine's choice-then-targets order (documented gap). |
+| Tooltip / tag | In progress | Check the effect and the Orbital target. |
+| Tooltip / blind | MVP | Check the data and focus conditions. |
+| Run Info / Poker Hands | In progress | Compare levels and hand counts. |
+| Run Info / Blinds | In progress | Blind choice panels (`G.UIDEF.current_blinds`) with their coloured state and "Skip Reward" without a button. Compare size and states with the reference. |
+| Run Info / Vouchers | In progress | Check the owned state and navigation. |
+| Win, loss and Endless | In progress | Compare the three outcomes and the numeric limit. |
+| Card hover and selection | In progress | The hover zoom (+5 %) is shared by the hand, shop, packs, inventories and Deck views. Left: `exp(-60·dt)` smoothing, juice, a selection lift of 0.2 × card height and cursor tilt. |
+| Debuff visuals | MVP | Red cross and red tint on the hand, deck and packs. Left: compare with the `vfx_debuff` capture and port the original debuff shader. |
+| Seals | In progress | The experimental engine projects the four seals and their descriptions. Test and complete assignment, scoring/discard/end-of-round effects and rendering. |
 
-## Outils Dev
+## Dev tools
 
-Profiler, logs structurés, export et détails de survol sont compilés avec `dev-tools`. Recetter les raccourcis dans Dev et vérifier l'absence du profiler, des logs Ante et des exports dans Prod.
+Profiler, structured logs, export and hover details are compiled with `dev-tools`. Test the shortcuts in Dev and check that the profiler, Ante logs and exports are absent from Prod.

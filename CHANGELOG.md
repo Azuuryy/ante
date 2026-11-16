@@ -86,6 +86,7 @@
 
 ### Changed
 
+- The documentation is in English: the roadmaps, the interface guides, the game logic notes, the capture library and the two project skills, so outside contributors can follow it.
 - The Blinds tab of Run Info shows the blind choice panels side by side, as `G.UIDEF.current_blinds` does: each blind prints its state (Current, Defeated, Skipped, Upcoming or Select, in its colour) instead of the Select button, and the tag shows "Skip Reward" instead of the Skip Blind button.
 - Collection popups are the ones cards have in a run, as `Card:generate_UIBox_ability_table` builds them: Jokers carry their rarity badge, Tarot, Planet and Spectral cards their set, vouchers and boosters their type; an enhancement shows its rule with its name as a badge, a seal its name and badge, an edition the "Edition" badge and its own; tags have no badge. Locked entries read "Locked" with their unlock condition. The "Discovered" badge is gone. The catalog now gives each Joker's rarity (`Content.rarity`).
 - The Blind choice panels have no popup any more, as in the original; this lets the tag next to Skip Blind show its popup, which the panel's popup used to cover. Tag popups have no "Tag" badge.

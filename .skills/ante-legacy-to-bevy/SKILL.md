@@ -1,10 +1,10 @@
 ---
 name: ante-legacy-to-bevy
-description: Convertir un comportement observé dans Balatro en écran ou interaction Bevy d'Ante, avec traçabilité vers les états et actions du moteur.
+description: Convert a behaviour observed in Balatro into an Ante Bevy screen or interaction, traceable to the engine's states and actions.
 ---
 
-Lire la section pertinente du [guide legacy](../../docs/UI_LEGACY_GUIDE.md), puis son équivalent dans le [guide Bevy](../../docs/UI_BEVY_GUIDE.md). Chercher d'abord le point d'entrée et le callback dans l'installation locale, en lecture seule.
+Read the relevant section of the [legacy guide](../../docs/UI_LEGACY_GUIDE.md), then its counterpart in the [Bevy guide](../../docs/UI_BEVY_GUIDE.md). First find the entry point and the callback in the local installation, read-only.
 
-Pour l'interaction concernée, relever conditions, données visibles, entrée, action, effets et retour. Déterminer si l'état appartient au moteur ou à la navigation. Faire passer les actions de jeu par `Command` et exposer leurs résultats par `RunView`. Un tri de présentation, un modal et le score animé lisent les projections sans modifier la simulation. Réutiliser les couches du plateau et les contrôles existants. Décrire les écarts et actualiser la recette du guide Bevy après vérification.
+For the interaction at hand, record its conditions, visible data, input, action, effects and return. Decide whether the state belongs to the engine or to navigation. Route game actions through `Command` and expose their results through `RunView`. Presentation sorting, a modal and the animated score read the projections without changing the simulation. Reuse the existing board layers and controls. Describe the gaps and update the Bevy guide's acceptance checks after verification.
 
-Reprendre fidèlement la logique, les formules, les constantes et les séquences d'origine, adaptées à Rust et à l'ECS. Ne jamais commiter les fichiers d'origine (Lua, images, sons, polices, shaders `.fs`, textes) : les charger au runtime depuis l'installation locale via l'import autorisé, avec un secours explicite. Le moteur vendoré dans `engine/` se modifie directement, avec des tests, et `engine/NOTICE.md` reste à jour.
+Port the original logic, formulas, constants and sequences faithfully, adapted to Rust and the ECS. Never commit the original files (Lua, images, sounds, fonts, `.fs` shaders, text): load them at runtime from the local installation through the allowlisted importer, with an explicit fallback. Change the vendored engine in `engine/` directly, with tests, and keep `engine/NOTICE.md` up to date.

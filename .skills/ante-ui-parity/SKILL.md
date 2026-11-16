@@ -1,8 +1,8 @@
 ---
 name: ante-ui-parity
-description: Comparer et ajuster les écrans Bevy d'Ante à une capture de Balatro dans le même état et à la même résolution.
+description: Compare Ante's Bevy screens with a Balatro capture taken in the same state and at the same resolution, and adjust them.
 ---
 
-Utiliser la capture utilisateur ou la référence locale correspondant à la phase, rangée selon [la bibliothèque de captures](../../docs/CAPTURES.md) (`captures/reference/`, hors Git). Capturer Ante avec F6 dans le build Dev, au même format. Lire les conventions de [mise en page et recette](../../docs/UI_BEVY_GUIDE.md). Relever d'abord limites de la zone cliente, ancrages, proportions des régions, espacements, palette et états des contrôles. Garder la mise à l'échelle uniforme et tester les hitboxes après redimensionnement.
+Use the user's capture or the local reference for the phase, filed as described in [the capture library](../../docs/CAPTURES.md) (`captures/reference/`, outside Git). Capture Ante with F6 in the Dev build, at the same size. Read the [layout and acceptance](../../docs/UI_BEVY_GUIDE.md) conventions. First record the client area bounds, anchors, region proportions, spacing, palette and control states. Keep scaling uniform and test the hitboxes after a resize.
 
-Composer à partir des composants Ante. Charger les sprites locaux disponibles et vérifier leur rendu de secours. L'exigence utilisateur prime sur la référence, notamment l'assombrissement sans mouvement des boutons. Comparer côte à côte à dimensions égales, puis vérifier un format large et un format étroit. Reporter les écarts observés et préciser les états qui restent à comparer. Une compilation valide le code. La comparaison visuelle demande une capture du rendu.
+Build from Ante's components. Load the available local sprites and check their fallback rendering. The user's requirements take precedence over the reference, notably buttons that darken without moving. Compare side by side at equal size, then check a wide and a narrow window. Report the gaps found and name the states still to compare. A successful build validates the code; a visual comparison needs a capture of the rendering.
