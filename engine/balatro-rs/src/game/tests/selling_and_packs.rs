@@ -64,10 +64,54 @@ fn test_glass_shatter_preserves_hand_size() {
 
     g.play_selected().expect("play selected");
 
-    // Hand size must be unchanged
-    assert_eq!(g.available.cards().len(), hand_size_before);
+    // The hand refills to hand_size, the 7 cards set above are topped up to 8
+    assert_eq!(g.available.cards().len(), g.hand_size());
+    assert!(hand_size_before < g.hand_size());
     // Glass card must be permanently gone (not hiding in discarded to return next deal)
     assert!(g.discarded.iter().all(|c| c.id != glass_id));
+}
+
+#[test]
+fn test_play_refills_hand_to_hand_size_after_cards_are_lost() {
+    let mut g = Game::default();
+    g.start();
+    g.deal();
+    g.stage = Stage::Blind(Blind::Small);
+    g.blind = Some(Blind::Small);
+    assert_eq!(g.available.cards().len(), g.hand_size());
+
+    // Two cards leave the hand before the play, as a Joker or consumable would.
+    let lost: Vec<Card> = g.available.cards().into_iter().take(2).collect();
+    for card in &lost {
+        g.available.remove_by_id(card.id);
+    }
+    let hand_size = g.hand_size();
+    let to_select = g.available.cards()[0];
+    g.available.select_card(to_select).expect("select card");
+
+    g.play_selected().expect("play selected");
+
+    assert_eq!(g.available.cards().len(), hand_size);
+}
+
+#[test]
+fn test_discard_refills_hand_to_hand_size_after_cards_are_lost() {
+    let mut g = Game::default();
+    g.start();
+    g.deal();
+    assert_eq!(g.available.cards().len(), g.hand_size());
+
+    let lost: Vec<Card> = g.available.cards().into_iter().take(2).collect();
+    for card in &lost {
+        g.available.remove_by_id(card.id);
+    }
+    let hand_size = g.hand_size();
+    let to_select = g.available.cards()[0];
+    g.available.select_card(to_select).expect("select card");
+
+    g.discard_selected().expect("discard selected");
+
+    assert_eq!(g.available.cards().len(), hand_size);
 }
 
 #[test]

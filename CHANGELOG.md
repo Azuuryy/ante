@@ -110,6 +110,7 @@
 
 ### Changed
 
+- After a play or a discard the hand refills to its size, like `G.FUNCS.draw_from_deck_to_hand`, not only by the number of cards played or discarded. Cards lost earlier in the round (to a Joker or consumable) are replaced too. The Serpent still draws 3.
 - The profile moves to version 5 with the unlocked items, career statistics and wins per deck. Earlier profiles keep their discoveries and settings but start with everything the original locks locked; "Unlock all" (Dev build) still opens everything.
 - Joker descriptions write card ranks as figures, like the original: "each scored 10 or 4", "every scored 2", "Ace, 2, 3, 5 or 8".
 - The documentation is in English: the roadmaps, the interface guides, the game logic notes, the capture library and the two project skills, so outside contributors can follow it.

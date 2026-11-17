@@ -297,7 +297,7 @@ impl Game {
         let first_hand = self.hand_ranks_played_this_round.is_empty();
         let best = selected.best_hand_with(self.hand_rules())?;
         let scored = best.clone();
-        let hooked = self.press_play(&best);
+        self.press_play(&best);
         let score = self.calc_score_inner(best, trace);
         let clear_blind = self.handle_score(score)?;
         // must run before the discard/redraw below: self.available still reflects
@@ -308,12 +308,13 @@ impl Game {
         #[cfg(feature = "ante-extra-jokers")]
         self.age_ice_cream();
         self.discarded.extend(self.available.selected());
-        let removed = self.available.remove_selected();
-        // The hand refills the cards played and those The Hook discarded.
+        self.available.remove_selected();
+        // The hand refills to its size: the cards played, those The Hook discarded and
+        // any lost earlier to a Joker or consumable are replaced (`draw_from_deck_to_hand`).
         let n = if self.active_boss() == Some(BossBlind::Serpent) {
             3
         } else {
-            removed + hooked
+            self.refill_count()
         };
         self.draw(n);
         let mut shattered = 0;
@@ -349,15 +350,21 @@ impl Game {
         self.discards_remaining -= 1;
         let discarded = self.available.selected();
         self.card_makers_discard(&discarded, first);
-        let removed = self.available.remove_selected();
+        self.available.remove_selected();
         let n = if self.active_boss() == Some(BossBlind::Serpent) {
             3
         } else {
-            removed
+            self.refill_count()
         };
         self.draw(n);
         self.record_discard(discarded);
         Ok(())
+    }
+
+    /// Cards that refill the hand to `hand_size()` after cards left it.
+    fn refill_count(&self) -> usize {
+        self.hand_size()
+            .saturating_sub(self.available.cards().len())
     }
 
     /// The discard of `discarded` cards already out of the hand: they go to the discard

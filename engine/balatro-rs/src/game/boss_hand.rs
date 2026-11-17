@@ -59,9 +59,9 @@ impl Game {
     /// `Blind:press_play`, before the hand scores. The Hook discards two random cards
     /// held in hand (`pseudorandom_element`), through the same discard as the Discard
     /// action but without spending a discard; The Tooth costs $1 per card played. Both
-    /// trigger the boss's ability. Returns how many cards The Hook discarded, which the
-    /// hand refills after the play.
-    pub(super) fn press_play(&mut self, hand: &MadeHand) -> usize {
+    /// trigger the boss's ability. The hand is refilled after the play, so the cards
+    /// The Hook discarded are replaced like the played ones.
+    pub(super) fn press_play(&mut self, hand: &MadeHand) {
         match self.active_boss() {
             Some(BossBlind::Hook) => {
                 let mut held = self.available.not_selected();
@@ -75,18 +75,15 @@ impl Game {
                     self.available.remove_by_id(card.id);
                     hooked.push(card);
                 }
-                let count = hooked.len();
                 self.record_discard(hooked);
                 self.boss_play_triggered = true;
-                count
             }
             Some(BossBlind::Tooth) => {
                 // Ante's money cannot go below $0, so The Tooth stops there.
                 self.money = self.money.saturating_sub(hand.all.len());
                 self.boss_play_triggered = true;
-                0
             }
-            _ => 0,
+            _ => {}
         }
     }
 
