@@ -24,11 +24,13 @@ fn redeem(g: &mut Game, voucher: Voucher) {
 mod boss_effects;
 mod boss_play;
 mod boss_runs;
+mod decks;
 mod editions_and_snapshots;
 mod enhancements_and_seals;
 mod real_rng;
 mod rerolls_and_vouchers;
 mod scoring_and_debuffs;
 mod selling_and_packs;
+mod stakes;
 mod tags;
 mod voucher_effects;

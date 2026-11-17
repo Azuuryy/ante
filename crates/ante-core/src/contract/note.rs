@@ -78,6 +78,14 @@ pub enum JokerNote {
     PlusStone,
     /// "Level Up!".
     LevelUp,
+    /// "Copied!".
+    Copied,
+    /// "-$n" for a Rental Joker.
+    Rent(usize),
+    /// "Disabled!".
+    Disabled,
+    /// "Duplicated!".
+    Duplicated,
 }
 
 impl std::fmt::Display for JokerNote {
@@ -115,6 +123,10 @@ impl std::fmt::Display for JokerNote {
             Self::PlusJoker => write!(f, "+1 Joker"),
             Self::PlusStone => write!(f, "+1 Stone"),
             Self::LevelUp => write!(f, "Level Up!"),
+            Self::Copied => write!(f, "Copied!"),
+            Self::Rent(amount) => write!(f, "-${amount}"),
+            Self::Disabled => write!(f, "Disabled!"),
+            Self::Duplicated => write!(f, "Duplicated!"),
         }
     }
 }

@@ -16,6 +16,7 @@ const CONFIG: RunConfig = RunConfig {
     deck: Deck::Blue,
     goal: CampaignGoal::Standard,
     starting_money: None,
+    stake: 1,
 };
 
 #[test]

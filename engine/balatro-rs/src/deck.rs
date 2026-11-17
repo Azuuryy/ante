@@ -32,6 +32,11 @@ impl Deck {
         self.cards.extend(other);
     }
 
+    /// A deck of exactly `cards`.
+    pub(crate) fn from_cards(cards: Vec<Card>) -> Self {
+        Self { cards }
+    }
+
     pub fn push(&mut self, card: Card) {
         self.cards.push(card);
     }

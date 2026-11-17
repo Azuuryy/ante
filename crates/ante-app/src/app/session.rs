@@ -74,6 +74,10 @@ pub(crate) struct Session {
     pub(crate) debug_panel: bool,
     pub(crate) speed: Speed,
     pub(crate) playback: Option<(RunView, Playback)>,
+    /// What the current run remembers for its unlocks.
+    pub(crate) unlocks: crate::services::unlocks::RunTracker,
+    /// Names of items just unlocked, shown one after the other.
+    pub(crate) unlock_toasts: std::collections::VecDeque<String>,
     /// Notes of the last commands, shown once the score animation is over.
     pub(crate) notes: std::collections::VecDeque<ante_core::contract::Note>,
     pub(crate) options_tab: u8,
@@ -109,6 +113,8 @@ impl Session {
             speed: Speed::default(),
             playback: None,
             notes: Default::default(),
+            unlocks: Default::default(),
+            unlock_toasts: Default::default(),
             options_tab: 0,
             asset_settings,
             run_info_tab: 0,
@@ -278,7 +284,7 @@ pub(crate) fn process_clicks(
                     session.navigation.screen = Page::Run;
                 }
             }
-            Click::Start | Click::Restart => start_run(&mut session, &*backend.0, click),
+            Click::Start | Click::Restart => start_run(&mut session, &*backend.0, &profile, click),
             Click::Menu => {
                 session.run = None;
                 session.confirmed = None;
@@ -404,7 +410,13 @@ pub(crate) fn process_clicks(
                 }
             }
             Click::Skip => session.playback = None,
-            Click::Play(action) => play(&mut session, &mut metrics, &mut profile, action),
+            Click::Play(action) => play(
+                &mut session,
+                &mut metrics,
+                &mut profile,
+                &*backend.0,
+                action,
+            ),
         }
     }
 }

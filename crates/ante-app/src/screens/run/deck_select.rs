@@ -5,8 +5,12 @@ pub fn deck_select(
     session: &Session,
     atlases: &Atlases,
     backend: &dyn ante_core::contract::GameBackend,
+    profile: &crate::services::profile::Profile,
 ) {
     let deck = session.navigation.deck.unwrap_or(DeckChoice::Red);
+    let deck_locked = !profile.is_unlocked(deck.id(), deck.unlock());
+    let stake_limit = crate::app::navigation::stake_limit(profile, deck);
+    let deck_rule = deck.effect();
     let can_continue = session
         .run
         .as_ref()
@@ -70,16 +74,12 @@ pub fn deck_select(
                         ))
                         .with_children(|details| {
                             label(details, deck.name(), 33.0, INK);
-                            description(
-                                details,
-                                match deck {
-                                    DeckChoice::Red => "+1 discard\neach round",
-                                    DeckChoice::Blue => "+1 hand\neach round",
-                                    _ => "Deck unavailable\nin this build",
-                                },
-                                256.0,
-                                105.0,
-                            );
+                            let text = if deck_locked {
+                                format!("Locked\n{}", deck.unlock().unwrap_or_default())
+                            } else {
+                                deck_rule.clone()
+                            };
+                            description(details, &text, 256.0, 105.0);
                         });
                 });
             tile_button(picker, ">", RED, (0.55, 2.9), 0.6, Click::ShiftDeck(1));
@@ -112,16 +112,15 @@ pub fn deck_select(
                     }
                     preview.spawn(column(4.0)).with_children(|details| {
                         label(details, STAKES[session.stake], 24.0, INK);
-                        description(
-                            details,
-                            if session.stake == 0 {
-                                "Base difficulty"
-                            } else {
-                                "Locked in this build"
-                            },
-                            334.0,
-                            46.0,
-                        );
+                        let text = if session.stake > stake_limit {
+                            format!(
+                                "Locked: win with this deck at {}",
+                                crate::app::navigation::STAKES[session.stake - 1]
+                            )
+                        } else {
+                            crate::app::navigation::STAKE_RULES[session.stake].to_owned()
+                        };
+                        description(details, &text, 334.0, 46.0);
                     });
                 });
             tile_optional(

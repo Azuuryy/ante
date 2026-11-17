@@ -92,7 +92,7 @@ impl Game {
             .iter()
             .position(|c| c == &consumable)
             .ok_or(GameError::InvalidAction)?;
-        self.consumables.remove(i);
+        self.remove_consumable_at(i);
         self.apply_consumable(consumable)
     }
 
@@ -207,7 +207,7 @@ impl Game {
         };
         self.stage == Stage::Shop()
             && self.shop.consumables.contains(c)
-            && self.shop.consumable_price(c, &self.vouchers) <= self.money
+            && self.shop.consumable_price(c, &self.vouchers) <= self.spendable()
             && !targets
             && self.creation_room(c)
             && self.consumable_usable(c)
@@ -221,7 +221,7 @@ impl Game {
         let price = self.shop.consumable_price(&c, &self.vouchers);
         self.shop.buy_consumable(&c)?;
         self.shop.free_consumables.retain(|offer| *offer != c);
-        self.money -= price;
+        self.pay(price);
         self.apply_consumable(c)
     }
 
@@ -230,11 +230,11 @@ impl Game {
             return Err(GameError::InvalidStage);
         }
         let price = self.shop.pack_price(&pack, &self.vouchers);
-        if price > self.money {
+        if price > self.spendable() {
             return Err(GameError::InvalidBalance);
         }
         self.shop.buy_pack(&pack)?;
-        self.money -= price;
+        self.pay(price);
         self.open_booster(pack);
         Ok(())
     }
@@ -256,6 +256,7 @@ impl Game {
             description: pack.description(),
             contents: pack.contents,
         });
+        self.sticker_pack();
         self.stage = Stage::PackOpen();
     }
 

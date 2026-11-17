@@ -76,8 +76,8 @@ This roadmap tracks detailed behaviour, surface by surface. The high-level roadm
 | --- | --- | --- |
 | Joker, voucher and tag collection | In progress | Paging and discovery present; items with an unlock condition show a padlock, a "Locked" tooltip and their condition. Check each condition and the padlock rendering at real size. |
 | Card, booster, enhancement, edition, seal and blind collection | Done, to compare | Pages after `create_UIBox_your_collection_*`: card areas, page cycle, Tag and Blind grids, ante table. |
-| Unlocks and career | In progress | Profile JSON: `version`, `discovered`, `all_unlocked`, with migration from older versions. The "Unlock all" debug button is in Settings > GAME (`dev-tools`). Discovery still stands in for real unlocks; counting career statistics is still to do. |
-| Decks, stakes and challenges | To map | The 15 decks have an id and an unlock condition shown in the Collection. Stake rules, locked selection and challenges are not wired. |
+| Unlocks and career | To verify | Profile version 5 with `unlocked`, `career` and `deck_wins`. The conditions of `check_for_unlock` are checked after each command, locked content stays out of the pools, decks and stakes are locked in the selector, and "Unlocked!" shows the item. See `docs/CONTENT_COVERAGE.md`. |
+| Decks, stakes and challenges | In progress | The 15 decks and 8 stakes play with their original rules and unlocks. Challenges are not wired. |
 
 ## Consumables, targeting and conditions
 
@@ -96,10 +96,10 @@ This roadmap tracks detailed behaviour, surface by surface. The high-level roadm
 
 | Feature | Current status | Work / exit criterion |
 | --- | --- | --- |
-| Profile format | In progress | `profile.json` version 4, reads versions 1 to 3, atomic write. Fields: `discovered` (sorted set), `all_unlocked` (boolean), `game_speed` and the `volume`, `music_volume` and `game_volume` settings. |
+| Profile format | In progress | `profile.json` version 5, reads versions 1 to 4, atomic write. Fields: `discovered` (sorted set), `all_unlocked` (boolean), `game_speed`, the `volume`, `music_volume` and `game_volume` settings, and the progress: `unlocked`, `career`, `deck_wins`. |
 | Debug Unlock All | Done | Covers every category and stays available after a first unlock, for categories added later. |
 | Collection lock | In progress | `Content.unlock` carries the condition; locked entries show a padlock, a "Locked" tooltip and the condition. Legendary Jokers point to the Spectral pack. |
-| Achievement unlocks | To do | Conditions are descriptive and not evaluated. Missing: an `unlocked` set distinct from `discovered`, career statistics and the condition checks (discarded Royal Flush, 5 Jacks, etc.). |
+| Achievement unlocks | To verify | Item unlocks are evaluated (`services/unlocks`). Steam-style achievements (`unlock_achievement`) are not ported. |
 | Collection counters | Done | Each hub button shows discovered / total. The overall percentage is not shown. |
 | Other categories | Done, to compare | Tarot, Planet, Spectral, enhanced cards, seals, editions, boosters and blinds are active, with their original visuals. Consumables, packs and bosses met are discovered in game; enhancements, editions and seals only through Unlock All for now. Known defect: at 1920×1057, the pages' ">" arrow is missing. |
 

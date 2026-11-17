@@ -59,7 +59,7 @@ impl EngineRun {
                         description: boss
                             .map_or_else(String::new, |boss| boss.description().to_owned()),
                         target: targets[index],
-                        reward: candidate.reward(),
+                        reward: game.blind_reward(candidate),
                         selectable: active == Some(index),
                         passed: active.is_some_and(|current| index < current),
                         skipped: self.skipped_blinds.contains(&candidate),
@@ -150,6 +150,7 @@ impl EngineRun {
                 price: game.price(c.cost()),
                 can_use: legal.contains(&Action::UseConsumable(*c)),
                 can_sell: legal.contains(&Action::SellConsumable(index)),
+                sell_price: game.consumable_sell_value(index),
                 ..consumable_view(*c, index)
             })
             .collect();
@@ -335,7 +336,9 @@ impl EngineRun {
             last_hand_score: self.last_hand_score,
             hands: game.plays,
             discards: game.discards(),
-            money: game.money,
+            money: game.balance().0,
+            hand_size: game.hand_size(),
+            in_debt: game.balance().1,
             reward: game.reward,
             reward_rows: reward_rows(&game.round_reward, game.interest_max()),
             deck_cards,

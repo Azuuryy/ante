@@ -33,7 +33,7 @@ impl Game {
         if self.stage != Stage::Shop() {
             return None;
         }
-        if self.money < self.current_reroll_cost() {
+        if self.spendable() < self.current_reroll_cost() {
             return None;
         }
         Some(vec![Action::Reroll()].into_iter())

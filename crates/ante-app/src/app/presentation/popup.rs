@@ -13,6 +13,8 @@ pub(super) fn popup_sound(popup: Popup) -> Sfx {
         Popup::XMult(_) => Sfx::new("multhit2", pitch, 0.7),
         Popup::Money(_) => Sfx::new("coin3", pitch, 1.0),
         Popup::NotAllowed => Sfx::new("cardFan2", 1.0, 1.0),
+        // The original plays `gong` and `tarot1`; `tarot2` is the closest allowed sound.
+        Popup::Balanced => Sfx::new("tarot2", 1.5, 1.0),
         Popup::Message(..) => Sfx::new("generic1", pitch, 1.0),
     }
 }
@@ -28,6 +30,7 @@ pub(super) fn popup_text(popup: Popup) -> (String, Color) {
         Popup::Money(amount) if amount < 0 => (format!("-${}", -amount), POPUP_MULT),
         Popup::Money(amount) => (format!("${amount}"), POPUP_MONEY),
         Popup::NotAllowed => ("Not Allowed!".into(), Color::WHITE),
+        Popup::Balanced => ("Balanced".into(), Color::WHITE),
         Popup::Message(message, ink) => (
             message.into(),
             match ink {
@@ -80,6 +83,7 @@ pub(super) fn popup_scale(popup: Popup) -> f32 {
     match popup {
         Popup::Chips(_) | Popup::Money(_) => 1.0,
         Popup::NotAllowed => 0.9,
+        Popup::Balanced => 1.4,
         _ => 0.7,
     }
 }
@@ -181,7 +185,7 @@ pub(crate) fn animate_popup_backdrops(
 }
 
 /// `attention_text` at scale 0.9, centred one unit above the play area.
-pub(super) fn play_area_popup() -> impl Bundle {
+pub(super) fn play_area_popup(text: &'static str, scale: f32) -> impl Bundle {
     (
         ScorePopup,
         Node {
@@ -195,9 +199,9 @@ pub(super) fn play_area_popup() -> impl Bundle {
         GlobalZIndex(500),
         Pickable::IGNORE,
         children![(
-            Text::new("Not Allowed!"),
+            Text::new(text),
             TextFont {
-                font_size: bevy::text::FontSize::Px(menu_ui::text_px(0.9)),
+                font_size: bevy::text::FontSize::Px(menu_ui::text_px(scale)),
                 ..default()
             },
             TextColor(Color::WHITE),

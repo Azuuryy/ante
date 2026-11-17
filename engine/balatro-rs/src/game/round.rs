@@ -18,6 +18,9 @@ impl Game {
         self.wear_out_jokers();
         self.reset_campfires();
         self.jokers_end_of_round();
+        self.age_invisible();
+        self.stickers_end_of_round();
+        self.gift_cards();
         // Hit the Road goes back to X1 with the round's discards: "Reset" when it grew.
         let jacks = self
             .non_debuffed(self.discarded_this_round.iter())
@@ -291,6 +294,7 @@ impl Game {
         }
         self.plays -= 1;
         let selected = SelectHand::new(self.available.selected());
+        let first_hand = self.hand_ranks_played_this_round.is_empty();
         let best = selected.best_hand_with(self.hand_rules())?;
         let scored = best.clone();
         let hooked = self.press_play(&best);
@@ -320,6 +324,7 @@ impl Game {
             }
         }
         self.wear_seltzer();
+        self.sixth_sense(&scored.all, first_hand);
         // Glass Joker: X0.75 more per Glass card shattered.
         if shattered > 0 {
             self.grow_jokers(
@@ -421,6 +426,14 @@ impl Game {
     }
 
     pub(crate) fn destroy_card(&mut self, id: usize) {
+        let face = self
+            .full_deck()
+            .iter()
+            .find(|card| card.id == id)
+            .is_some_and(|card| self.is_face_card(card));
+        if face {
+            self.face_card_destroyed();
+        }
         self.available.remove_by_id(id);
         self.deck.remove_by_id(id);
         self.discarded.retain(|c| c.id != id);

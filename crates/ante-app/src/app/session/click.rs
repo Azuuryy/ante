@@ -55,7 +55,8 @@ pub(crate) enum Click {
     AssetRemove,
     AssetCancelRemove,
     ChangeSpeed,
-    /// Steps the master volume, or the game sounds volume when true.
+    /// Skips the score animation; its button is hidden for now (see `screens/hand.rs`).
+    #[allow(dead_code)]
     Skip,
     #[cfg_attr(not(feature = "dev-tools"), allow(dead_code))]
     UnlockAll,

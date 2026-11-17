@@ -64,6 +64,10 @@ pub(crate) trait RngBackend {
     fn set_gros_michel_extinct(&mut self, extinct: bool);
     /// A uniform index below `len` (`pseudorandom_element` over a list).
     fn roll_index(&mut self, len: usize) -> usize;
+    /// Joker ids the generators leave out.
+    fn set_locked(&mut self, ids: Vec<String>);
+    /// A uniform number in [0, 1) (`pseudorandom`).
+    fn roll_unit(&mut self) -> f64;
 
     /// A single freshly generated joker, outside the shop/pack context —
     /// currently only Judgement. Distinct from `gen_shop_item`'s joker arm
@@ -125,6 +129,7 @@ impl FastBackend {
             consumable_gen: ConsumableGenerator::new(),
             pack_gen: PackGenerator {
                 gros_michel_extinct: false,
+                locked: Vec::new(),
             },
         }
     }
@@ -145,6 +150,7 @@ impl RngBackend for FastBackend {
             ctx.vouchers.tarot_rate(),
             ctx.vouchers.planet_rate(),
             ctx.vouchers.playing_card_rate(),
+            ctx.spectral_rate,
         ];
         let dist = WeightedIndex::new(weights).expect("shop item weights are finite and nonzero");
         match dist.sample(&mut self.rng) {
@@ -162,6 +168,9 @@ impl RngBackend for FastBackend {
                 exclude_planets,
                 &mut self.rng,
             )),
+            4 => GeneratedItem::Consumable(Consumable::Spectral(crate::spectral::random_spectral(
+                &mut self.rng,
+            ))),
             _ => GeneratedItem::PlayingCard(gen_shop_playing_card(
                 ctx.edition_prob_mult(),
                 ctx.vouchers.shop_cards_are_modified(),
@@ -195,6 +204,15 @@ impl RngBackend for FastBackend {
 
     fn roll_index(&mut self, len: usize) -> usize {
         self.rng.gen_range(0..len.max(1))
+    }
+
+    fn roll_unit(&mut self) -> f64 {
+        self.rng.gen::<f64>()
+    }
+
+    fn set_locked(&mut self, ids: Vec<String>) {
+        self.joker_gen.locked = ids.clone();
+        self.pack_gen.locked = ids;
     }
 
     fn set_gros_michel_extinct(&mut self, extinct: bool) {

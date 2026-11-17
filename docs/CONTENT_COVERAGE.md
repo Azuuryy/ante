@@ -9,21 +9,14 @@ What Ante plays today against the original's content, and what is still missing.
 | Rarity | In the pool | Missing |
 | --- | --- | --- |
 | Common | 58 | 0 |
-| Uncommon | 58 | 6 |
-| Rare | 16 | 4 |
-| Legendary | 2 | 3 |
-| Total | 134 | 13 |
+| Uncommon | 64 | 0 |
+| Rare | 20 | 0 |
+| Legendary | 5 | 0 |
+| Total | 147 | 0 |
 
-Three more (Misprint, Golden Joker, Ice Cream) are opt-in behind the `extra-jokers` feature ([ENGINE.md](ENGINE.md)), which changes the shop pool for a given seed.
+Three more (Misprint, Golden Joker, Ice Cream) are opt-in behind the `extra-jokers` feature ([ENGINE.md](ENGINE.md)), which changes the shop pool for a given seed. Every other Joker is in the shop and packs.
 
-Credit Card waits for money below $0, and Gift Card for a sell value on consumables; both need a change to how the engine stores money and consumables.
-
-Missing, by rarity:
-
-- **Common:** Credit Card (waits, see above).
-- **Uncommon:** Sixth Sense, Gift Card, Certificate, Showman, Astronomer.
-- **Rare:** DNA, Blueprint, Invisible Joker, Brainstorm.
-- **Legendary:** Canio, Triboulet, Perkeo.
+Known gaps: Hiker's "Upgrade!" on the card and Vampire's "X1.1 Mult" during the hand are not shown; Glass cards destroyed by The Hanged Man do not count for Glass Joker; Negative consumables (Perkeo) have no Negative look yet.
 
 Joker messages: the score trace shows the messages of Jokers that grow or reset while a hand scores (Wee Joker, Spare Trousers, Green Joker, Ride the Bus and Obelisk resets; Square Joker and Runner once they exist). Messages on a discard or at the end of the round (Castle, Hit the Road, Yorick, Green Joker's −1, Mail-In Rebate, Trading Card, Faceless Joker, Gold cards and seals) show once the score animation is over. Hiker's "Upgrade!" on the card and Vampire's "X1.1 Mult" during the hand are not shown yet. Order differs slightly: Ante shows them Joker by Joker, where the original goes card by card across the Jokers.
 
@@ -31,19 +24,22 @@ Joker messages: the score trace shows the messages of Jokers that grow or reset 
 
 | Content | Playable | Missing |
 | --- | --- | --- |
-| Decks | Red, Blue | Yellow, Green, Black, Magic, Nebula, Ghost, Abandoned, Checkered, Zodiac, Painted, Anaglyph, Plasma, Erratic |
-| Stakes | White | Red, Green, Black, Blue, Purple, Orange, Gold |
+| Decks | All 15 | none |
+| Stakes | All 8 | none |
 | Challenges | none | all 20 |
 
-The 15 decks have an id, a description and an unlock condition shown in the Collection, and the deck selector lists them, but only Red and Blue can start a run (`DeckChoice::deck`, the contract's `Deck`). Several missing decks need missing content first: Magic (Crystal Ball, The Fool), Nebula (Telescope), Ghost (Hex, Spectral cards in the shop), Anaglyph (Double Tag), Plasma (its chip and Mult balance and doubled blinds), Erratic (random ranks and suits).
+Every deck applies `Back:apply_to_run` (limits, money, starting vouchers and consumables, the cards of the deck) and keeps its rules for the run: Green pays $2 per hand and $1 per discard left without interest, Ghost puts Spectral cards in the shop, Anaglyph gives a Double Tag after each Boss Blind, Plasma doubles every blind and balances Chips and Mult ("Balanced"). Left: Plasma's purple Chips and Mult boxes and its `gong` sound; decks are not locked yet (Lot 6).
+
+Stakes are cumulative from White to Gold: Red takes the Small Blind's reward, Green and Purple raise blind amounts (`get_blind_amount` scaling 2 and 3), Black puts Eternal stickers on shop and pack Jokers, Blue takes a discard, Orange adds Perishable (disabled after 5 rounds) and Gold adds Rental ($1 to buy, $3 a round). Left: the sticker sprites on the cards (the tooltips already show them).
 
 ## Unlocks and discovery
 
 | Part | State |
 | --- | --- |
-| Discovery | Done: Jokers, consumables, packs and bosses met in a run are discovered and saved in `profile.json` (`discovered`). |
-| Unlock conditions | Shown only: locked Collection entries show a padlock and their condition, but no condition is evaluated. |
-| Unlocked set | Missing: the profile has no `unlocked` set separate from `discovered`; discovery stands in for it. |
-| Career statistics | Missing: the counters the conditions read (hands played, cards discarded, rounds won, money earned, etc.). |
-| Deck and stake unlocks | Missing: decks unlock by winning with other decks and stakes, which needs the stakes first. |
+| Locks | Done: like the original, a profile starts with 91 items locked (Jokers, vouchers, decks). Locked Jokers and vouchers stay out of the shop and packs; Legendaries are never locked out and count as unlocked once found. |
+| Unlock conditions | Done: the conditions of `check_for_unlock` are checked after each command (`services/unlocks`): career statistics, hands played or discarded, rounds and runs won, antes reached, the deck's cards, the Jokers held, discoveries, wins per deck and per stake. A seeded run counts statistics but unlocks nothing and records no win. |
+| Career statistics | Done: hands, cards played, face cards, discards, sales, shop spending and rerolls, Tarot and Planet cards bought and used, playing cards bought, losses, the interest and single-hand streaks, Blank redeemed. |
+| Decks and stakes | Done: a locked deck shows its condition and cannot start; a stake opens once the deck has won at the stake below. |
+| Notification | In progress: "Unlocked!" and the item's name at the top of the window for 3 seconds, Ante's own look rather than the original `unlock_notify` with its card. |
+| Gaps | Throwback ("Continue a saved run") unlocks on continuing in endless mode, since Ante has no saved runs. Face cards played count the J, Q and K played rather than the scoring ones. |
 | Debug | Done: "Unlock all" in Settings > GAME (`dev-tools`). |

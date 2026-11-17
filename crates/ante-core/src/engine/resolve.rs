@@ -151,8 +151,7 @@ impl EngineRun {
                     && from < game.consumables.len()
                     && to < game.consumables.len() =>
             {
-                let item = game.consumables.remove(from);
-                game.consumables.insert(to, item);
+                game.move_consumable(from, to);
                 self.revision = self.revision.wrapping_add(1);
                 let phase = phase_from(game.stage);
                 return Ok(Outcome {

@@ -4,6 +4,7 @@
 //! `before` and `after`.
 
 use super::*;
+use crate::card::Value;
 use crate::event::JokerNote;
 use crate::spectral::Spectral;
 
@@ -120,6 +121,92 @@ impl Game {
                 state.counter += 1.0;
             }
         }
+    }
+
+    /// `first_hand_drawn`: Certificate adds a random card with a random seal to the hand.
+    pub(crate) fn certificates(&mut self) {
+        for _ in self.joker_ids(|j| matches!(j, Jokers::Certificate(_))) {
+            let mut card = self.backend.gen_random_card(self.prob_mult, false, None);
+            card.enhancement = None;
+            card.edition = Edition::Base;
+            let seals = [Seal::Purple, Seal::Gold, Seal::Blue, Seal::Red];
+            card.seal = Some(seals[self.backend.roll_index(seals.len())]);
+            self.available.extend(vec![card]);
+            self.playing_cards_added(1);
+        }
+    }
+
+    /// `before`, first hand of the round with one card: DNA copies it into the hand.
+    pub(super) fn dna(&mut self, hand: &MadeHand) {
+        if !self.hand_ranks_played_this_round.is_empty() || hand.all.len() != 1 {
+            return;
+        }
+        for id in self.joker_ids(|j| matches!(j, Jokers::Dna(_))) {
+            let original = hand.all[0];
+            let mut copy = Card::new(original.value, original.suit);
+            copy.enhancement = original.enhancement;
+            copy.edition = original.edition;
+            copy.seal = original.seal;
+            copy.perma_bonus = original.perma_bonus;
+            self.available.extend(vec![copy]);
+            self.playing_cards_added(1);
+            self.joker_message(id, JokerNote::Copied);
+        }
+    }
+
+    /// `destroying_card`, first hand of the round: a single 6 played is destroyed by Sixth
+    /// Sense, which creates a Spectral card if there is room.
+    pub(super) fn sixth_sense(&mut self, played: &[Card], first: bool) {
+        if !first || played.len() != 1 || played[0].value != Value::Six {
+            return;
+        }
+        let senses = self.joker_ids(|j| matches!(j, Jokers::SixthSense(_)));
+        if senses.is_empty() {
+            return;
+        }
+        self.destroy_card(played[0].id);
+        for id in senses {
+            if self.has_consumable_room() {
+                self.create_spectral(id);
+            }
+        }
+    }
+
+    /// End of round: Invisible Joker counts the rounds held.
+    pub(super) fn age_invisible(&mut self) {
+        for id in self.joker_ids(|j| matches!(j, Jokers::InvisibleJoker(_))) {
+            if let Some(state) = self.joker_state_mut(id) {
+                state.counter += 1.0;
+            }
+        }
+    }
+
+    /// `selling_self`: after 2 rounds, Invisible Joker duplicates a random other Joker
+    /// (a Negative copy loses its edition) if there is room once it is gone.
+    pub(crate) fn invisible_sold(&mut self, sold: &Jokers) {
+        if !matches!(sold, Jokers::InvisibleJoker(_)) || sold.state().counter < 2.0 {
+            return;
+        }
+        let others = self.jokers.clone();
+        if others.is_empty() || self.jokers.len() >= self.joker_slots() {
+            return;
+        }
+        let chosen = self.backend.pick_random_joker(others);
+        let mut copy = self.backend.clone_joker(chosen);
+        if copy.edition() == Edition::Negative {
+            copy.set_edition(Edition::Base);
+        }
+        let mut state = copy.state();
+        if matches!(copy, Jokers::InvisibleJoker(_)) {
+            state.counter = 0.0;
+        }
+        copy.set_state(state);
+        self.add_acquired_joker(copy);
+    }
+
+    /// Keeps the shop's Astronomer prices in step with the held Jokers.
+    pub(crate) fn sync_shop_rules(&mut self) {
+        self.shop.astronomer = self.count_jokers(|j| matches!(j, Jokers::Astronomer(_))) > 0;
     }
 
     fn joker_ids(&self, kind: fn(&Jokers) -> bool) -> Vec<usize> {

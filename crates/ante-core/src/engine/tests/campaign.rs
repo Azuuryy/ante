@@ -311,6 +311,7 @@ fn starting_money_override_only_changes_the_first_balance() {
         deck: Deck::Red,
         goal: CampaignGoal::Standard,
         starting_money,
+        stake: 1,
     };
     assert_eq!(EngineRun::with_config(config(None)).view().money, 4);
     let rich = EngineRun::with_config(config(Some(1000)));

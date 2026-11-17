@@ -224,7 +224,16 @@ fn row_label(
             text(left, count.to_string(), 0.72, BLUE);
             text(
                 left,
-                words.with_vars("remaining_hand_money", &[1]),
+                words.with_vars("remaining_hand_money", &[row.dollars / (*count).max(1)]),
+                0.36,
+                Color::WHITE,
+            );
+        }
+        RewardKind::Discards { count } => {
+            text(left, count.to_string(), 0.72, RED);
+            text(
+                left,
+                words.with_vars("remaining_discard_money", &[row.dollars / (*count).max(1)]),
                 0.36,
                 Color::WHITE,
             );

@@ -11,7 +11,7 @@ use balatro_rs::{
     pack::PackContent,
     rank::HandRank,
     score::{ScoreSource as NativeSource, ScoreTrace as NativeTrace},
-    stage::{Blind, BlindExt, End, Stage, blind_display},
+    stage::{Blind, End, Stage, blind_display},
     voucher::Voucher,
 };
 

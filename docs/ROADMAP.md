@@ -21,7 +21,7 @@ The common acceptance check compares a capture at equal client size and walks th
 | --- | --- | --- |
 | Main menu | In progress | Original `splash` background over the whole window (RED and BLUE), music1. Compare logo, buttons and returns with and without the atlas. The opening flash (`mid_flash`) waits for the splash screen. |
 | Profiles and records | MVP | Check persistent discoveries. Add multiple profiles and records. |
-| Run setup / seed | In progress | Compare carousel and input. Extend decks and stakes. |
+| Run setup / seed | In progress | All 15 decks and 8 stakes start a run. Compare carousel and input. |
 | Pause | In progress | Compare resume, restart and return to the run. |
 | Game options | MVP | Check the speed and list the other settings. |
 | Video options | MVP | Check VSync, resolution and display modes. |

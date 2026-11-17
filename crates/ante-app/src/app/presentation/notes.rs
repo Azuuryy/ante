@@ -53,6 +53,10 @@ pub(crate) fn note_popup(note: &Note) -> Option<(NoteTarget, Popup)> {
                 JokerNote::PlusJoker => Popup::Message("+1 Joker", MessageInk::Blue),
                 JokerNote::PlusStone => Popup::Message("+1 Stone", MessageInk::Filter),
                 JokerNote::LevelUp => Popup::Message("Level Up!", MessageInk::Filter),
+                JokerNote::Copied => Popup::Message("Copied!", MessageInk::Chips),
+                JokerNote::Rent(amount) => Popup::Money(-(amount as i64)),
+                JokerNote::Disabled => Popup::Message("Disabled!", MessageInk::Filter),
+                JokerNote::Duplicated => Popup::Message("Duplicated!", MessageInk::Filter),
             },
         ),
         Note::CardPaid { card, amount, .. } => {

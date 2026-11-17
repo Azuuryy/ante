@@ -157,7 +157,7 @@ impl Game {
                 Tag::Coupon if opening && !coupon => coupon = true,
                 Tag::D6 if opening && self.reroll_cost != 0 => self.reroll_cost = 0,
                 Tag::Voucher if opening => {
-                    let mut unavailable = self.vouchers.clone();
+                    let mut unavailable = self.voucher_pool();
                     for offer in self.shop.voucher_offers() {
                         unavailable.redeem(offer);
                     }
@@ -191,7 +191,7 @@ impl Game {
     pub fn boss_reroll_available(&self) -> bool {
         self.stage == Stage::PreBlind()
             && self.current_boss.is_some()
-            && self.money >= 10
+            && self.spendable() >= 10
             && (self.vouchers.has(Voucher::Retcon)
                 || (self.vouchers.has(Voucher::DirectorsCut) && !self.boss_rerolled))
     }

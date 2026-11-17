@@ -168,6 +168,14 @@ impl RngBackend for RealBackend {
         self.fast.roll_index(len)
     }
 
+    fn roll_unit(&mut self) -> f64 {
+        self.fast.roll_unit()
+    }
+
+    fn set_locked(&mut self, ids: Vec<String>) {
+        self.fast.set_locked(ids);
+    }
+
     fn set_gros_michel_extinct(&mut self, extinct: bool) {
         self.fast.set_gros_michel_extinct(extinct);
     }

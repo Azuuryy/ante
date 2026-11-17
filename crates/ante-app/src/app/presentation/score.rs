@@ -173,13 +173,21 @@ pub(crate) fn animate(
             }
         }
         // `play_area_status_text`: "Not Allowed!" over the middle of the play area.
-        if let Some((ScoreSource::NotAllowed, _)) = &popup
+        // Plasma Deck's "Balanced" uses the same spot, larger (`attention_text` scale 1.4).
+        let area_text = match &popup {
+            Some((ScoreSource::NotAllowed, _)) => Some(("Not Allowed!", 0.9)),
+            Some((ScoreSource::Balanced, _)) => Some(("Balanced", 1.4)),
+            _ => None,
+        };
+        if let Some((text, scale)) = area_text
             && let Some(area) = cards
                 .iter()
                 .find(|(.., played, _)| *played)
                 .and_then(|(entity, ..)| parents.get(entity).ok())
         {
-            commands.entity(area.parent()).with_child(play_area_popup());
+            commands
+                .entity(area.parent())
+                .with_child(play_area_popup(text, scale));
         }
         for mut text in &mut text {
             let next = playback.description();

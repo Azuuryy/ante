@@ -21,6 +21,9 @@ pub struct JokerKey(pub usize);
 pub trait RunDriver: Send + Sync {
     fn view(&self) -> RunView;
     fn apply(&mut self, command: Command, trace: TraceMode) -> Result<RunUpdate, RunError>;
+    /// Joker and voucher ids the profile has not unlocked: they stay out of the shop
+    /// and packs for this run.
+    fn set_locked(&mut self, _ids: Vec<String>) {}
 }
 
 pub trait GameBackend: Send + Sync + 'static {
@@ -34,6 +37,64 @@ pub enum Deck {
     #[default]
     Red,
     Blue,
+    Yellow,
+    Green,
+    Black,
+    Magic,
+    Nebula,
+    Ghost,
+    Abandoned,
+    Checkered,
+    Zodiac,
+    Painted,
+    Anaglyph,
+    Plasma,
+    Erratic,
+}
+
+impl Deck {
+    pub const ALL: [Deck; 15] = [
+        Deck::Red,
+        Deck::Blue,
+        Deck::Yellow,
+        Deck::Green,
+        Deck::Black,
+        Deck::Magic,
+        Deck::Nebula,
+        Deck::Ghost,
+        Deck::Abandoned,
+        Deck::Checkered,
+        Deck::Zodiac,
+        Deck::Painted,
+        Deck::Anaglyph,
+        Deck::Plasma,
+        Deck::Erratic,
+    ];
+
+    /// The original's key (`b_red`, …).
+    pub fn id(self) -> &'static str {
+        match self {
+            Deck::Red => "b_red",
+            Deck::Blue => "b_blue",
+            Deck::Yellow => "b_yellow",
+            Deck::Green => "b_green",
+            Deck::Black => "b_black",
+            Deck::Magic => "b_magic",
+            Deck::Nebula => "b_nebula",
+            Deck::Ghost => "b_ghost",
+            Deck::Abandoned => "b_abandoned",
+            Deck::Checkered => "b_checkered",
+            Deck::Zodiac => "b_zodiac",
+            Deck::Painted => "b_painted",
+            Deck::Anaglyph => "b_anaglyph",
+            Deck::Plasma => "b_plasma",
+            Deck::Erratic => "b_erratic",
+        }
+    }
+
+    pub fn from_id(id: &str) -> Option<Deck> {
+        Deck::ALL.into_iter().find(|deck| deck.id() == id)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -50,6 +111,8 @@ pub struct RunConfig {
     pub goal: CampaignGoal,
     /// Overrides the deck's starting money; the Dev build uses it for testing.
     pub starting_money: Option<usize>,
+    /// The stake, from White (1) to Gold (8).
+    pub stake: usize,
 }
 
 #[derive(Debug)]

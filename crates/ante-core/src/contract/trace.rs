@@ -58,6 +58,8 @@ pub enum ScoreSource {
     /// The boss refused the hand: "Not Allowed!" over the play area, like
     /// `play_area_status_text` in `evaluate_play`. The hand scores nothing.
     NotAllowed,
+    /// Plasma Deck averaged Chips and Mult: "Balanced" over the play area.
+    Balanced,
     /// A Joker's message as its own value grows during the hand, such as "Upgrade!" on
     /// Wee Joker, shown on the Joker like `card_eval_status_text(card, 'extra')`.
     JokerMessage {

@@ -287,6 +287,21 @@ pub fn joker_description(id: &str) -> String {
         "j_riff_raff" => "Creates 2 Common jokers when a blind is selected, if there is room.",
         "j_marble" => "Adds a Stone card to the deck when a blind is selected.",
         "j_burnt" => "Upgrades the level of the first discarded poker hand each round.",
+        "j_sixth_sense" => {
+            "If the first hand of the round is a single 6, destroys it and creates a Spectral card."
+        }
+        "j_dna" => "If the first hand of the round is a single card, adds a copy of it to the hand.",
+        "j_certificate" => "When the round starts, adds a random card with a random seal to the hand.",
+        "j_ring_master" => "Jokers, Tarot, Planet and Spectral cards may appear again.",
+        "j_astronomer" => "Planet cards and Celestial Packs in the shop are free.",
+        "j_invisible" => "After 2 rounds, sell this joker to duplicate a random joker.",
+        "j_blueprint" => "Copies the ability of the joker to the right.",
+        "j_credit_card" => "Go up to $20 in debt.",
+        "j_gift" => "Adds $1 of sell value to every joker and consumable at the end of the round.",
+        "j_perkeo" => "Creates a Negative copy of a random consumable when leaving the shop.",
+        "j_brainstorm" => "Copies the ability of the leftmost joker.",
+        "j_triboulet" => "Each scored King or Queen multiplies Mult by 2.",
+        "j_caino" => "Gains a 1 Mult multiplier when a face card is destroyed.",
         "j_shortcut" => "Straights can skip one rank between cards.",
         "j_smeared" => "Hearts and diamonds count as the same suit, and so do spades and clubs.",
         "j_delayed_grat" => "Earns $2 per discard left at the end of the round if no discard was used.",
@@ -369,6 +384,8 @@ pub(super) fn joker_current(
         }
         "j_ceremonial" => CurrentValue::Mult(counter),
         "j_loyalty_card" => CurrentValue::Count(5 - counter % 6),
+        "j_invisible" => CurrentValue::Count(counter.min(2)),
+        "j_caino" => CurrentValue::XMult(hundredths(1.0 + f64::from(joker.state().counter))),
         "j_rocket" => CurrentValue::Money(1 + counter),
         "j_satellite" => CurrentValue::Money(game.planets_used()),
         "j_cloud_9" => CurrentValue::Money(

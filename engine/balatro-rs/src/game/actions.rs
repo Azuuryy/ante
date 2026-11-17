@@ -24,6 +24,7 @@ impl Game {
         trace: Option<&mut TraceRecorder>,
     ) -> Result<(), GameError> {
         self.action_history.push(action.clone());
+        self.settle_debt();
         match action {
             Action::SelectCard(card) => {
                 if self.stage.is_blind() {
@@ -116,7 +117,7 @@ impl Game {
                 if !self.boss_reroll_available() {
                     return Err(GameError::InvalidAction);
                 }
-                self.money -= 10;
+                self.pay(10);
                 self.replace_boss();
                 Ok(())
             }

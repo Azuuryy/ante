@@ -22,6 +22,7 @@ const KEYS: &[(&str, &str)] = &[
     ("b_cash_out", "Cash Out"),
     ("ph_score_at_least", "Score at least"),
     ("remaining_hand_money", "Remaining Hands ($#1# each)"),
+    ("remaining_discard_money", "Remaining Discards ($#1# each)"),
     ("interest", "#1# interest per $#2# (#3# max)"),
 ];
 

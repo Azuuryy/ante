@@ -193,6 +193,10 @@ pub struct RunView {
     pub hands: usize,
     pub discards: usize,
     pub money: usize,
+    /// Cards dealt each round (`G.hand.config.card_limit`).
+    pub hand_size: usize,
+    /// The money is below $0 by `money` dollars (Credit Card).
+    pub in_debt: bool,
     pub reward: usize,
     /// The rows that make up `reward`, in the order of `G.FUNCS.evaluate_round`; empty
     /// outside the Reward phase.
@@ -226,8 +230,10 @@ pub struct RewardRow {
 pub enum RewardKind {
     /// The cleared Blind's own reward.
     Blind,
-    /// $1 per hand left.
+    /// $1 per hand left ($2 with the Green Deck).
     Hands { count: usize },
+    /// Green Deck: $1 per discard left.
+    Discards { count: usize },
     /// A Joker's end-of-round dollar bonus.
     Joker {
         id: JokerKey,

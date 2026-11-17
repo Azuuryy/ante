@@ -115,6 +115,8 @@ pub(crate) fn button(
     menu_ui::menu_button(ui, &text.into(), BUTTON, action);
 }
 
+/// The speed button, hidden for now (see `screens/hand.rs`).
+#[allow(dead_code)]
 pub(crate) fn speed_button(ui: &mut ChildSpawnerCommands, speed: Speed) {
     button(
         ui,

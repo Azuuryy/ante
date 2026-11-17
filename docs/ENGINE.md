@@ -23,7 +23,7 @@ Snapshots go through `Game::from_json`, which rebuilds the effect registry and a
 
 Every run writes one JSON-lines file to `%LOCALAPPDATA%\Ante\runs\` (`<timestamp>-<seed>.jsonl`, the 20 most recent kept), in Prod and Dev. Commands name cards and offers by their position in the confirmed view, not by the engine's runtime ids, so a log replays in any process. Format 2 (`run_log::FORMAT_VERSION`) has three kinds of lines:
 
-- `header`: the run configuration (seed, deck, goal, starting money, Ante version, whether the optional Jokers were built in).
+- `header`: the run configuration (seed, deck, stake, goal, starting money, Ante version, whether the optional Jokers were built in). A header without a stake is White Stake.
 - `step`: one command, its refusal if any, the number of score steps it produced, the state fields that changed (`after`: phase, ante, round, money, score, hands, discards, reward, hand, Jokers, consumables, tags, deck size) and, when there is something to say, an `explain` block. That block holds the blind started (name, score, rule), the hand played (type, Chips × Mult, score), the score trace summarised by source (`Greedy Joker on JD +3 mult ×2`, `KH held x1.5`), the engine's notes (a Gold card paid, a seal created a card, a tag gained), the Jokers whose current value moved, and the offers of the shop or a pack just opened.
 - `select`: card selections, sorts and moves sent one after another, as short codes (`t2`, `ss`, `sr`, `m3>`), with their refusals and the hand they leave. They wait for the next other command and are written when the log closes.
 

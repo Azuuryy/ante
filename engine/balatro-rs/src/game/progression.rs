@@ -32,6 +32,7 @@ impl Game {
         self.roll_card_targets(false);
         self.jokers_set_blind(blind);
         self.deal();
+        self.certificates();
         Ok(())
     }
 
@@ -96,6 +97,8 @@ impl Game {
     }
 
     pub(super) fn next_round(&mut self) -> Result<(), GameError> {
+        // `ending_shop`.
+        self.perkeo();
         self.stage = Stage::PreBlind();
         self.round += 1;
         self.resolve_blind_choice_tags();
@@ -142,6 +145,7 @@ impl Game {
             while self.take_tag(Tag::Investment) {
                 reward.tags.push((Tag::Investment, 25));
             }
+            self.anaglyph_after_boss();
         }
         self.reward = reward.total();
         self.round_reward = reward;

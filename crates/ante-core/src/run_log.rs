@@ -32,6 +32,13 @@ pub struct Header {
     pub deck: String,
     pub goal: String,
     pub starting_money: Option<usize>,
+    /// From White (1) to Gold (8); absent from logs before stakes, which were White.
+    #[serde(default = "white_stake")]
+    pub stake: usize,
+}
+
+fn white_stake() -> usize {
+    1
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -144,26 +151,20 @@ impl Header {
             ante_version: env!("CARGO_PKG_VERSION").to_owned(),
             extra_jokers: cfg!(feature = "extra-jokers"),
             seed: config.seed,
-            deck: match config.deck {
-                Deck::Red => "red",
-                Deck::Blue => "blue",
-            }
-            .to_owned(),
+            deck: config.deck.id().trim_start_matches("b_").to_owned(),
             goal: match config.goal {
                 CampaignGoal::Standard => "standard",
                 CampaignGoal::SingleAnte => "single_ante",
             }
             .to_owned(),
             starting_money: config.starting_money,
+            stake: config.stake,
         }
     }
 
     pub fn config(&self) -> Result<RunConfig, ReplayError> {
-        let deck = match self.deck.as_str() {
-            "red" => Deck::Red,
-            "blue" => Deck::Blue,
-            other => return Err(ReplayError::Header(format!("unknown deck {other}"))),
-        };
+        let deck = Deck::from_id(&format!("b_{}", self.deck))
+            .ok_or_else(|| ReplayError::Header(format!("unknown deck {}", self.deck)))?;
         let goal = match self.goal.as_str() {
             "standard" => CampaignGoal::Standard,
             "single_ante" => CampaignGoal::SingleAnte,
@@ -174,6 +175,7 @@ impl Header {
             deck,
             goal,
             starting_money: self.starting_money,
+            stake: self.stake,
         })
     }
 }

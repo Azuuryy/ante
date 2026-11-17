@@ -234,7 +234,14 @@ fn options_lay_out_cleanly() {
 #[test]
 fn deck_select_controls_do_not_overlap() {
     let mut app = layout(|ui, session, atlases| {
-        crate::screens::run::deck_select(ui, session, atlases, &ante_core::engine::ExternalBackend);
+        let profile = crate::services::profile::Profile::load();
+        crate::screens::run::deck_select(
+            ui,
+            session,
+            atlases,
+            &ante_core::engine::ExternalBackend,
+            &profile,
+        );
     });
     check(&mut app);
 }

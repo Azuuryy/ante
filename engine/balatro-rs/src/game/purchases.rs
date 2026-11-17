@@ -15,6 +15,7 @@ impl Game {
         let vouchers = self.vouchers.clone();
         let ctx = self.shop_context(&planetarium, &held_consumables, &held_jokers, &vouchers);
         self.shop.refresh(&ctx, &mut self.backend);
+        self.sticker_shop();
         self.shop.extra_vouchers.clear();
         self.resolve_shop_tags(true);
         Ok(())
@@ -30,7 +31,7 @@ impl Game {
             return;
         }
         self.voucher_ante = Some(self.ante_current);
-        let vouchers = self.vouchers.clone();
+        let vouchers = self.voucher_pool();
         self.shop.voucher = self
             .backend
             .gen_voucher(self.ante_current.number() as i32, &vouchers);
@@ -40,13 +41,13 @@ impl Game {
         if self.stage != Stage::Shop() {
             return Err(GameError::InvalidStage);
         }
-        if self.money < self.current_reroll_cost() {
+        if self.spendable() < self.current_reroll_cost() {
             return Err(GameError::InvalidBalance);
         }
         if self.free_rerolls > 0 {
             self.free_rerolls -= 1;
         } else {
-            self.money -= self.reroll_cost;
+            self.pay(self.reroll_cost);
             self.reroll_cost += 1;
         }
         // Flash Card: +2 Mult per reroll.
@@ -65,6 +66,7 @@ impl Game {
         // and the voucher offer untouched.
         let ctx = self.shop_context(&planetarium, &held, &held_jokers, &vouchers);
         self.shop.refresh_cards(&ctx, &mut self.backend);
+        self.sticker_shop();
         self.resolve_shop_tags(false);
         Ok(())
     }
@@ -73,11 +75,13 @@ impl Game {
         if matches!(self.stage, Stage::End(_)) {
             return Err(GameError::InvalidStage);
         }
-        if idx >= self.jokers.len() {
+        if idx >= self.jokers.len() || self.jokers[idx].stickers().eternal {
             return Err(GameError::InvalidAction);
         }
         self.money += self.joker_sell_value(&self.jokers[idx]);
         let sold = self.jokers.remove(idx);
+        self.sync_shop_rules();
+        self.invisible_sold(&sold);
         if matches!(sold, Jokers::ChaosTheClown(_)) {
             self.chaos_changed(false);
         }
@@ -113,8 +117,8 @@ impl Game {
         if idx >= self.consumables.len() {
             return Err(GameError::InvalidAction);
         }
-        self.money += self.consumables[idx].sell_value();
-        self.consumables.remove(idx);
+        self.money += self.consumable_sell_value(idx);
+        self.remove_consumable_at(idx);
         self.jokers_card_sold();
         Ok(())
     }
@@ -132,11 +136,11 @@ impl Game {
             return Err(GameError::NoAvailableSlot);
         }
         let price = self.shop.joker_price(&joker, &self.vouchers);
-        if price > self.money {
+        if price > self.spendable() {
             return Err(GameError::InvalidBalance);
         }
         self.shop.buy_joker(&joker)?;
-        self.money -= price;
+        self.pay(price);
         self.add_acquired_joker(joker);
         Ok(())
     }
@@ -147,6 +151,9 @@ impl Game {
                 (self.config.joker_slots + 1).min(self.config.joker_slots_max);
         }
         self.backend.on_joker_bought(&joker);
+        if matches!(joker, Jokers::Astronomer(_)) {
+            self.shop.astronomer = true;
+        }
         if matches!(joker, Jokers::ChaosTheClown(_)) {
             self.chaos_changed(true);
         }
@@ -162,7 +169,7 @@ impl Game {
         if self.consumables.len() >= self.consumable_slots() {
             return Err(GameError::NoAvailableSlot);
         }
-        if self.shop.consumable_price(&consumable, &self.vouchers) > self.money {
+        if self.shop.consumable_price(&consumable, &self.vouchers) > self.spendable() {
             return Err(GameError::InvalidBalance);
         }
         let price = self.shop.consumable_price(&consumable, &self.vouchers);
@@ -170,7 +177,7 @@ impl Game {
         self.shop
             .free_consumables
             .retain(|offer| *offer != consumable);
-        self.money -= price;
+        self.pay(price);
         self.consumables.push(consumable);
         Ok(())
     }
@@ -185,14 +192,14 @@ impl Game {
             return Err(GameError::VoucherAlreadyRedeemed);
         }
         // Vouchers are exempt from Clearance Sale / Liquidation.
-        if voucher.cost() > self.money {
+        if voucher.cost() > self.spendable() {
             return Err(GameError::InvalidBalance);
         }
         if !self.vouchers.is_offerable(voucher) {
             return Err(GameError::InvalidAction);
         }
         self.shop.buy_voucher(&voucher)?;
-        self.money -= voucher.cost();
+        self.pay(voucher.cost());
         self.vouchers.redeem(voucher);
         self.backend.on_voucher_bought(&voucher);
         self.apply_voucher(voucher);
@@ -238,11 +245,11 @@ impl Game {
             return Err(GameError::NoAvailableSlot);
         }
         let cost = self.shop.card_price(&card, &self.vouchers);
-        if cost > self.money {
+        if cost > self.spendable() {
             return Err(GameError::InvalidBalance);
         }
         let bought = self.shop.buy_card(&card)?;
-        self.money -= cost;
+        self.pay(cost);
         self.deck.push(bought);
         self.playing_cards_added(1);
         Ok(())

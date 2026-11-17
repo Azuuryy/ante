@@ -27,6 +27,8 @@ pub enum ScoreSource {
     /// A Joker's value went back to its start while the hand scored (Ride the Bus,
     /// Obelisk): the original shows "Reset" on it.
     JokerReset(Jokers),
+    /// Plasma Deck averaged Chips and Mult before the score (`k_balanced`).
+    Balanced,
 }
 
 /// One step in a scoring pass
@@ -67,6 +69,7 @@ impl ScoreStep {
             ScoreSource::NotAllowed => "Not Allowed!".to_string(),
             ScoreSource::JokerUpgrade(j) => format!("{} upgrade", j.name()),
             ScoreSource::JokerReset(j) => format!("{} reset", j.name()),
+            ScoreSource::Balanced => "Balanced".to_string(),
         };
 
         let mut parts = Vec::new();

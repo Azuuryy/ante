@@ -31,16 +31,22 @@ use strum::IntoEnumIterator;
 
 mod actions;
 mod boss_hand;
+mod consumable_meta;
 mod consumables;
+mod decks;
 mod display;
 mod joker_cards;
+mod joker_copies;
 mod joker_hooks;
+mod locks;
+mod money;
 mod progression;
 mod purchases;
 mod round;
 mod scoring;
 #[cfg(feature = "serde")]
 mod snapshot;
+mod stakes;
 mod tags;
 mod trace_steps;
 
@@ -151,6 +157,24 @@ pub struct Game {
     // The card whose Lucky effect triggered in the current scoring step (Lucky Cat).
     #[cfg_attr(feature = "serde", serde(skip))]
     pub(crate) lucky_trigger: Option<usize>,
+    // The starting deck, for the rules it keeps all run (Green, Ghost, Anaglyph, Plasma).
+    #[cfg_attr(feature = "serde", serde(default = "default_deck_variant"))]
+    pub(crate) deck_variant: balatro_types::DeckVariant,
+    // The state of each held consumable, by position (Gift Card, Perkeo).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) consumable_meta: Vec<consumable_meta::ConsumableMeta>,
+    // Joker and voucher ids the profile has not unlocked.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) locked: Vec<String>,
+    // Dollars owed below $0 (Credit Card).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) debt: usize,
+    // The stake, from White (1) to Gold (8).
+    #[cfg_attr(feature = "serde", serde(default = "default_stake"))]
+    pub(crate) stake: usize,
+    // How deep Blueprint and Brainstorm copies are nested right now.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub(crate) copy_depth: usize,
     // The Ox: `current_round.most_played_poker_hand`, set after each Boss Blind; None
     // until then, which reads as High Card like the original's starting value.
     #[cfg_attr(feature = "serde", serde(default))]
@@ -283,6 +307,12 @@ impl Game {
             free_rerolls: 0,
             planets_used: HashSet::new(),
             lucky_trigger: None,
+            copy_depth: 0,
+            stake: 1,
+            debt: 0,
+            locked: Vec::new(),
+            consumable_meta: Vec::new(),
+            deck_variant: balatro_types::DeckVariant::Red,
             ox_hand: None,
             boss_play_triggered: false,
             consecutive_hands_without_face_card: 0,
@@ -395,7 +425,9 @@ impl Game {
 
     /// Consumable slots — Crystal Ball adds one.
     pub fn consumable_slots(&self) -> usize {
-        self.config.consumable_slots + self.vouchers.consumable_slot_bonus()
+        self.config.consumable_slots
+            + self.vouchers.consumable_slot_bonus()
+            + self.negative_consumables()
     }
 
     /// Hands per round — Grabber/Nacho Tong add, Hieroglyph subtracts.
@@ -425,7 +457,10 @@ impl Game {
 
     /// Held Jokers matching `kind`.
     pub(crate) fn count_jokers(&self, kind: fn(&Jokers) -> bool) -> usize {
-        self.jokers.iter().filter(|joker| kind(joker)).count()
+        self.jokers
+            .iter()
+            .filter(|joker| !joker.is_disabled() && kind(joker))
+            .count()
     }
 
     /// What the next reroll costs: nothing while Chaos the Clown's free rerolls last.
@@ -467,7 +502,12 @@ impl Game {
     /// least $1, like `sell_cost` from `Card:set_cost`, which reruns when a voucher
     /// changes the discount.
     pub fn joker_sell_value(&self, joker: &Jokers) -> usize {
-        (self.vouchers.discounted(joker.full_cost()) / 2).max(1) + joker.state().extra_value
+        let cost = if joker.stickers().rental {
+            1
+        } else {
+            self.vouchers.discounted(joker.full_cost())
+        };
+        (cost / 2).max(1) + joker.state().extra_value
     }
 
     fn apply_delta(base: usize, delta: isize) -> usize {
@@ -488,16 +528,27 @@ impl Game {
         held_jokers: &'a [Jokers],
         vouchers: &'a Vouchers,
     ) -> ShopContext<'a> {
+        // Showman: owned Jokers and consumables may appear again (`used_jokers`).
+        let showman = self.count_jokers(|j| matches!(j, Jokers::Showman(_))) > 0;
         ShopContext {
             planetarium,
-            held_consumables,
-            held_jokers,
+            held_consumables: if showman { &[] } else { held_consumables },
+            held_jokers: if showman { &[] } else { held_jokers },
+            spectral_rate: self.spectral_rate(),
             vouchers,
             prob_mult: self.prob_mult,
             ante: self.ante_current.number() as i32,
             most_played: self.most_played_hand_rank(),
         }
     }
+}
+
+fn default_stake() -> usize {
+    1
+}
+
+fn default_deck_variant() -> balatro_types::DeckVariant {
+    balatro_types::DeckVariant::Red
 }
 
 impl Default for Game {

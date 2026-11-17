@@ -4,6 +4,11 @@
 
 ### Added
 
+- Unlocks like the original: a profile starts with the original's 91 items locked, and each one unlocks when its condition is met (career statistics, specific hands and discards, rounds and runs won, antes reached, the deck's cards, discoveries, wins per deck and stake). Locked Jokers and vouchers stay out of the shop and packs, a locked deck cannot start, and a stake opens once the deck has won at the stake below. "Unlocked!" shows the item's name. Seeded runs unlock nothing, like the original.
+- Credit Card (money can go down to -$20, shown as "-$n"), Gift Card ("Value Up!" on every Joker and consumable each round) and Perkeo (a Negative copy of a random consumable when leaving the shop, with its own slot). Every Joker of the original is now in the game.
+- All eight stakes can start a run, cumulative like the original: Red (no Small Blind reward), Green and Purple (higher blind amounts), Black (Eternal Jokers that cannot be sold), Blue (one discard less), Orange (Perishable Jokers, "Disabled!" after 5 rounds) and Gold (Rental Jokers, $1 to buy and $3 a round). The run log records the stake.
+- The 13 other decks can start a run: Yellow, Green, Black, Magic, Nebula, Ghost, Abandoned, Checkered, Zodiac, Painted, Anaglyph, Plasma and Erratic, with their original setup (`Back:apply_to_run`) and rules. Green's discards show their own row at cash out, and Plasma shows "Balanced" over the play area.
+- Ten more Jokers: Sixth Sense, DNA ("Copied!"), Certificate, Showman (owned cards may show up again), Astronomer (Planet cards and Celestial packs are free), Invisible Joker (sold after 2 rounds, duplicates a random Joker), Blueprint and Brainstorm (copy the Joker to the right or the leftmost one, without making it grow twice), and the Legendaries Triboulet and Canio. 144 of the 150 Jokers are now in the game.
 - Twelve Jokers that create cards or level up hands: 8 Ball, Superposition, Seance, Vagabond, Hallucination and Cartomancer ("+1 Tarot" or "+1 Spectral"), Riff-raff ("+1 Joker"), Marble Joker ("+1 Stone"), Space Joker ("Level Up!"), Burnt Joker (levels up the first discarded hand each round), Loyalty Card (X4 every sixth hand) and Diet Cola (a Double Tag when sold).
 - Four Fingers, Shortcut and Smeared Joker: hands are read like the original `get_flush` and `get_straight` (flushes and straights of 4 cards, straights skipping one rank, Hearts with Diamonds and Spades with Clubs), and the "contains a Straight/Flush" Jokers follow them.
 - Nine Jokers that change the round's rules: Oops! All 6s (doubles every listed probability), Chaos the Clown (a free reroll in each shop), Burglar ("+3 Hands", no discards), Juggler, Drunkard, Troubadour, Merry Andy, Splash (every played card scores) and Mr. Bones ("Saved!" when the last hand reaches a quarter of the blind; the blind then pays nothing).
@@ -105,6 +110,7 @@
 
 ### Changed
 
+- The profile moves to version 5 with the unlocked items, career statistics and wins per deck. Earlier profiles keep their discoveries and settings but start with everything the original locks locked; "Unlock all" (Dev build) still opens everything.
 - Joker descriptions write card ranks as figures, like the original: "each scored 10 or 4", "every scored 2", "Ace, 2, 3, 5 or 8".
 - The documentation is in English: the roadmaps, the interface guides, the game logic notes, the capture library and the two project skills, so outside contributors can follow it.
 - The Blinds tab of Run Info shows the blind choice panels side by side, as `G.UIDEF.current_blinds` does: each blind prints its state (Current, Defeated, Skipped, Upcoming or Select, in its colour) instead of the Select button, and the tag shows "Skip Reward" instead of the Skip Blind button.
@@ -159,6 +165,7 @@
 
 ### Fixed
 
+- The "Scoring..." label (current score and Joker), the Skip button and the Speed button are hidden while a hand scores: with the hand lowered they no longer fit. Their code is commented out in `screens/hand.rs` until their place is decided.
 - A Stone card has no suit, like the original `Card:is_suit`: it no longer counts for a Flush, for suit Jokers (Greedy, Lusty, Arrowhead…), and a suit boss such as The Club no longer debuffs it.
 - A Negative Joker destroyed by an effect (eaten, extinct, sliced) gives its extra slot back, as selling one does.
 - Opening the Deck view no longer shows it loading twice: the pointer leaving the deck pile under the new view rewrote the session and rebuilt the screen a frame later.

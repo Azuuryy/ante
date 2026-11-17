@@ -26,6 +26,8 @@ pub(crate) struct ShopContext<'a> {
     /// the shop doesn't offer a duplicate.
     pub held_consumables: &'a [Consumable],
     pub held_jokers: &'a [Jokers],
+    /// Weight of Spectral cards among shop items (Ghost Deck: 2).
+    pub spectral_rate: f64,
     pub vouchers: &'a Vouchers,
     pub prob_mult: u32,
     pub ante: i32,
@@ -60,6 +62,7 @@ impl<'a> ShopContext<'a> {
             planetarium,
             held_consumables: &[],
             held_jokers: &[],
+            spectral_rate: 0.0,
             vouchers,
             prob_mult: 1,
             ante,
@@ -94,6 +97,9 @@ pub struct Shop {
     pub(crate) free_consumables: Vec<Consumable>,
     #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) free_packs: bool,
+    /// Astronomer held: Planet cards and Celestial packs cost nothing (`Card:set_cost`).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) astronomer: bool,
 }
 
 impl Shop {
@@ -106,13 +112,17 @@ impl Shop {
     pub fn joker_price(&self, joker: &Jokers, vouchers: &Vouchers) -> usize {
         if self.free_jokers.contains(&joker.instance_id()) {
             0
+        } else if joker.stickers().rental {
+            1
         } else {
             vouchers.discounted(joker.full_cost())
         }
     }
 
     pub fn consumable_price(&self, card: &Consumable, vouchers: &Vouchers) -> usize {
-        if self.free_consumables.contains(card) {
+        if self.free_consumables.contains(card)
+            || (self.astronomer && matches!(card, Consumable::Planet(_)))
+        {
             0
         } else {
             vouchers.discounted(card.cost())
@@ -128,7 +138,7 @@ impl Shop {
     }
 
     pub fn pack_price(&self, pack: &Pack, vouchers: &Vouchers) -> usize {
-        if self.free_packs {
+        if self.free_packs || (self.astronomer && pack.category == PackCategory::Celestial) {
             0
         } else {
             vouchers.discounted(pack.cost())

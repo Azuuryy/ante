@@ -107,6 +107,7 @@ mod victory {
             deck: Deck::Red,
             goal: CampaignGoal::SingleAnte,
             starting_money: None,
+            stake: 1,
         });
         let mut history = Vec::new();
         let start = run.view();
@@ -169,10 +170,12 @@ mod victory {
             deck,
             goal: CampaignGoal::SingleAnte,
             starting_money: None,
+            stake: 1,
         });
         let expected = match deck {
             ante_core::contract::Deck::Red => (4, 4),
             ante_core::contract::Deck::Blue => (5, 3),
+            _ => unreachable!("only Red and Blue are observed here"),
         };
         let mut history = Vec::new();
         run.apply(Command::StartBlind).unwrap();

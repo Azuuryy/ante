@@ -13,6 +13,10 @@ impl Game {
             return;
         };
         let removed = self.jokers.remove(index);
+        self.shop.astronomer = self
+            .jokers
+            .iter()
+            .any(|j| matches!(j, Jokers::Astronomer(_)));
         if matches!(removed, Jokers::ChaosTheClown(_)) {
             self.chaos_changed(false);
         }
@@ -154,6 +158,7 @@ impl Game {
     /// before the hand scores, and Vampire gains X0.1 per card.
     pub(super) fn jokers_before_scoring(&mut self, hand: &mut MadeHand) {
         self.space_jokers(hand.rank);
+        self.dna(hand);
         let vampires = self.held_ids(|j| matches!(j, Jokers::Vampire(_)));
         if vampires.is_empty() {
             return;

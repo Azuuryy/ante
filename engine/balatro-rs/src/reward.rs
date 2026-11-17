@@ -11,6 +11,11 @@ pub struct RoundReward {
     pub blind: usize,
     pub hands_left: usize,
     pub hand_dollars: usize,
+    /// Green Deck: $1 per discard left.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub discards_left: usize,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub discard_dollars: usize,
     pub jokers: Vec<(Jokers, usize)>,
     pub tags: Vec<(Tag, usize)>,
     pub interest: usize,
@@ -20,6 +25,7 @@ impl RoundReward {
     pub fn total(&self) -> usize {
         self.blind
             + self.hand_dollars
+            + self.discard_dollars
             + self
                 .jokers
                 .iter()

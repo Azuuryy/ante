@@ -107,6 +107,10 @@ pub(super) fn note(event: balatro_rs::event::GameEvent) -> Note {
                 EngineNote::PlusJoker => JokerNote::PlusJoker,
                 EngineNote::PlusStone => JokerNote::PlusStone,
                 EngineNote::LevelUp => JokerNote::LevelUp,
+                EngineNote::Copied => JokerNote::Copied,
+                EngineNote::Rent(amount) => JokerNote::Rent(amount),
+                EngineNote::Disabled => JokerNote::Disabled,
+                EngineNote::Duplicated => JokerNote::Duplicated,
             },
         },
     }
@@ -229,6 +233,7 @@ pub(super) fn map_trace(trace: NativeTrace) -> ScoreTrace {
                             ScoreSource::Voucher(ContentId(voucher.id()), voucher_name(voucher))
                         }
                         NativeSource::NotAllowed => ScoreSource::NotAllowed,
+                        NativeSource::Balanced => ScoreSource::Balanced,
                         // Only the Jokers whose growth the original announces keep the step.
                         NativeSource::JokerUpgrade(joker) => {
                             let (message, ink) = upgrade_message(joker.id())?;
@@ -301,6 +306,14 @@ pub(super) fn reward_rows(
                 count: reward.hands_left,
             },
             dollars: reward.hand_dollars,
+        });
+    }
+    if reward.discards_left > 0 {
+        rows.push(RewardRow {
+            kind: RewardKind::Discards {
+                count: reward.discards_left,
+            },
+            dollars: reward.discard_dollars,
         });
     }
     for (joker, dollars) in &reward.jokers {

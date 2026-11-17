@@ -1,15 +1,24 @@
 use super::*;
 
 /// Starts a new run, or restarts the last configuration.
-pub(super) fn start_run(session: &mut Session, backend: &dyn GameBackend, click: Click) {
+pub(super) fn start_run(
+    session: &mut Session,
+    backend: &dyn GameBackend,
+    profile: &Profile,
+    click: Click,
+) {
     let config = if matches!(click, Click::Restart) {
         session.last_config
     } else {
         session
             .navigation
             .deck
+            .filter(|deck| {
+                // A locked deck, or a stake above the one the deck reached, cannot start.
+                profile.is_unlocked(deck.id(), deck.unlock())
+                    && session.stake <= crate::app::navigation::stake_limit(profile, *deck)
+            })
             .and_then(DeckChoice::deck)
-            .filter(|_| session.stake == 0)
             .and_then(|deck| {
                 let seed = if session.seeded_run {
                     parse_seed(backend, &session.seed)?
@@ -21,12 +30,15 @@ pub(super) fn start_run(session: &mut Session, backend: &dyn GameBackend, click:
                     deck,
                     goal: session.goal,
                     starting_money: STARTING_MONEY_OVERRIDE,
+                    stake: session.stake + 1,
                 })
             })
     };
     if let Some(config) = config {
+        let locked = crate::services::unlocks::locked_ids(profile, backend);
         let (run, view) = match guard_simulation("Could not start the run", || {
-            let run = backend.start(config);
+            let mut run = backend.start(config);
+            run.set_locked(locked);
             let view = run.view();
             Ok((run, view))
         }) {
@@ -48,6 +60,11 @@ pub(super) fn start_run(session: &mut Session, backend: &dyn GameBackend, click:
         session.notes.clear();
         session.run_id = session.run_id.wrapping_add(1);
         session.last_config = Some(config);
+        session.unlocks = crate::services::unlocks::RunTracker::new(
+            session.seeded_run,
+            config.deck.id(),
+            config.stake,
+        );
         session.navigation.screen = Page::Run;
         journal_event!(
             "run_started",
@@ -55,7 +72,7 @@ pub(super) fn start_run(session: &mut Session, backend: &dyn GameBackend, click:
         );
     } else {
         session.error =
-            Some("Choose an available deck, White Stake and a valid seed if enabled.".into());
+            Some("Choose an unlocked deck and stake, and a valid seed if enabled.".into());
     }
 }
 
@@ -64,6 +81,7 @@ pub(super) fn play(
     session: &mut Session,
     metrics: &mut FrameMetrics,
     profile: &mut Profile,
+    backend: &dyn GameBackend,
     action: Command,
 ) {
     session.inventory_selection = None;
@@ -109,6 +127,15 @@ pub(super) fn play(
     }
     match result {
         Ok(update) => {
+            let unlocked = crate::services::unlocks::observe(
+                &mut session.unlocks,
+                &before,
+                action,
+                &update,
+                profile,
+                backend,
+            );
+            session.unlock_toasts.extend(unlocked);
             session.confirmed = Some(update.view);
             session.notes.extend(update.notes);
             let outcome = update.outcome;

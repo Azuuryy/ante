@@ -7,6 +7,7 @@ const CONFIG: RunConfig = RunConfig {
     deck: Deck::Red,
     goal: CampaignGoal::Standard,
     starting_money: None,
+    stake: 1,
 };
 
 /// Plays a few real commands, a refused one included, and returns the log lines.

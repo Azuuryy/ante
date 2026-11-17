@@ -97,12 +97,16 @@ pub(crate) struct JokerGenerator {
     /// leaves it.
     #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) gros_michel_extinct: bool,
+    /// Joker ids not unlocked yet; Legendaries are never left out.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) locked: Vec<String>,
 }
 
 impl JokerGenerator {
     pub(crate) fn new() -> Self {
         JokerGenerator {
             gros_michel_extinct: false,
+            locked: Vec::new(),
         }
     }
 
@@ -140,6 +144,9 @@ impl JokerGenerator {
                 Jokers::GrosMichel(_) => !extinct,
                 Jokers::Cavendish(_) => extinct,
                 _ => true,
+            })
+            .filter(|j| {
+                j.rarity() == Rarity::Legendary || !self.locked.iter().any(|id| id == j.id())
             })
             .collect();
         let choices: Vec<_> = all
@@ -236,6 +243,8 @@ pub(crate) struct PackGenerator {
     /// Same flag as [`JokerGenerator`], for Buffoon packs.
     #[cfg_attr(feature = "serde", serde(default))]
     pub(crate) gros_michel_extinct: bool,
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub(crate) locked: Vec<String>,
 }
 
 impl PackGenerator {
@@ -307,6 +316,7 @@ impl PackGenerator {
     ) -> Vec<PackContent> {
         let joker_gen = JokerGenerator {
             gros_michel_extinct: self.gros_michel_extinct,
+            locked: self.locked.clone(),
         };
         let consumable_gen = ConsumableGenerator {};
 

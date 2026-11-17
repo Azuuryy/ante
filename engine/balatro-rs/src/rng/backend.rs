@@ -136,6 +136,20 @@ impl RngBackend for Backend {
         }
     }
 
+    fn roll_unit(&mut self) -> f64 {
+        match self {
+            Backend::Fast(b) => b.roll_unit(),
+            Backend::Real(b) => b.roll_unit(),
+        }
+    }
+
+    fn set_locked(&mut self, ids: Vec<String>) {
+        match self {
+            Backend::Fast(b) => b.set_locked(ids),
+            Backend::Real(b) => b.set_locked(ids),
+        }
+    }
+
     fn set_gros_michel_extinct(&mut self, extinct: bool) {
         match self {
             Backend::Fast(b) => b.set_gros_michel_extinct(extinct),

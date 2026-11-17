@@ -61,7 +61,7 @@ impl EffectRegistry {
         self.trigger_count_played.clear();
         self.trigger_count_held.clear();
         self.rule_flags.clear();
-        for j in jokers {
+        for j in jokers.into_iter().filter(|j| !j.is_disabled()) {
             for e in j.effects(game) {
                 match e {
                     Effects::OnPlay(_) => self.on_play.push(e),

@@ -111,7 +111,8 @@ impl Game {
             .iter()
             .enumerate()
             .filter(|(_i, j)| {
-                self.can_add_joker(j) && self.shop.joker_price(j, &self.vouchers) <= self.money
+                self.can_add_joker(j)
+                    && self.shop.joker_price(j, &self.vouchers) <= self.spendable()
             })
             .for_each(|(i, _j)| {
                 space
@@ -131,7 +132,7 @@ impl Game {
             .consumables
             .iter()
             .enumerate()
-            .filter(|(_i, c)| self.shop.consumable_price(c, &self.vouchers) <= self.money)
+            .filter(|(_i, c)| self.shop.consumable_price(c, &self.vouchers) <= self.spendable())
             .for_each(|(i, _c)| {
                 space
                     .unmask_buy_consumable(i)
@@ -183,7 +184,7 @@ impl Game {
             .packs
             .iter()
             .enumerate()
-            .filter(|(_, p)| self.shop.pack_price(p, &self.vouchers) <= self.money)
+            .filter(|(_, p)| self.shop.pack_price(p, &self.vouchers) <= self.spendable())
             .for_each(|(i, _)| {
                 space.unmask_buy_pack(i).expect("valid index for buy pack");
             });
@@ -193,7 +194,11 @@ impl Game {
         if self.stage != Stage::Shop() {
             return;
         }
-        if self.shop.voucher.is_none_or(|v| v.cost() > self.money) {
+        if self
+            .shop
+            .voucher
+            .is_none_or(|v| v.cost() > self.spendable())
+        {
             return;
         }
         space.unmask_buy_voucher();
@@ -212,7 +217,7 @@ impl Game {
             .cards
             .iter()
             .enumerate()
-            .filter(|(_, c)| self.shop.card_price(c, &self.vouchers) <= self.money)
+            .filter(|(_, c)| self.shop.card_price(c, &self.vouchers) <= self.spendable())
             .for_each(|(i, _)| {
                 space
                     .unmask_buy_playing_card(i)
@@ -262,7 +267,7 @@ impl Game {
         if self.stage != Stage::Shop() {
             return;
         }
-        if self.money < self.current_reroll_cost() {
+        if self.spendable() < self.current_reroll_cost() {
             return;
         }
         space.unmask_reroll();

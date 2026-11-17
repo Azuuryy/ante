@@ -199,6 +199,7 @@ pub fn run(backend: impl GameBackend) {
                 .chain(),
         )
         .add_systems(Update, apply_text_size.after(apply_local_font))
+        .add_systems(Update, app::presentation::show_unlock_toasts)
         .init_resource::<components::sparkles::PackOpening>()
         .add_systems(Update, components::sparkles::update.after(render))
         .add_systems(

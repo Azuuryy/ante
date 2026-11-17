@@ -70,6 +70,14 @@ pub enum JokerNote {
     PlusStone,
     /// "Level Up!" (Space Joker).
     LevelUp,
+    /// "Copied!" in `G.C.CHIPS` (DNA).
+    Copied,
+    /// "-$n" paid for a Rental Joker.
+    Rent(usize),
+    /// "Disabled!" (a Perishable Joker's last round).
+    Disabled,
+    /// "Duplicated!" (Perkeo).
+    Duplicated,
 }
 
 impl Game {

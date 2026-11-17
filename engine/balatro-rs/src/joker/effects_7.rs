@@ -73,7 +73,13 @@ pub(super) fn effects(joker: &Jokers) -> Option<Vec<Effects>> {
         | Jokers::Cartomancer(_)
         | Jokers::RiffRaff(_)
         | Jokers::MarbleJoker(_)
-        | Jokers::BurntJoker(_) => vec![],
+        | Jokers::BurntJoker(_)
+        | Jokers::SixthSense(_)
+        | Jokers::Dna(_)
+        | Jokers::Certificate(_)
+        | Jokers::Showman(_)
+        | Jokers::Astronomer(_)
+        | Jokers::InvisibleJoker(_) => vec![],
         _ => return None,
     })
 }

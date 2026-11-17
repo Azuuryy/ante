@@ -1,12 +1,10 @@
 use crate::{
-    app::{playback::Speed, presentation::PlaybackLabel, session::Click},
+    app::{playback::Speed, session::Click},
     components::{
         pixel_rect::PixelBox,
         theme::INK,
         tiles as menu_ui,
-        widgets::{
-            CARD_HEIGHT, PLAY_AREA_RISE, button, card_control, label, shadowed_label, speed_button,
-        },
+        widgets::{CARD_HEIGHT, PLAY_AREA_RISE, card_control, label, shadowed_label},
     },
     screens::run::deck_preview,
     services::assets::catalog::Atlases,
@@ -225,23 +223,29 @@ pub(crate) fn playing_board(
         if preview {
             return;
         }
+        // MVP controls, hidden for now (the "Scoring..." label with the current score and
+        // Joker, Skip and Speed): with the hand lowered during scoring they no longer fit.
+        // Their handlers (`Click::Skip`, `Click::ChangeSpeed`) and `PlaybackLabel` stay.
+        //
+        // if playing_trace {
+        //     area.spawn(Node {
+        //         position_type: PositionType::Absolute,
+        //         left: percent(100),
+        //         bottom: px(CARD_HEIGHT + 0.3 * menu_ui::TILE),
+        //         flex_direction: FlexDirection::Column,
+        //         align_items: AlignItems::Center,
+        //         row_gap: px(10),
+        //         ..default()
+        //     })
+        //     .with_children(|controls| {
+        //         controls.spawn((PlaybackLabel, Text::new("Scoring..."), TextColor(INK)));
+        //         button(controls, "Skip", Some(Click::Skip));
+        //         speed_button(controls, speed);
+        //     });
+        // }
+        let _ = speed;
         if playing_trace {
-            // Out of the flow, so the hand can drop into the buttons' place: the scoring
-            // controls wait right of the hand, above the deck pile.
-            area.spawn(Node {
-                position_type: PositionType::Absolute,
-                left: percent(100),
-                bottom: px(CARD_HEIGHT + 0.3 * menu_ui::TILE),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                row_gap: px(10),
-                ..default()
-            })
-            .with_children(|controls| {
-                controls.spawn((PlaybackLabel, Text::new("Scoring..."), TextColor(INK)));
-                button(controls, "Skip", Some(Click::Skip));
-                speed_button(controls, speed);
-            });
+            // Nothing below the hand while it scores.
         } else {
             let label = area
                 .spawn((

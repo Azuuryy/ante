@@ -59,6 +59,10 @@ impl RunDriver for EngineRun {
         EngineRun::view(self)
     }
 
+    fn set_locked(&mut self, ids: Vec<String>) {
+        self.game.set_locked(ids);
+    }
+
     fn apply(&mut self, command: Command, trace: TraceMode) -> Result<RunUpdate, RunError> {
         let before = self.phase();
         let won = self.game.campaign_won;

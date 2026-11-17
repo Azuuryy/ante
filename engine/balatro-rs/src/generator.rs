@@ -213,7 +213,10 @@ impl Game {
         if self.jokers.is_empty() {
             return None;
         }
-        let actions: Vec<Action> = (0..self.jokers.len()).map(Action::SellJoker).collect();
+        let actions: Vec<Action> = (0..self.jokers.len())
+            .filter(|&index| !self.jokers[index].stickers().eternal)
+            .map(Action::SellJoker)
+            .collect();
         Some(actions.into_iter())
     }
 

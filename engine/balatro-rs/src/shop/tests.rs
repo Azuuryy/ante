@@ -119,6 +119,7 @@ fn test_pack_gen_produces_valid_packs() {
     let planetarium = Planetarium::new();
     let gen = PackGenerator {
         gros_michel_extinct: false,
+        locked: Vec::new(),
     };
     for _ in 0..50 {
         let pack = gen.gen_pack(&planetarium, 1, None, &[], &mut rand::thread_rng());
@@ -132,6 +133,7 @@ fn test_pack_gen_can_produce_valid_spectral_packs() {
     let planetarium = Planetarium::new();
     let gen = PackGenerator {
         gros_michel_extinct: false,
+        locked: Vec::new(),
     };
     let mut saw_spectral = false;
     for _ in 0..200 {

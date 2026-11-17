@@ -42,7 +42,11 @@ impl RunBoard {
             score_text(view.score),
             view.hands.to_string(),
             view.discards.to_string(),
-            format!("${}", view.money),
+            if view.in_debt {
+                format!("-${}", view.money)
+            } else {
+                format!("${}", view.money)
+            },
             view.ante.to_string(),
             view.round.to_string(),
         ]) {

@@ -69,6 +69,9 @@ pub struct JokerState {
     /// Sell value gained (`ability.extra_value`: Egg, Gift Card).
     #[cfg_attr(feature = "serde", serde(default))]
     pub extra_value: usize,
+    /// Rounds a Perishable Joker still works (`perish_tally`).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub perish_rounds: u8,
 }
 
 /// `Jokers` is the definitive static repr of all jokers in the game.
@@ -152,6 +155,10 @@ macro_rules! make_jokers {
             pub fn set_stickers(&mut self, stickers: Stickers) { *self.inner_mut().1 = stickers; }
             pub fn set_instance_id(&mut self, id: usize) { *self.inner_mut().2 = id; }
             pub fn set_state(&mut self, state: JokerState) { *self.inner_mut().3 = state; }
+            /// A Perishable Joker past its last round is debuffed: it does nothing.
+            pub fn is_disabled(&self) -> bool {
+                self.stickers().perishable && self.state().perish_rounds == 0
+            }
         }
 
         impl std::str::FromStr for Jokers {

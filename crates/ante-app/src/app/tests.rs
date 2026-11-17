@@ -20,7 +20,11 @@ fn app() -> App {
     app.insert_resource(Backend(Box::new(ante_core::engine::ExternalBackend)))
         .insert_resource(Session::new(CampaignGoal::Standard, AssetSettings::load()))
         .init_resource::<FrameMetrics>()
-        .insert_resource(Profile::load())
+        .insert_resource(Profile::fresh_at(std::env::temp_dir().join(format!(
+            "ante-app-tests-{}-{:?}.json",
+            std::process::id(),
+            std::thread::current().id()
+        ))))
         .add_message::<Click>()
         .add_message::<diagnostics::ToggleFramePacing>()
         .add_message::<AppExit>()
@@ -37,6 +41,11 @@ fn click(app: &mut App, action: Click) {
 #[test]
 fn navigation_and_options_preserve_run_and_retry_configuration() {
     let mut app = app();
+    // The Blue Deck is locked on a fresh profile.
+    app.world_mut()
+        .resource_mut::<Profile>()
+        .unlock_all(std::iter::empty())
+        .unwrap();
     click(&mut app, Click::Collection(0));
     assert_eq!(
         app.world().resource::<Session>().navigation.screen,
@@ -88,7 +97,10 @@ fn seeded_run_pause_and_continue_preserve_configuration() {
     app.world_mut().resource_mut::<Session>().seed = "ante2026".into();
     click(&mut app, Click::ShiftStake(1));
     click(&mut app, Click::Start);
-    assert!(app.world().resource::<Session>().run.is_none());
+    assert!(
+        app.world().resource::<Session>().run.is_none(),
+        "Red Stake waits for a White Stake win"
+    );
     click(&mut app, Click::ShiftStake(-1));
     click(&mut app, Click::Start);
     let seed = app.world().resource::<Session>().last_config.unwrap().seed;
@@ -182,14 +194,27 @@ fn collection_subpages_return_to_hub_and_options_keep_tab_state() {
 }
 
 #[test]
-fn unavailable_decks_cannot_start_and_quit_is_requested() {
+fn locked_decks_wait_for_their_unlock_and_quit_is_requested() {
     let mut app = app();
     click(&mut app, Click::OpenDecks);
     click(&mut app, Click::ShiftDeck(2));
     click(&mut app, Click::Start);
-    assert!(app.world().resource::<Session>().run.is_none());
-    assert!(app.world().resource::<Session>().error.is_some());
-    click(&mut app, Click::Back);
+    assert!(
+        app.world().resource::<Session>().run.is_none(),
+        "Yellow is locked"
+    );
+    app.world_mut()
+        .resource_mut::<Profile>()
+        .unlock_all(std::iter::empty())
+        .unwrap();
+    click(&mut app, Click::Start);
+    let session = app.world().resource::<Session>();
+    assert!(session.run.is_some(), "the Yellow Deck starts");
+    assert_eq!(
+        session.last_config.map(|config| config.deck),
+        Some(ante_core::contract::Deck::Yellow)
+    );
+    assert!(session.error.is_none());
     click(&mut app, Click::Quit);
     assert!(!app.world().resource::<Messages<AppExit>>().is_empty());
 }

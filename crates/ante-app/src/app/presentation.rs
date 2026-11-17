@@ -31,11 +31,13 @@ mod notes;
 mod popup;
 mod score;
 mod text;
+mod unlock_toast;
 
 pub(crate) use notes::*;
 pub(crate) use popup::*;
 pub(crate) use score::*;
 pub(crate) use text::*;
+pub(crate) use unlock_toast::*;
 #[derive(Component)]
 pub(crate) struct Screen;
 
@@ -73,10 +75,14 @@ pub(crate) fn render(
     let board_visible =
         !session.faulted && (page == Page::Run || session.navigation.overlays_run());
     if board_visible && let Some(current) = &session.confirmed {
-        let deck = match session.last_config.map(|config| config.deck) {
-            Some(ante_core::contract::Deck::Blue) => DeckChoice::Blue,
-            _ => DeckChoice::Red,
-        };
+        let deck = session
+            .last_config
+            .and_then(|config| {
+                DeckChoice::ALL
+                    .into_iter()
+                    .find(|choice| choice.id() == config.deck.id())
+            })
+            .unwrap_or(DeckChoice::Red);
         if surface
             .as_ref()
             .is_none_or(|board| board.run_id != session.run_id || screens.get(board.root).is_err())
@@ -114,7 +120,7 @@ pub(crate) fn render(
                 } else if page != Page::Run {
                     run_ui::overlay(ui, |modal| match page {
                         Page::DeckSelect => {
-                            run_ui::deck_select(modal, &session, &atlases, &*backend.0)
+                            run_ui::deck_select(modal, &session, &atlases, &*backend.0, &profile)
                         }
                         Page::Pause => run_ui::pause(modal, session.playback.is_some()),
                         Page::RunInfo => {
@@ -179,7 +185,9 @@ pub(crate) fn render(
             main_menu(ui, &atlases, splash);
             if page != Page::Main {
                 run_ui::overlay(ui, |modal| match page {
-                    Page::DeckSelect => run_ui::deck_select(modal, &session, &atlases, &*backend.0),
+                    Page::DeckSelect => {
+                        run_ui::deck_select(modal, &session, &atlases, &*backend.0, &profile)
+                    }
                     Page::Options => show_options(modal, &session, &pacing, &profile),
                     Page::Collection => {
                         show_collection(modal, &session, &profile, &atlases, &*backend.0)

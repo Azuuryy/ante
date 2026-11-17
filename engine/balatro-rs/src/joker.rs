@@ -18,6 +18,7 @@ mod effects_4;
 mod effects_5;
 mod effects_6;
 mod effects_7;
+mod effects_8;
 
 static JOKER_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
@@ -81,6 +82,7 @@ impl JokerEffects for Jokers {
             .or_else(|| effects_5::effects(self))
             .or_else(|| effects_6::effects(self))
             .or_else(|| effects_7::effects(self))
+            .or_else(|| effects_8::effects(self))
             .unwrap_or_default()
     }
 
@@ -221,6 +223,19 @@ impl JokerEffects for Jokers {
                 | Self::RiffRaff(_)
                 | Self::MarbleJoker(_)
                 | Self::BurntJoker(_)
+                | Self::SixthSense(_)
+                | Self::Dna(_)
+                | Self::Certificate(_)
+                | Self::Showman(_)
+                | Self::Astronomer(_)
+                | Self::InvisibleJoker(_)
+                | Self::Blueprint(_)
+                | Self::Brainstorm(_)
+                | Self::Triboulet(_)
+                | Self::Canio(_)
+                | Self::CreditCard(_)
+                | Self::GiftCard(_)
+                | Self::Perkeo(_)
         ) || cfg!(feature = "ante-extra-jokers")
             && matches!(
                 self,

@@ -11,6 +11,7 @@ fn profile_at(path: PathBuf) -> Profile {
         all_unlocked: false,
         game_speed: None,
         volumes: Volumes::default(),
+        progress: Progress::default(),
         writable: true,
         dirty: false,
     }
@@ -109,6 +110,7 @@ fn version_one_profiles_migrate_without_losing_discoveries() {
         all_unlocked: stored.all_unlocked,
         game_speed: stored.game_speed,
         volumes: stored.volumes,
+        progress: stored.progress,
         writable: true,
         dirty: false,
     };
@@ -140,10 +142,58 @@ fn unlock_all_persists_flag_and_catalog_entries() {
 }
 
 #[test]
-fn unlocked_items_require_discovery_without_the_debug_flag() {
-    let profile = profile_at(temporary("profile-locks"));
+fn locked_items_open_with_their_condition_not_with_discovery() {
+    let path = temporary("profile-locks");
+    let mut profile = profile_at(path.clone());
     assert!(profile.is_unlocked("j_joker", None));
-    assert!(!profile.is_unlocked("j_brainstorm", Some("Discard a Royal Flush")));
+    let condition = Some("Discard a Royal Flush");
+    profile.discover("j_brainstorm").unwrap();
+    assert!(
+        !profile.is_unlocked("j_brainstorm", condition),
+        "seen is not unlocked"
+    );
+    profile
+        .update_progress(|progress| {
+            progress.unlocked.insert("j_brainstorm".into());
+        })
+        .unwrap();
+    assert!(profile.is_unlocked("j_brainstorm", condition));
+    // A Legendary counts once found.
+    assert!(!profile.is_unlocked("j_perkeo", Some("Found in the Soul")));
+    profile.discover("j_perkeo").unwrap();
+    assert!(profile.is_unlocked("j_perkeo", Some("Found in the Soul")));
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn progress_round_trips_through_version_5() {
+    let path = temporary("profile-progress");
+    let mut profile = profile_at(path.clone());
+    profile
+        .update_progress(|progress| {
+            progress.add("c_hands_played", 3);
+            progress.record_win("b_red", 2);
+            progress.unlocked.insert("b_blue".into());
+        })
+        .unwrap();
+    let stored = Profile::read(&path).unwrap();
+    assert_eq!(stored.progress.stat("c_hands_played"), 3);
+    assert_eq!(stored.progress.deck_win_stake("b_red"), 2);
+    assert!(stored.progress.unlocked.contains("b_blue"));
+    fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn a_version_4_profile_starts_with_everything_locked() {
+    let path = temporary("profile-v4");
+    fs::write(
+        &path,
+        r#"{"version":4,"discovered":["j_brainstorm"],"all_unlocked":false}"#,
+    )
+    .unwrap();
+    let stored = Profile::read(&path).unwrap();
+    assert!(stored.progress.unlocked.is_empty());
+    fs::remove_file(path).unwrap();
 }
 
 #[test]

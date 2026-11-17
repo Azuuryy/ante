@@ -9,8 +9,17 @@ use bevy::prelude::*;
 use serde_json::Value;
 use serde_json::json;
 
-/// Version 4 adds the music volume; version 3 profiles read it as 100.
-const VERSION: u64 = 4;
+mod progress;
+pub(crate) use progress::Progress;
+
+/// Version 5 adds the progress (unlocked items, career statistics, deck wins); older
+/// profiles start with none, so what the original locks is locked. Version 4 added the
+/// music volume; version 3 profiles read it as 100.
+const VERSION: u64 = 5;
+
+/// Legendary Jokers are found through The Soul, never unlocked by a condition: they
+/// count as unlocked once discovered.
+const LEGENDARIES: [&str; 5] = ["j_caino", "j_triboulet", "j_yorick", "j_chicot", "j_perkeo"];
 
 #[derive(Default)]
 struct Stored {
@@ -18,6 +27,7 @@ struct Stored {
     all_unlocked: bool,
     game_speed: Option<f32>,
     volumes: Volumes,
+    progress: Progress,
 }
 
 /// Original sound settings (`G.SETTINGS.SOUND`): master volume 50, music and game sounds
@@ -57,6 +67,7 @@ pub struct Profile {
     all_unlocked: bool,
     game_speed: Option<f32>,
     volumes: Volumes,
+    progress: Progress,
     writable: bool,
     dirty: bool,
 }
@@ -71,6 +82,7 @@ impl Profile {
                 all_unlocked: stored.all_unlocked,
                 game_speed: stored.game_speed,
                 volumes: stored.volumes,
+                progress: stored.progress,
                 writable: true,
                 dirty: false,
             },
@@ -82,6 +94,7 @@ impl Profile {
                     all_unlocked: false,
                     game_speed: None,
                     volumes: Volumes::default(),
+                    progress: Progress::default(),
                     writable: false,
                     dirty: false,
                 }
@@ -125,24 +138,35 @@ impl Profile {
             music: volume("music_volume", defaults.music),
             game: volume("game_volume", defaults.game),
         };
+        let progress = Progress::read(&mut data);
         match version {
             Some(1) => Ok(Stored {
                 discovered,
                 all_unlocked: false,
                 game_speed: None,
                 volumes: Volumes::default(),
+                progress: Progress::default(),
             }),
             Some(2) => Ok(Stored {
                 discovered,
                 all_unlocked,
                 game_speed: None,
                 volumes: Volumes::default(),
+                progress: Progress::default(),
             }),
             Some(3 | 4) => Ok(Stored {
                 discovered,
                 all_unlocked,
                 game_speed,
                 volumes,
+                progress: Progress::default(),
+            }),
+            Some(5) => Ok(Stored {
+                discovered,
+                all_unlocked,
+                game_speed,
+                volumes,
+                progress,
             }),
             _ => Err(io::Error::other("Unsupported profile version")),
         }
@@ -191,7 +215,7 @@ impl Profile {
         let pending = self
             .path
             .with_extension(format!("{}.tmp", std::process::id()));
-        let data = json!({
+        let mut data = json!({
             "version": VERSION,
             "discovered": self.discovered,
             "all_unlocked": self.all_unlocked,
@@ -200,6 +224,7 @@ impl Profile {
             "music_volume": self.volumes.music,
             "game_volume": self.volumes.game,
         });
+        self.progress.write(&mut data);
         fs::write(&pending, serde_json::to_vec(&data)?)?;
         fs::rename(pending, &self.path)
     }
@@ -255,20 +280,55 @@ impl Profile {
         self.discovered.contains(id)
     }
 
-    /// Whether the collection may show the real art for this item. Discovery is
-    /// the only in-game unlock trigger implemented so far, so it doubles as an
-    /// unlock when the debug "Unlock All" flag is off.
+    /// Whether `id` is unlocked: it has no condition, its condition was met, "Unlock all"
+    /// was used, or it is a Legendary already found.
     pub fn is_unlocked(&self, id: &str, condition: Option<&str>) -> bool {
-        self.all_unlocked || condition.is_none() || self.discovered(id)
+        self.all_unlocked
+            || condition.is_none()
+            || self.progress.unlocked.contains(id)
+            || (LEGENDARIES.contains(&id) && self.discovered(id))
     }
 
-    #[cfg_attr(not(feature = "dev-tools"), allow(dead_code))]
+    pub(crate) fn progress(&self) -> &Progress {
+        &self.progress
+    }
+
+    /// Changes the progress and saves it when something changed.
+    pub(crate) fn update_progress(&mut self, change: impl FnOnce(&mut Progress)) -> io::Result<()> {
+        let before = self.progress.clone();
+        change(&mut self.progress);
+        if self.progress == before {
+            return Ok(());
+        }
+        if !self.writable {
+            return Err(io::Error::other(
+                "Existing profile is unreadable and was preserved",
+            ));
+        }
+        self.save()
+    }
+
     pub fn all_unlocked(&self) -> bool {
         self.all_unlocked
     }
 
     pub fn is_writable(&self) -> bool {
         self.writable
+    }
+
+    /// A fresh profile saved at `path`, for tests.
+    #[cfg(test)]
+    pub(crate) fn fresh_at(path: PathBuf) -> Self {
+        Self {
+            path,
+            discovered: BTreeSet::new(),
+            all_unlocked: false,
+            game_speed: None,
+            volumes: Volumes::default(),
+            progress: Progress::default(),
+            writable: true,
+            dirty: false,
+        }
     }
 }
 

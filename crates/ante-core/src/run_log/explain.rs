@@ -148,6 +148,7 @@ fn source(source: &ScoreSource, before: &RunView) -> String {
         }
         ScoreSource::Voucher(_, name) => (*name).to_owned(),
         ScoreSource::NotAllowed => "Boss".to_owned(),
+        ScoreSource::Balanced => "Plasma Deck".to_owned(),
     }
 }
 
@@ -155,6 +156,7 @@ fn source(source: &ScoreSource, before: &RunView) -> String {
 fn effect(step: &ScoreStep) -> Option<String> {
     match step.source {
         ScoreSource::NotAllowed => return Some("not allowed".to_owned()),
+        ScoreSource::Balanced => return Some("balanced".to_owned()),
         ScoreSource::JokerMessage { message, .. } => return Some(message.to_owned()),
         _ => {}
     }

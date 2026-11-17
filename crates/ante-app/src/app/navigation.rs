@@ -11,6 +11,29 @@ pub(crate) const STAKES: [&str; 8] = [
     "Gold Stake",
 ];
 
+/// What each stake adds, on top of the ones below it (Ante's own wording).
+pub(crate) const STAKE_RULES: [&str; 8] = [
+    "Base difficulty",
+    "Small Blind gives no reward money",
+    "Required scores scale faster each ante",
+    "Shop Jokers may be Eternal (cannot be sold)",
+    "-1 discard each round",
+    "Required scores scale faster again",
+    "Shop Jokers may be Perishable (debuffed after 5 rounds)",
+    "Shop Jokers may be Rental ($3 each round)",
+];
+
+/// The highest stake (0 = White) `deck` may start at: one above the highest won with it.
+pub(crate) fn stake_limit(profile: &crate::services::profile::Profile, deck: DeckChoice) -> usize {
+    if profile.all_unlocked() {
+        return STAKES.len() - 1;
+    }
+    profile
+        .progress()
+        .deck_win_stake(deck.id())
+        .min(STAKES.len() - 1)
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Screen {
     #[default]
@@ -83,11 +106,7 @@ impl DeckChoice {
     }
 
     pub fn deck(self) -> Option<Deck> {
-        match self {
-            Self::Red => Some(Deck::Red),
-            Self::Blue => Some(Deck::Blue),
-            _ => None,
-        }
+        Deck::from_id(self.id())
     }
 
     /// The deck's starting rule (`b_*` description), read from the engine.
@@ -205,16 +224,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn deck_selector_wraps_and_only_supported_decks_can_start() {
+    fn deck_selector_wraps_and_every_deck_can_start() {
         assert_eq!(DeckChoice::Red.shifted(-1), DeckChoice::Erratic);
         assert_eq!(DeckChoice::Erratic.shifted(1), DeckChoice::Red);
         assert_eq!(DeckChoice::Red.deck(), Some(Deck::Red));
-        assert_eq!(DeckChoice::Blue.deck(), Some(Deck::Blue));
-        assert!(
-            DeckChoice::ALL[2..]
-                .iter()
-                .all(|deck| deck.deck().is_none())
-        );
+        assert_eq!(DeckChoice::Plasma.deck(), Some(Deck::Plasma));
+        assert!(DeckChoice::ALL.iter().all(|deck| deck.deck().is_some()));
     }
 
     #[test]

@@ -14,6 +14,28 @@ pub(super) fn phase_from(stage: Stage) -> Phase {
 
 pub(super) const STARTING_MONEY: usize = 4;
 
+/// The engine's deck for a contract deck.
+pub(super) fn engine_deck(deck: Deck) -> balatro_types::DeckVariant {
+    use balatro_types::DeckVariant as D;
+    match deck {
+        Deck::Red => D::Red,
+        Deck::Blue => D::Blue,
+        Deck::Yellow => D::Yellow,
+        Deck::Green => D::Green,
+        Deck::Black => D::Black,
+        Deck::Magic => D::Magic,
+        Deck::Nebula => D::Nebula,
+        Deck::Ghost => D::Ghost,
+        Deck::Abandoned => D::Abandoned,
+        Deck::Checkered => D::Checkered,
+        Deck::Zodiac => D::Zodiac,
+        Deck::Painted => D::Painted,
+        Deck::Anaglyph => D::Anaglyph,
+        Deck::Plasma => D::Plasma,
+        Deck::Erratic => D::Erratic,
+    }
+}
+
 pub struct EngineRun {
     pub(super) game: Game,
     pub(super) sort_by_suit: bool,
@@ -31,14 +53,13 @@ impl EngineRun {
             deck: Deck::Red,
             goal: CampaignGoal::Standard,
             starting_money: None,
+            stake: 1,
         })
     }
 
     pub fn with_config(run: RunConfig) -> Self {
-        let (plays, discards) = match run.deck {
-            Deck::Red => (4, 4),
-            Deck::Blue => (5, 3),
-        };
+        // The base hands and discards; the deck adjusts them (`Back:apply_to_run`).
+        let (plays, discards) = (4, 3);
         let config = Config {
             seed: Some(run.seed),
             money_start: run.starting_money.unwrap_or(STARTING_MONEY),
@@ -53,6 +74,8 @@ impl EngineRun {
             ..Config::default()
         };
         let mut game = Game::new(config);
+        game.apply_deck(engine_deck(run.deck));
+        game.apply_stake(run.stake);
         game.start();
         Self {
             game,

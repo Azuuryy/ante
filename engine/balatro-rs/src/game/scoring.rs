@@ -27,6 +27,9 @@ impl Game {
         retrigger: bool,
     ) {
         for joker in self.jokers.clone() {
+            if joker.is_disabled() {
+                continue;
+            }
             for effect in joker.effects(self) {
                 let apply = match (effect, held) {
                     (Effects::OnCardScored(f), false) | (Effects::OnCardHeld(f), true) => f,
@@ -281,6 +284,9 @@ impl Game {
         // effects recomputed per joker, not read from EffectRegistry. Each joker's edition
         // bonus must sandwich its own OnScore closures in self.jokers order.
         for joker in self.jokers.clone() {
+            if joker.is_disabled() {
+                continue;
+            }
             let chips_before = self.chips;
             let mult_before = self.mult;
             match joker.edition() {
@@ -345,6 +351,7 @@ impl Game {
         // record after joker loop, not before (for CardSharp)
         self.hand_ranks_played_this_round.insert(hand.rank);
 
+        self.balance_plasma(&mut trace);
         // compute score
         let score = (self.chips as f64 * self.mult).floor() as usize;
 
@@ -360,7 +367,7 @@ impl Game {
     }
 
     pub fn required_score_for(&self, blind: Option<Blind>) -> usize {
-        let base = self.ante_current.base();
+        let base = self.blind_amount() * self.ante_scaling();
         match blind {
             None => base,
             Some(Blind::Small) => base,
@@ -379,7 +386,7 @@ impl Game {
     /// The score the upcoming Boss Blind will require, based on
     /// `current_boss`, valid before boss blind is active.
     pub fn boss_required_score(&self) -> usize {
-        self.ante_current.base() * Self::boss_score_multiplier(self.current_boss)
+        self.blind_amount() * self.ante_scaling() * Self::boss_score_multiplier(self.current_boss)
     }
 
     pub(super) fn boss_score_multiplier(boss: Option<BossBlind>) -> usize {
@@ -404,11 +411,26 @@ impl Game {
             .iter()
             .filter(|joker| matches!(joker, Jokers::ToTheMoon(_)))
             .count();
-        let interest = chunks * (1 + moons);
+        let interest = if self.green_deck() {
+            0
+        } else {
+            chunks * (1 + moons)
+        };
+        let (per_hand, discard_dollars) = if self.green_deck() {
+            (2, self.discards_remaining)
+        } else {
+            (self.config.money_per_hand, 0)
+        };
         Ok(crate::reward::RoundReward {
-            blind: blind.reward(),
+            blind: self.blind_reward(blind),
             hands_left: self.plays,
-            hand_dollars: self.plays * self.config.money_per_hand,
+            hand_dollars: self.plays * per_hand,
+            discards_left: if self.green_deck() {
+                self.discards_remaining
+            } else {
+                0
+            },
+            discard_dollars,
             jokers: self
                 .jokers
                 .iter()

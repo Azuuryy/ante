@@ -135,6 +135,7 @@ fn cavendish_only_appears_once_gros_michel_is_extinct() {
     let draw = |extinct: bool, rng: &mut rand::rngs::ThreadRng| {
         let generator = JokerGenerator {
             gros_michel_extinct: extinct,
+            locked: Vec::new(),
         };
         (0..400)
             .map(|_| generator.gen_joker_of_rarity(1, &[], Rarity::Common, rng))
@@ -192,4 +193,22 @@ fn round_targets_come_from_the_deck_and_the_suit_moves_on() {
         );
     }
     let _ = first;
+}
+
+#[test]
+fn locked_jokers_never_appear_but_legendaries_do() {
+    use crate::shop::generators::JokerGenerator;
+    let mut rng = rand::thread_rng();
+    let generator = JokerGenerator {
+        gros_michel_extinct: false,
+        locked: vec!["j_joker".to_owned(), "j_perkeo".to_owned()],
+    };
+    for _ in 0..400 {
+        let joker = generator.gen_joker_of_rarity(1, &[], Rarity::Common, &mut rng);
+        assert!(!matches!(joker, Jokers::TheJoker(_)));
+    }
+    let legendaries: Vec<_> = (0..200)
+        .map(|_| generator.gen_joker_of_rarity(1, &[], Rarity::Legendary, &mut rng))
+        .collect();
+    assert!(legendaries.iter().any(|j| matches!(j, Jokers::Perkeo(_))));
 }
